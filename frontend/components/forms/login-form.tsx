@@ -30,12 +30,11 @@ export default function LoginForm() {
 
     login({
       id: '1',
-      name: 'وکیل دادیار',
-      email: data.email,
-      role: 'lawyer',
+      firstName: 'وکیل',
+      lastName: 'دادیار',
     })
 
-    router.replace('/')
+    router.push('/dashboard')
   }
 
   return (
