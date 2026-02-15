@@ -1,10 +1,54 @@
 'use client'
 
 import { useAuthStore } from '@/store/auth.store'
-import { Bell, Search } from 'lucide-react'
+import { useSearchStore } from '@/store/search.store'
+import { Bell, Search, X } from 'lucide-react'
+import { useRouter, usePathname } from 'next/navigation'  
+import { useState, useEffect } from 'react'
 
 export default function DashboardHeader() {
   const user = useAuthStore((s) => s.user)
+  const router = useRouter()
+  const pathname = usePathname()
+  
+  const { searchTerm, setSearchTerm } = useSearchStore()
+  const [localSearch, setLocalSearch] = useState(searchTerm)
+
+  useEffect(() => {
+    setLocalSearch(searchTerm)
+  }, [searchTerm])
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalSearch(e.target.value)
+  }
+
+  const handleSearch = () => {
+    if (localSearch.trim()) {
+      
+      if (!pathname.includes('/dashboard/cases')) {
+        setSearchTerm(localSearch)  
+        router.push(`/dashboard/cases?search=${encodeURIComponent(localSearch)}`)
+      } else {
+       
+        setSearchTerm(localSearch)
+      }
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch()
+    }
+    if (e.key === 'Escape') {
+      setLocalSearch('')
+      setSearchTerm('')
+    }
+  }
+
+  const handleClearSearch = () => {
+    setLocalSearch('')
+    setSearchTerm('')
+  }
 
   return (
     <header className="bg-white border-b border-zinc-200 px-6 py-4">
@@ -17,9 +61,20 @@ export default function DashboardHeader() {
             />
             <input
               type="text"
-              placeholder="جستجوی پرونده..."
-              className="w-full pr-10 pl-4 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              value={localSearch}
+              onChange={handleSearchChange}
+              onKeyDown={handleKeyDown}
+              placeholder="جستجوی پرونده... "
+              className="w-full pr-10 pl-10 py-2 border border-zinc-200 text-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900"
             />
+            {localSearch && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+              >
+                <X size={18} />
+              </button>
+            )}
           </div>
         </div>
 

@@ -49,7 +49,7 @@ export default function LoginForm() {
           {...register('email')}
           type="email"
           placeholder="ایمیل"
-          className="w-full rounded border px-3 py-2"
+          className="w-full rounded border text-red-500 px-3 py-2"
         />
         {errors.email && (
           <p className="mt-1 text-sm text-red-500">
@@ -63,7 +63,7 @@ export default function LoginForm() {
           {...register('password')}
           type="password"
           placeholder="رمز عبور"
-          className="w-full rounded border px-3 py-2"
+          className="w-full rounded border text-red-500 px-3 py-2"
         />
         {errors.password && (
           <p className="mt-1 text-sm text-red-500">

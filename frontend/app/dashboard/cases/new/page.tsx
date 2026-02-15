@@ -62,8 +62,8 @@ export default function NewCasePage() {
         </div>
       </div>
 
-      {/* فرم */}
-      <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-lg border border-zinc-200 p-6 space-y-6">
+    
+      <form onSubmit={handleSubmit(onSubmit)} className="bg-white rounded-lg border text-zinc-900 border-zinc-200 p-6 space-y-6">
         {/* عنوان */}
         <div>
           <label className="block text-sm font-medium text-zinc-900 mb-2">

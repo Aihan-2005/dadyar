@@ -1,4 +1,4 @@
-
+export type CaseStatus = 'pending' | 'in-progress' | 'completed' | 'archived'
 
 export interface Case{
     id: string
@@ -7,6 +7,7 @@ export interface Case{
     opponent: string
     caseNumber : string
     trackingCode : string
+      status: CaseStatus
     contracts: ContractStage[]
 }
 

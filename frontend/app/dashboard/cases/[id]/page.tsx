@@ -41,6 +41,10 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
     }
   }
 
+  const handleEdit = () => {
+    router.push(`/dashboard/cases/edit/${id}`)
+  }
+
   const getStatusLabel = (status: string) => {
     const labels = {
       pending: 'در انتظار',
@@ -78,7 +82,10 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors">
+          <button
+            onClick={handleEdit}  
+            className="flex items-center gap-2 px-4 py-2 border border-blue-200 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+          >
             <Edit size={18} />
             <span>ویرایش</span>
           </button>
