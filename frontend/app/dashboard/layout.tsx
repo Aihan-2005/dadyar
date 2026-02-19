@@ -1,25 +1,23 @@
-import AuthGuard from '@/components/auth-guard'
-import DashboardSidebar from '@/components/dashboard/sidebar'
-import DashboardHeader from '@/components/dashboard/header'
+"use client";
+
+import DashboardSidebar from "@/components/dashboard/sidebar";
+import { DashboardHeader } from "@/components/dashboard/header";
+import AuthGuard  from "@/components/auth-guard";
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <AuthGuard>
-      <div className="flex min-h-screen bg-zinc-50">
+      <div className="flex min-h-screen bg-zinc-50" dir="rtl">
         <DashboardSidebar />
-        
         <div className="flex-1 flex flex-col">
           <DashboardHeader />
-          
-          <main className="flex-1 p-6">
-            {children}
-          </main>
+          <main className="flex-1 p-6 overflow-auto">{children}</main>
         </div>
       </div>
     </AuthGuard>
-  )
+  );
 }
