@@ -65,6 +65,10 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
     return colors[status as keyof typeof colors]
   }
 
+
+  const totalPaid = caseItem.installments?.filter(i => i.isPaid).reduce((sum, i) => sum + i.amount, 0) || 0
+  const totalRemaining = caseItem.installments?.filter(i => !i.isPaid).reduce((sum, i) => sum + i.amount, 0) || 0
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
@@ -99,7 +103,7 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
         </div>
       </div>
 
-      {/* اطلاعات اصلی */}
+ 
       <div className="bg-white rounded-lg border border-zinc-200 divide-y divide-zinc-200">
         <div className="p-6">
           <h2 className="text-lg font-semibold text-zinc-900 mb-4">اطلاعات پرونده</h2>
@@ -138,6 +142,65 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
           </div>
         )}
       </div>
+
+      {caseItem.totalAmount > 0 && (
+        <div className="bg-white rounded-lg border border-zinc-200 p-6">
+          <h2 className="text-lg font-semibold text-zinc-900 mb-4"> اطلاعات مالی</h2>
+          
+          <div className="mb-4">
+            <p className="text-sm text-zinc-600">مبلغ کل پرونده</p>
+            <p className="text-2xl font-bold text-zinc-900">
+              {caseItem.totalAmount?.toLocaleString()} تومان
+            </p>
+          </div>
+
+          <div className="mb-4 text-zinc-600">
+            <p className="text-sm text-zinc-600">نحوه دریافت</p>
+            <p className="font-medium">
+              {caseItem.paymentType === 'cash' ? 'نقدی (یکجا)' : 'قسطی'}
+            </p>
+          </div>
+
+       
+          {caseItem.paymentType === 'installment' && caseItem.installments && caseItem.installments.length > 0 && (
+            <div>
+              <p className="text-sm text-zinc-600 mb-2">برنامه پرداخت</p>
+              <div className="space-y-2">
+                {caseItem.installments.map((inst, index) => (
+                  <div key={index} className="flex justify-between items-center p-3 bg-zinc-50 rounded-lg">
+                    <div>
+                      <span className="font-medium">قسط {index + 1}</span>
+                      <span className="mr-4 text-zinc-600">{inst.amount.toLocaleString()} تومان</span>
+                      {inst.dueDate && (
+                        <span className="mr-4 text-sm text-zinc-500">
+                          سررسید: {new Date(inst.dueDate).toLocaleDateString('fa-IR')}
+                        </span>
+                      )}
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      inst.isPaid 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-amber-100 text-amber-700'
+                    }`}>
+                      {inst.isPaid ? 'پرداخت شده' : 'پرداخت نشده'}
+                    </span>
+                  </div>
+                ))}
+                
+              
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-green-700">
+                    پرداخت شده: {totalPaid.toLocaleString()} تومان
+                  </p>
+                  <p className="text-sm text-amber-700">
+                    باقی‌مانده: {totalRemaining.toLocaleString()} تومان
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

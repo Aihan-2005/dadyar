@@ -1,19 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-
-export type CaseStatus = 'pending' | 'in-progress' | 'completed' | 'archived'
-
-export type Case = {
-  id: string
-  title: string
-  clientName: string
-  caseNumber: string
-  status: CaseStatus
-  createdAt: string
-  updatedAt: string
-  description?: string
-  lawyerId: string
-}
+import { Case, CaseStatus, Payment, ContractStage } from '../types/case'
 
 type CasesStore = {
   cases: Case[]
@@ -32,8 +19,8 @@ export const useCasesStore = create<CasesStore>()(
         const newCase: Case = {
           ...caseData,
           id: crypto.randomUUID(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),     
+          updatedAt: new Date(),  
         }
         set((state) => ({ cases: [...state.cases, newCase] }))
       },
@@ -41,7 +28,7 @@ export const useCasesStore = create<CasesStore>()(
       updateCase: (id, data) => {
         set((state) => ({
           cases: state.cases.map((c) =>
-            c.id === id ? { ...c, ...data, updatedAt: new Date().toISOString() } : c
+            c.id === id ? { ...c, ...data, updatedAt: new Date() } : c
           ),
         }))
       },
