@@ -55,7 +55,6 @@ export default function DashboardSidebar() {
           )
         })}
 
-        {/* ─── دکمه یادداشت‌ها ─── */}
         <Link
           href="/dashboard/notifications"
           className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors relative
