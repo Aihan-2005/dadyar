@@ -1,7 +1,7 @@
-import NextAuth from "next-auth"
+import NextAuth, { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -14,7 +14,6 @@ const handler = NextAuth({
           return null
         }
 
-        //  فعلاً تستی (بعداً وصل می‌کنیم به بک‌اند)
         return {
           id: "1",
           email: credentials.email,
@@ -33,6 +32,8 @@ const handler = NextAuth({
   },
 
   secret: process.env.NEXTAUTH_SECRET,
-})
+}
+
+const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }
