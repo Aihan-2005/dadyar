@@ -11,10 +11,9 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { useNotificationStore } from '@/store/notification.store'
-import NotificationItem from './NotificationItem'
+import { NotificationItem } from './NotificationItem'
 import type { CreateReminderPayload, NotificationTarget, NotificationPriority } from '@/types/notification'
 
-// فرض می‌کنیم لیست موکل‌ها و پرونده‌ها از store میان - اینجا mock داریم
 const mockClients = [
   { id: 'c1', name: 'علی رضایی' },
   { id: 'c2', name: 'مریم احمدی' },
@@ -38,8 +37,8 @@ const defaultForm: CreateReminderPayload = {
 
 type FilterTab = 'all' | 'lawyer' | 'client'
 
-export default function NotificationDropdown({ onClose }: { onClose: () => void }) {
-  const { notifications, markAllAsRead, clearAll, addReminder, unreadCount } =
+export default function NotificationDropdown() {
+  const { notifications, markAllAsRead, markAsRead, dismiss, deleteNotification, addReminder, unreadCount } =
     useNotificationStore()
   const [tab, setTab] = useState<FilterTab>('all')
   const [showForm, setShowForm] = useState(false)
@@ -50,6 +49,10 @@ export default function NotificationDropdown({ onClose }: { onClose: () => void 
     if (tab === 'client') return n.target === 'client'
     return true
   })
+
+  const handleClearAll = () => {
+    notifications.forEach((n) => deleteNotification(n.id))
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -76,15 +79,14 @@ export default function NotificationDropdown({ onClose }: { onClose: () => void 
       style={{ maxHeight: '85vh' }}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* سرتیتر */}
       <div className="px-4 py-3 border-b border-zinc-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bell size={16} className="text-zinc-700" />
             <span className="font-bold text-zinc-900 text-sm">اعلان‌ها</span>
-            {unreadCount() > 0 && (
+            {unreadCount > 0 && (
               <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">
-                {unreadCount()}
+                {unreadCount}
               </span>
             )}
           </div>
@@ -97,7 +99,7 @@ export default function NotificationDropdown({ onClose }: { onClose: () => void 
               <CheckCheck size={15} />
             </button>
             <button
-              onClick={clearAll}
+              onClick={handleClearAll}
               title="پاک کردن همه"
               className="p-1.5 text-zinc-400 hover:text-red-500 rounded-lg hover:bg-zinc-100"
             >
@@ -106,27 +108,27 @@ export default function NotificationDropdown({ onClose }: { onClose: () => void 
           </div>
         </div>
 
-        {/* تب‌ها */}
         <div className="flex gap-1 mt-3 bg-zinc-100 rounded-lg p-1">
-          {([['all', 'همه'], ['lawyer', 'یادداشت من'], ['client', 'یادآوری موکل']] as const).map(
-            ([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setTab(key)}
-                className={`flex-1 text-xs py-1.5 rounded-md transition-colors ${
-                  tab === key
-                    ? 'bg-white text-zinc-900 font-semibold shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-700'
-                }`}
-              >
-                {label}
-              </button>
-            )
-          )}
+          {([
+            ['all', 'همه'],
+            ['lawyer', 'یادداشت من'],
+            ['client', 'یادآوری موکل'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`flex-1 text-xs py-1.5 rounded-md transition-colors ${
+                tab === key
+                  ? 'bg-white text-zinc-900 font-semibold shadow-sm'
+                  : 'text-zinc-500 hover:text-zinc-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* فرم افزودن یادآوری */}
       <div className="border-b border-zinc-100">
         <button
           onClick={() => setShowForm(!showForm)}
@@ -144,31 +146,30 @@ export default function NotificationDropdown({ onClose }: { onClose: () => void 
 
         {showForm && (
           <form onSubmit={handleSubmit} className="px-4 pb-4 space-y-3">
-            {/* هدف */}
             <div>
               <label className={labelCls}>یادآوری برای</label>
               <div className="grid grid-cols-2 gap-2">
-                {([['lawyer', 'خودم (وکیل)', User], ['client', 'موکل', Briefcase]] as const).map(
-                  ([val, lbl, Icon]) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => setForm((f) => ({ ...f, target: val as NotificationTarget }))}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs transition-colors ${
-                        form.target === val
-                          ? 'border-zinc-900 bg-zinc-900 text-white'
-                          : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'
-                      }`}
-                    >
-                      <Icon size={13} />
-                      {lbl}
-                    </button>
-                  )
-                )}
+                {([
+                  ['lawyer', 'خودم (وکیل)', User],
+                  ['client', 'موکل', Briefcase],
+                ] as const).map(([val, lbl, Icon]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, target: val as NotificationTarget }))}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs transition-colors ${
+                      form.target === val
+                        ? 'border-zinc-900 bg-zinc-900 text-white'
+                        : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                    }`}
+                  >
+                    <Icon size={13} />
+                    {lbl}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* موکل (اگه target = client) */}
             {form.target === 'client' && (
               <div>
                 <label className={labelCls}>انتخاب موکل</label>
@@ -208,22 +209,24 @@ export default function NotificationDropdown({ onClose }: { onClose: () => void 
             <div>
               <label className={labelCls}>اولویت</label>
               <div className="flex gap-2">
-                {([['low', 'کم', 'bg-zinc-100 text-zinc-600'], ['medium', 'متوسط', 'bg-amber-100 text-amber-700'], ['high', 'فوری', 'bg-red-100 text-red-600']] as const).map(
-                  ([val, lbl, cls]) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => setForm((f) => ({ ...f, priority: val as NotificationPriority }))}
-                      className={`flex-1 text-xs py-1.5 rounded-lg border transition-all ${
-                        form.priority === val
-                          ? `${cls} border-current font-bold`
-                          : 'border-zinc-200 text-zinc-400'
-                      }`}
-                    >
-                      {lbl}
-                    </button>
-                  )
-                )}
+                {([
+                  ['low', 'کم', 'bg-zinc-100 text-zinc-600'],
+                  ['medium', 'متوسط', 'bg-amber-100 text-amber-700'],
+                  ['high', 'فوری', 'bg-red-100 text-red-600'],
+                ] as const).map(([val, lbl, cls]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, priority: val as NotificationPriority }))}
+                    className={`flex-1 text-xs py-1.5 rounded-lg border transition-all ${
+                      form.priority === val
+                        ? `${cls} border-current font-bold`
+                        : 'border-zinc-200 text-zinc-400'
+                    }`}
+                  >
+                    {lbl}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -293,7 +296,14 @@ export default function NotificationDropdown({ onClose }: { onClose: () => void 
             <p className="text-sm text-zinc-400">اعلانی وجود ندارد</p>
           </div>
         ) : (
-          filtered.map((n) => <NotificationItem key={n.id} notification={n} />)
+          filtered.map((n) => (
+            <NotificationItem
+              key={n.id}
+              notification={n}
+              onRead={() => markAsRead(n.id)}
+              onDismiss={() => dismiss(n.id)}
+            />
+          ))
         )}
       </div>
     </div>

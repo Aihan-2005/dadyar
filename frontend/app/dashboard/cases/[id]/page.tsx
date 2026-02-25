@@ -7,9 +7,7 @@ import { ArrowRight, Edit, Trash2 } from 'lucide-react'
 import { use } from 'react'
 
 type CaseDetailPageProps = {
-  params: Promise<{
-    id: string
-  }>
+  params: Promise<{ id: string }>
 }
 
 export default function CaseDetailPage({ params }: CaseDetailPageProps) {
@@ -17,17 +15,14 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
   const router = useRouter()
   const getCaseById = useCasesStore((s) => s.getCaseById)
   const deleteCase = useCasesStore((s) => s.deleteCase)
-
   const caseItem = getCaseById(id)
 
   if (!caseItem) {
     return (
       <div className="max-w-2xl mx-auto text-center py-12">
         <h1 className="text-2xl font-bold text-zinc-900">پرونده یافت نشد</h1>
-        <Link
-          href="/dashboard/cases"
-          className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 transition-colors"
-        >
+        <Link href="/dashboard/cases"
+          className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 transition-colors">
           بازگشت به لیست
         </Link>
       </div>
@@ -41,43 +36,24 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
     }
   }
 
-  const handleEdit = () => {
-    router.push(`/dashboard/cases/edit/${id}`)
-  }
+  const getStatusLabel = (status: string) => ({
+    pending: 'در انتظار', 'in-progress': 'در حال انجام',
+    completed: 'تکمیل شده', archived: 'بایگانی شده',
+  }[status] || status)
 
-  const getStatusLabel = (status: string) => {
-    const labels = {
-      pending: 'در انتظار',
-      'in-progress': 'در حال انجام',
-      completed: 'تکمیل شده',
-      archived: 'بایگانی شده',
-    }
-    return labels[status as keyof typeof labels]
-  }
-
-  const getStatusColor = (status: string) => {
-    const colors = {
-      pending: 'bg-amber-100 text-amber-700',
-      'in-progress': 'bg-blue-100 text-blue-700',
-      completed: 'bg-green-100 text-green-700',
-      archived: 'bg-zinc-100 text-zinc-700',
-    }
-    return colors[status as keyof typeof colors]
-  }
-
+  const getStatusColor = (status: string) => ({
+    pending: 'bg-amber-100 text-amber-700', 'in-progress': 'bg-blue-100 text-blue-700',
+    completed: 'bg-green-100 text-green-700', archived: 'bg-zinc-100 text-zinc-700',
+  }[status] || 'bg-zinc-100 text-zinc-700')
 
   const totalPaid = caseItem.installments?.filter(i => i.isPaid).reduce((sum, i) => sum + i.amount, 0) || 0
   const totalRemaining = caseItem.installments?.filter(i => !i.isPaid).reduce((sum, i) => sum + i.amount, 0) || 0
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link
-            href="/dashboard/cases"
-            className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
-          >
+          <Link href="/dashboard/cases" className="p-2 hover:bg-zinc-100 rounded-lg transition-colors">
             <ArrowRight size={20} />
           </Link>
           <div>
@@ -86,27 +62,20 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
           </div>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={handleEdit}  
-            className="flex items-center gap-2 px-4 py-2 border border-blue-200 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-          >
-            <Edit size={18} />
-            <span>ویرایش</span>
+          <button onClick={() => router.push(`/dashboard/cases/edit/${id}`)}
+            className="flex items-center gap-2 px-4 py-2 border border-blue-200 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
+            <Edit size={18} /><span>ویرایش</span>
           </button>
-          <button
-            onClick={handleDelete}
-            className="flex items-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-          >
-            <Trash2 size={18} />
-            <span>حذف</span>
+          <button onClick={handleDelete}
+            className="flex items-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+            <Trash2 size={18} /><span>حذف</span>
           </button>
         </div>
       </div>
 
- 
       <div className="bg-white rounded-lg border border-zinc-200 divide-y divide-zinc-200">
         <div className="p-6">
-          <h2 className="text-lg font-semibold text-zinc-900 mb-4">اطلاعات پرونده</h2>
+          <h2 className="text-lg font-semibold text-zinc-900 mb-4">اطلاعات پایه</h2>
           <dl className="grid grid-cols-2 gap-4">
             <div>
               <dt className="text-sm text-zinc-600 mb-1">موکل</dt>
@@ -122,18 +91,67 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
             </div>
             <div>
               <dt className="text-sm text-zinc-600 mb-1">تاریخ ایجاد</dt>
-              <dd className="font-medium text-zinc-900">
-                {new Date(caseItem.createdAt).toLocaleDateString('fa-IR')}
-              </dd>
+              <dd className="font-medium text-zinc-900">{new Date(caseItem.createdAt).toLocaleDateString('fa-IR')}</dd>
             </div>
             <div>
               <dt className="text-sm text-zinc-600 mb-1">آخرین بروزرسانی</dt>
-              <dd className="font-medium text-zinc-900">
-                {new Date(caseItem.updatedAt).toLocaleDateString('fa-IR')}
-              </dd>
+              <dd className="font-medium text-zinc-900">{new Date(caseItem.updatedAt).toLocaleDateString('fa-IR')}</dd>
             </div>
           </dl>
         </div>
+
+        <div className="p-6">
+          <h2 className="text-lg font-semibold text-zinc-900 mb-4">شماره‌های پرونده</h2>
+          <dl className="grid grid-cols-2 gap-4">
+            {caseItem.archiveNumberOffice && (
+              <div>
+                <dt className="text-sm text-zinc-600 mb-1">شماره بایگانی دفتر</dt>
+                <dd className="font-medium text-zinc-900 font-mono">{caseItem.archiveNumberOffice}</dd>
+              </div>
+            )}
+            {caseItem.archiveNumberLawyer && (
+              <div>
+                <dt className="text-sm text-zinc-600 mb-1">شماره بایگانی وکیل</dt>
+                <dd className="font-medium text-zinc-900 font-mono">{caseItem.archiveNumberLawyer}</dd>
+              </div>
+            )}
+            {caseItem.archiveNumberBranch && (
+              <div>
+                <dt className="text-sm text-zinc-600 mb-1">شماره بایگانی شعبه</dt>
+                <dd className="font-medium text-zinc-900 font-mono">{caseItem.archiveNumberBranch}</dd>
+              </div>
+            )}
+            {caseItem.courtBranch && (caseItem.courtBranch.branchNumber || caseItem.courtBranch.courtName) && (
+              <div className="col-span-2">
+                <dt className="text-sm text-zinc-600 mb-1">شعبه دادگاه</dt>
+                <dd className="font-medium text-zinc-900">
+                  شعبه {caseItem.courtBranch.branchNumber} — {caseItem.courtBranch.courtName}
+                  {caseItem.courtBranch.city && ` (${caseItem.courtBranch.city})`}
+                </dd>
+              </div>
+            )}
+          </dl>
+        </div>
+
+        {(caseItem.coLawyerName || caseItem.coLawyerInCase) && (
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-zinc-900 mb-4">وکلای همراه</h2>
+            <dl className="grid grid-cols-2 gap-4">
+              {caseItem.coLawyerName && (
+                <div>
+                  <dt className="text-sm text-zinc-600 mb-1">وکیل هم‌رزم</dt>
+                  <dd className="font-medium text-zinc-900">{caseItem.coLawyerName}</dd>
+                </div>
+              )}
+              {caseItem.coLawyerInCase && (
+                <div>
+                  <dt className="text-sm text-zinc-600 mb-1">وکیل هم توی رزمه</dt>
+                  <dd className="font-medium text-zinc-900">{caseItem.coLawyerInCase}</dd>
+                </div>
+              )}
+            </dl>
+          </div>
+        )}
 
         {caseItem.description && (
           <div className="p-6">
@@ -145,23 +163,16 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
 
       {caseItem.totalAmount > 0 && (
         <div className="bg-white rounded-lg border border-zinc-200 p-6">
-          <h2 className="text-lg font-semibold text-zinc-900 mb-4"> اطلاعات مالی</h2>
-          
+          <h2 className="text-lg font-semibold text-zinc-900 mb-4">اطلاعات مالی</h2>
           <div className="mb-4">
             <p className="text-sm text-zinc-600">مبلغ کل پرونده</p>
-            <p className="text-2xl font-bold text-zinc-900">
-              {caseItem.totalAmount?.toLocaleString()} تومان
-            </p>
+            <p className="text-2xl font-bold text-zinc-900">{caseItem.totalAmount?.toLocaleString()} تومان</p>
           </div>
-
           <div className="mb-4 text-zinc-600">
             <p className="text-sm text-zinc-600">نحوه دریافت</p>
-            <p className="font-medium">
-              {caseItem.paymentType === 'cash' ? 'نقدی (یکجا)' : 'قسطی'}
-            </p>
+            <p className="font-medium">{caseItem.paymentType === 'cash' ? 'نقدی (یکجا)' : 'قسطی'}</p>
           </div>
 
-       
           {caseItem.paymentType === 'installment' && caseItem.installments && caseItem.installments.length > 0 && (
             <div>
               <p className="text-sm text-zinc-600 mb-2">برنامه پرداخت</p>
@@ -177,24 +188,14 @@ export default function CaseDetailPage({ params }: CaseDetailPageProps) {
                         </span>
                       )}
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      inst.isPaid 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-amber-100 text-amber-700'
-                    }`}>
+                    <span className={`px-2 py-1 rounded-full text-xs ${inst.isPaid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                       {inst.isPaid ? 'پرداخت شده' : 'پرداخت نشده'}
                     </span>
                   </div>
                 ))}
-                
-              
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-green-700">
-                    پرداخت شده: {totalPaid.toLocaleString()} تومان
-                  </p>
-                  <p className="text-sm text-amber-700">
-                    باقی‌مانده: {totalRemaining.toLocaleString()} تومان
-                  </p>
+                  <p className="text-sm text-green-700">پرداخت شده: {totalPaid.toLocaleString()} تومان</p>
+                  <p className="text-sm text-amber-700">باقی‌مانده: {totalRemaining.toLocaleString()} تومان</p>
                 </div>
               </div>
             </div>

@@ -99,7 +99,6 @@ export default function ProfilePage() {
     setTempData({})
   }
 
-  // Education helpers
   const addEducation = () => {
     const newEdu: Education = {
       id: generateId(),
@@ -130,7 +129,6 @@ export default function ProfilePage() {
     }))
   }
 
-  // Experience helpers
   const addExperience = () => {
     const newExp: Experience = {
       id: generateId(),
@@ -162,7 +160,6 @@ export default function ProfilePage() {
     }))
   }
 
-  // Skill helpers
   const addSkill = () => {
     const newSkill: Skill = { id: generateId(), name: '', level: 3 }
     setTempData((prev) => ({
@@ -187,7 +184,6 @@ export default function ProfilePage() {
     }))
   }
 
-  // Language helpers
   const addLanguage = () => {
     if (!newLanguage.trim()) return
     setProfile((prev) => ({
@@ -210,7 +206,6 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12" dir="rtl">
-      {/* Header Card */}
       <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
         <div className="h-28 bg-gradient-to-l from-zinc-800 to-zinc-600" />
         <div className="px-6 pb-6">
@@ -232,7 +227,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* اطلاعات پایه */}
       <div className="bg-white rounded-2xl border border-zinc-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold text-zinc-900 flex items-center gap-2">
@@ -376,7 +370,7 @@ export default function ProfilePage() {
               {profile.address && (
                 <InfoItem icon={<MapPin size={14} />} label="آدرس" value={profile.address} />
               )}
-              <InfoItem icon={<Mail size={14} />} label="ایمیل" value={user?.email || '—'} />
+              {/* ✅ خط ایمیل حذف شد چون User فیلد email ندارد */}
             </div>
             {!profile.bio && !profile.specialization && (
               <p className="text-sm text-zinc-400 text-center py-4">

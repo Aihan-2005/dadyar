@@ -1,120 +1,3 @@
-// 'use client'
-
-// import { useAuthStore } from '@/store/auth.store'
-// import { useSearchStore } from '@/store/search.store'
-// import {
-//   Bell,
-//   Search,
-//   X,
-//   LogOut,
-// } from 'lucide-react'
-// import { useRouter, usePathname } from 'next/navigation'
-// import { useEffect, useState } from 'react'
-
-// export default function DashboardHeader() {
-//   const user = useAuthStore((s) => s.user)
-//   const router = useRouter()
-//   const pathname = usePathname()
-
-//   const { searchTerm, setSearchTerm } = useSearchStore()
-//   const [localSearch, setLocalSearch] = useState(searchTerm)
-
-//   useEffect(() => {
-//     setLocalSearch(searchTerm)
-//   }, [searchTerm])
-
-//   const handleSearch = () => {
-//     if (!localSearch.trim()) return
-
-//     setSearchTerm(localSearch)
-
-//     if (!pathname.includes('/cases')) {
-//       router.push(`/cases?search=${encodeURIComponent(localSearch)}`)
-//     }
-//   }
-
-//   return (
-//     <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-zinc-200">
-//       <div className="flex h-16 items-center justify-between px-6">
-
-//         {/* 🔍 Search */}
-//         <div className="relative w-full max-w-md">
-//           <Search
-//             size={18}
-//             className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"
-//           />
-
-//           <input
-//             value={localSearch}
-//             onChange={(e) => setLocalSearch(e.target.value)}
-//             onKeyDown={(e) => {
-//               if (e.key === 'Enter') handleSearch()
-//               if (e.key === 'Escape') {
-//                 setLocalSearch('')
-//                 setSearchTerm('')
-//               }
-//             }}
-//             placeholder="جستجوی پرونده‌ها..."
-//             className="w-full rounded-xl border border-zinc-200 bg-zinc-50 pr-10 pl-10 py-2 text-sm
-//               focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900 transition"
-//           />
-
-//           {localSearch && (
-//             <button
-//               onClick={() => {
-//                 setLocalSearch('')
-//                 setSearchTerm('')
-//               }}
-//               className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
-//             >
-//               <X size={16} />
-//             </button>
-//           )}
-//         </div>
-
-//         {/* 🔔 Right */}
-//         <div className="flex items-center gap-4">
-
-//           {/* Notification (فعلاً فقط آیکون) */}
-//           <button
-//             className="relative rounded-xl p-2 hover:bg-zinc-100 transition"
-//             aria-label="Notifications"
-//           >
-//             <Bell size={20} className="text-zinc-700" />
-
-//             {/* unread dot */}
-//             <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500" />
-//           </button>
-
-//           {/* User */}
-//           <div className="flex items-center gap-3 border-r pr-4 border-zinc-200">
-//             <div className="text-right leading-tight">
-//               <p className="text-sm font-semibold text-zinc-900">
-//                 {user?.firstName} {user?.lastName}
-//               </p>
-//               <p className="text-xs text-zinc-500">وکیل</p>
-//             </div>
-
-//             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-white font-bold">
-//               {user?.firstName?.[0]}
-//               {user?.lastName?.[0]}
-//             </div>
-//           </div>
-
-//           {/* Logout */}
-//           <button
-//             className="rounded-xl p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 transition"
-//             title="خروج"
-//           >
-//             <LogOut size={18} />
-//           </button>
-//         </div>
-//       </div>
-//     </header>
-//   )
-// }
-
-
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -131,7 +14,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { useSearchStore } from "@/store/search.store";
-import {NotificationBell} from "@/components/notifications/NotificationBell";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 interface DashboardHeaderProps {
   onMenuToggle?: () => void;
@@ -148,7 +31,14 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // ─── بستن منوی کاربر با کلیک بیرون ───────────────────────────────────
+  const userFullName = user
+    ? `${user.firstName} ${user.lastName}`.trim()
+    : "کاربر";
+
+  const userInitials = user
+    ? `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase() || "وک"
+    : "وک";
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (
@@ -162,7 +52,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ─── کنترل کیبورد در جستجو ─────────────────────────────────────────────
   const handleSearchKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Escape") {
@@ -176,34 +65,21 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     [query, clearQuery, router]
   );
 
-  // ─── خروج ──────────────────────────────────────────────────────────────
   const handleLogout = useCallback(async () => {
     setIsUserMenuOpen(false);
     try {
       await logout();
     } catch {
-      // خطای logout را نادیده می‌گیریم
     } finally {
       router.replace("/login");
     }
   }, [logout, router]);
 
-  const userInitials = user?.name
-    ? user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : "وک";
-
   return (
     <header className="sticky top-0 z-40 h-16 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
       <div className="flex items-center justify-between h-full px-4 gap-3">
-        
-        {/* ─── سمت راست: دکمه منو (موبایل) + جستجو ─── */}
+
         <div className="flex items-center gap-3 flex-1">
-          {/* دکمه منو موبایل */}
           <button
             onClick={onMenuToggle}
             className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
@@ -212,7 +88,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
             <Menu size={20} />
           </button>
 
-          {/* نوار جستجو */}
           <div
             className={`relative flex items-center w-full max-w-md transition-all duration-200 ${
               isFocused ? "max-w-lg" : ""
@@ -241,7 +116,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                 }`}
               dir="rtl"
             />
-            {/* دکمه پاک‌کردن */}
             {query && (
               <button
                 onClick={() => {
@@ -257,13 +131,10 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
           </div>
         </div>
 
-        {/* ─── سمت چپ: اکشن‌ها ─── */}
         <div className="flex items-center gap-2">
-          
-          {/* ── نوتیفیکیشن ── */}
+
           <NotificationBell />
 
-          {/* ── منوی کاربر ── */}
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setIsUserMenuOpen((v) => !v)}
@@ -276,18 +147,16 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
               aria-expanded={isUserMenuOpen}
               aria-haspopup="true"
             >
-              {/* آواتار */}
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
                 {userInitials}
               </div>
 
-              {/* نام (دسکتاپ) */}
               <div className="hidden sm:flex flex-col items-start leading-none">
                 <span className="text-sm font-medium text-gray-800 max-w-[100px] truncate">
-                  {user?.name ?? "کاربر"}
+                  {userFullName}
                 </span>
                 <span className="text-[10px] text-gray-400 mt-0.5">
-                  {user?.email ?? "وکیل"}
+                  وکیل دادگستری
                 </span>
               </div>
 
@@ -299,20 +168,17 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
               />
             </button>
 
-            {/* Dropdown منوی کاربر */}
             {isUserMenuOpen && (
               <div className="absolute left-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                {/* هدر dropdown */}
                 <div className="px-4 py-2.5 border-b border-gray-100 mb-1">
                   <p className="text-sm font-semibold text-gray-800 truncate">
-                    {user?.name ?? "کاربر"}
+                    {userFullName}
                   </p>
                   <p className="text-xs text-gray-400 truncate mt-0.5">
-                    {user?.email ?? ""}
+                    وکیل دادگستری
                   </p>
                 </div>
 
-                {/* آیتم‌های منو */}
                 <Link
                   href="/dashboard/profile"
                   onClick={() => setIsUserMenuOpen(false)}
@@ -339,7 +205,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
 
                 <div className="my-1 border-t border-gray-100" />
 
-                {/* دکمه خروج */}
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors group"

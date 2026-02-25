@@ -1,10 +1,11 @@
 export type NotificationTarget = 'lawyer' | 'client'
+
 export type NotificationType = 
-  | 'reminder'        // یادآوری وکیل برای خودش
-  | 'client_reminder' // یادآوری وکیل برای موکل
-  | 'case_update'     // بروزرسانی پرونده
-  | 'deadline'        // مهلت قانونی
-  | 'system'          // اعلان سیستمی
+  | 'reminder'        
+  | 'client_reminder' 
+  | 'case_update'     
+  | 'deadline'      
+  | 'system'          
 
 export type NotificationPriority = 'low' | 'medium' | 'high'
 
@@ -22,9 +23,10 @@ export interface Notification {
   caseName?: string
   clientId?: string
   clientName?: string
-  reminderDate?: string   // ISO string
-  createdAt: string       // ISO string
-  scheduledFor?: string   // برای یادآوری‌های زمان‌بندی‌شده
+  reminderDate?: string   
+  createdAt: string       
+  scheduledFor?: string  
+  readAt?: string
 }
 
 export interface CreateReminderPayload {
@@ -36,5 +38,5 @@ export interface CreateReminderPayload {
   caseName?: string
   clientId?: string
   clientName?: string
-  scheduledFor: string
+  scheduledFor?: string  
 }

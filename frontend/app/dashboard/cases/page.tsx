@@ -242,7 +242,6 @@ export default function CasesListPage() {
         </div>
       )}
 
-      {/* لیست پرونده‌ها */}
       {filteredCases.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg border border-zinc-200">
           <p className="text-zinc-600">

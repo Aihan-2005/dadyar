@@ -1,15 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Vazirmatn } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  subsets: ["latin"],
-  variable: "--font-geist-sans",
-});
-
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
+const vazirmatn = Vazirmatn({
+  subsets: ["arabic"],
+  weight: ["400", "500", "700", "900"],
+  variable: "--font-vazirmatn",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -19,6 +16,9 @@ export const metadata: Metadata = {
   },
   description:
     "پلتفرم حرفه‌ای برای وکلا جهت مدیریت پرونده‌ها، قراردادهای مرحله‌ای و روند کاری",
+  icons: {
+    icon: "/faicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -27,10 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fa" dir="rtl">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-50`}
-      >
+    <html lang="fa" dir="rtl" className={vazirmatn.variable}>
+      <body className="antialiased bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-50">
         {children}
       </body>
     </html>

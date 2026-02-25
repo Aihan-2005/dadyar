@@ -2,19 +2,20 @@
 
 import { useState } from "react";
 import { useNotificationStore } from "@/store/notification.store";
+import type { NotificationTarget, NotificationPriority } from "@/types/notification";
 
 interface Props {
   onClose: () => void;
 }
 
 export function AddReminderForm({ onClose }: Props) {
-  const { addReminder } = useNotificationStore();
+  const addReminder = useNotificationStore((state) => state.addReminder);
 
   const [form, setForm] = useState({
     title: "",
     message: "",
-    target: "lawyer" as "lawyer" | "client",
-    priority: "medium" as "low" | "medium" | "high",
+    target: "lawyer" as NotificationTarget,
+    priority: "medium" as NotificationPriority,
     scheduledFor: "",
     caseId: "",
     clientName: "",
@@ -23,15 +24,17 @@ export function AddReminderForm({ onClose }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim()) return;
+
     addReminder({
       title: form.title,
       message: form.message,
       target: form.target,
       priority: form.priority,
-      scheduledFor: form.scheduledFor || undefined,
-      caseId: form.caseId || undefined,
-      clientName: form.clientName || undefined,
+      ...(form.scheduledFor && { scheduledFor: form.scheduledFor }),
+      ...(form.caseId && { caseId: form.caseId }),
+      ...(form.clientName && { clientName: form.clientName }),
     });
+
     onClose();
   };
 
@@ -39,7 +42,9 @@ export function AddReminderForm({ onClose }: Props) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">عنوان *</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            عنوان *
+          </label>
           <input
             type="text"
             value={form.title}
@@ -52,7 +57,9 @@ export function AddReminderForm({ onClose }: Props) {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">زمان یادآوری</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            زمان یادآوری
+          </label>
           <input
             type="datetime-local"
             value={form.scheduledFor}
@@ -62,10 +69,14 @@ export function AddReminderForm({ onClose }: Props) {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">هدف</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            هدف
+          </label>
           <select
             value={form.target}
-            onChange={(e) => setForm({ ...form, target: e.target.value as "lawyer" | "client" })}
+            onChange={(e) =>
+              setForm({ ...form, target: e.target.value as NotificationTarget })
+            }
             className="w-full h-9 px-3 text-sm rounded-lg border border-gray-200 focus:border-blue-400 outline-none"
           >
             <option value="lawyer">وکیل</option>
@@ -74,10 +85,17 @@ export function AddReminderForm({ onClose }: Props) {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">اولویت</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            اولویت
+          </label>
           <select
             value={form.priority}
-            onChange={(e) => setForm({ ...form, priority: e.target.value as "low" | "medium" | "high" })}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                priority: e.target.value as NotificationPriority,
+              })
+            }
             className="w-full h-9 px-3 text-sm rounded-lg border border-gray-200 focus:border-blue-400 outline-none"
           >
             <option value="low">کم</option>
@@ -87,7 +105,9 @@ export function AddReminderForm({ onClose }: Props) {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">شناسه پرونده</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            شناسه پرونده
+          </label>
           <input
             type="text"
             value={form.caseId}
@@ -99,7 +119,9 @@ export function AddReminderForm({ onClose }: Props) {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">نام موکل</label>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            نام موکل
+          </label>
           <input
             type="text"
             value={form.clientName}
@@ -112,7 +134,9 @@ export function AddReminderForm({ onClose }: Props) {
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">توضیحات</label>
+        <label className="block text-xs font-medium text-gray-600 mb-1">
+          توضیحات
+        </label>
         <textarea
           value={form.message}
           onChange={(e) => setForm({ ...form, message: e.target.value })}

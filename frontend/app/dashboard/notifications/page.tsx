@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Plus, Trash2, CheckCheck, Filter } from "lucide-react";
+import { Bell, Plus, CheckCheck } from "lucide-react";
 import { useNotificationStore } from "@/store/notification.store";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { AddReminderForm } from "@/components/notifications/AddReminderForm";
@@ -10,10 +10,13 @@ export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState<"all" | "lawyer" | "client">("all");
   const [showForm, setShowForm] = useState(false);
 
-  const { notifications, unreadCount, markAsRead, dismiss, markAllAsRead } =
+  const { notifications, markAsRead, dismiss, markAllAsRead } =
     useNotificationStore();
 
-  const filtered = notifications.filter((n) => {
+  const activeNotifications = notifications.filter(n => n.status !== 'dismissed');
+  const unreadCount = activeNotifications.filter(n => n.status === "unread").length;
+
+  const filtered = activeNotifications.filter((n) => {
     if (activeTab === "all") return true;
     return n.target === activeTab;
   });
@@ -26,7 +29,6 @@ export default function NotificationsPage() {
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">
-      {/* ─── هدر صفحه ─── */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
@@ -60,7 +62,6 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      {/* ─── فرم افزودن یادآوری ─── */}
       {showForm && (
         <div className="mb-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
           <h2 className="text-sm font-semibold text-gray-700 mb-4">افزودن یادآوری جدید</h2>
@@ -68,7 +69,6 @@ export default function NotificationsPage() {
         </div>
       )}
 
-      {/* ─── تب‌ها ─── */}
       <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-4 w-fit">
         {tabs.map((tab) => (
           <button
@@ -85,7 +85,6 @@ export default function NotificationsPage() {
         ))}
       </div>
 
-      {/* ─── لیست اعلان‌ها ─── */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         {filtered.length === 0 ? (
           <div className="py-16 text-center text-gray-400">
