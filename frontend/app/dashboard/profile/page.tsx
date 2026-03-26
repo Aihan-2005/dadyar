@@ -113,21 +113,6 @@ export default function ProfilePage() {
     }))
   }
 
-  const updateEducation = (id: string, field: keyof Education, value: string) => {
-    setTempData((prev) => ({
-      ...prev,
-      education: (prev.education || profile.education).map((e) =>
-        e.id === id ? { ...e, [field]: value } : e
-      ),
-    }))
-  }
-
-  const removeEducation = (id: string) => {
-    setTempData((prev) => ({
-      ...prev,
-      education: (prev.education || profile.education).filter((e) => e.id !== id),
-    }))
-  }
 
   const addExperience = () => {
     const newExp: Experience = {
@@ -381,122 +366,7 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* تحصیلات */}
-      <div className="bg-white rounded-2xl border border-zinc-200 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-bold text-zinc-900 flex items-center gap-2">
-            <GraduationCap size={18} />
-            تحصیلات
-          </h2>
-          {editingSection !== 'education' ? (
-            <button
-              onClick={() => startEdit('education')}
-              className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-900 border border-zinc-200 rounded-lg px-3 py-1.5"
-            >
-              <Edit3 size={14} />
-              ویرایش
-            </button>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={saveEdit}
-                className="flex items-center gap-1 text-xs bg-zinc-900 text-white rounded-lg px-3 py-1.5"
-              >
-                <Save size={14} />
-                ذخیره
-              </button>
-              <button
-                onClick={cancelEdit}
-                className="flex items-center gap-1 text-xs border border-zinc-200 rounded-lg px-3 py-1.5"
-              >
-                <X size={14} />
-                انصراف
-              </button>
-            </div>
-          )}
-        </div>
-
-        {editingSection === 'education' ? (
-          <div className="space-y-4">
-            {(tempData.education || profile.education).map((edu) => (
-              <div key={edu.id} className="border border-zinc-200 rounded-xl p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={labelClass}>مدرک</label>
-                    <input
-                      className={inputClass}
-                      value={edu.degree}
-                      onChange={(e) => updateEducation(edu.id, 'degree', e.target.value)}
-                      placeholder="کارشناسی، کارشناسی ارشد..."
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>رشته</label>
-                    <input
-                      className={inputClass}
-                      value={edu.field}
-                      onChange={(e) => updateEducation(edu.id, 'field', e.target.value)}
-                      placeholder="حقوق"
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>دانشگاه</label>
-                    <input
-                      className={inputClass}
-                      value={edu.university}
-                      onChange={(e) => updateEducation(edu.id, 'university', e.target.value)}
-                      placeholder="نام دانشگاه"
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>سال فارغ‌التحصیلی</label>
-                    <input
-                      className={inputClass}
-                      value={edu.year}
-                      onChange={(e) => updateEducation(edu.id, 'year', e.target.value)}
-                      placeholder="۱۴۰۰"
-                    />
-                  </div>
-                </div>
-                <button
-                  onClick={() => removeEducation(edu.id)}
-                  className="flex items-center gap-1 text-xs text-red-500"
-                >
-                  <Trash2 size={13} />
-                  حذف
-                </button>
-              </div>
-            ))}
-            <button
-              onClick={addEducation}
-              className="flex items-center gap-2 text-sm text-zinc-700 border border-dashed border-zinc-300 rounded-xl px-4 py-3 w-full justify-center hover:bg-zinc-50"
-            >
-              <Plus size={16} />
-              افزودن تحصیلات
-            </button>
-          </div>
-        ) : profile.education.length > 0 ? (
-          <div className="space-y-3">
-            {profile.education.map((edu) => (
-              <div key={edu.id} className="flex items-start gap-3 p-4 bg-zinc-50 rounded-xl">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <GraduationCap size={18} className="text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-semibold text-zinc-900 text-sm">
-                    {edu.degree} {edu.field && `- ${edu.field}`}
-                  </p>
-                  <p className="text-xs text-zinc-500 mt-0.5">{edu.university}</p>
-                  {edu.year && <p className="text-xs text-zinc-400 mt-0.5">{edu.year}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState text="تحصیلات خود را اضافه کنید" />
-        )}
-      </div>
-
+      
       {/* سابقه کاری */}
       <div className="bg-white rounded-2xl border border-zinc-200 p-6">
         <div className="flex items-center justify-between mb-4">
@@ -715,41 +585,7 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* زبان‌ها */}
-      <div className="bg-white rounded-2xl border border-zinc-200 p-6">
-        <h2 className="font-bold text-zinc-900 flex items-center gap-2 mb-4">
-          <Globe size={18} />
-          زبان‌ها
-        </h2>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {profile.languages.map((lang) => (
-            <span
-              key={lang}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 rounded-full text-sm"
-            >
-              {lang}
-              <button onClick={() => removeLanguage(lang)}>
-                <X size={12} className="text-zinc-400" />
-              </button>
-            </span>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <input
-            className={`${inputClass} flex-1`}
-            value={newLanguage}
-            onChange={(e) => setNewLanguage(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addLanguage()}
-            placeholder="مثلاً: فارسی، انگلیسی، عربی"
-          />
-          <button
-            onClick={addLanguage}
-            className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-      </div>
+      
     </div>
   )
 }

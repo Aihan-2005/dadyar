@@ -8,6 +8,7 @@ export interface Installment {
   amount: number
   isPaid: boolean
   dueDate?: Date
+  paidDate?: Date
 }
 
 export interface CourtBranch {
@@ -21,6 +22,7 @@ export interface Case {
   lawyerId: string
   title: string
   clientName: string
+  clientPhone?: string
   caseNumber: string          // شماره پرونده (عمومی)
   archiveNumberOffice?: string  // شماره بایگانی دفتر (ثابت از پروفایل)
   archiveNumberLawyer?: string  // شماره بایگانی وکیل (ثابت از پروفایل)
@@ -30,19 +32,45 @@ export interface Case {
   coLawyerInCase?: string      // وکیل توی رزمه (نفر دیگری در همان پرونده)
   status: CaseStatus
   description?: string
-  totalAmount: number
+  
+  // فیلدهای مالی
+  totalFee: number              // مجموع حق‌الوکاله
+  paidAmount: number            // مبلغ پرداخت شده
+  remainingAmount: number       // مبلغ باقیمانده
   paymentType: PaymentType
   installments?: Installment[]
+  dueDate?: Date                // سررسید پرداخت
+  
+  // تاریخ‌ها
   createdAt: Date
   updatedAt: Date
+  closedAt?: Date               // تاریخ بسته شدن پرونده
 }
 
 interface CasesStore {
   cases: Case[]
-  addCase: (caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>) => void
+  addCase: (caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt' | 'remainingAmount'>) => void
   updateCase: (id: string, caseData: Partial<Case>) => void
   deleteCase: (id: string) => void
   getCaseById: (id: string) => Case | undefined
+  getActiveCases: () => Case[]
+  getPendingCases: () => Case[]
+  getMonthlyCases: () => Case[]
+  getTotalDebt: () => number
+}
+
+// تابع کمکی برای محاسبه مبلغ باقیمانده
+const calculateRemainingAmount = (totalFee: number, paidAmount: number): number => {
+  return Math.max(0, totalFee - paidAmount)
+}
+
+// تابع کمکی برای چک کردن پرونده‌های ماه جاری
+const isInCurrentMonth = (date: Date): boolean => {
+  const now = new Date()
+  return (
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear()
+  )
 }
 
 export const useCasesStore = create<CasesStore>()(
@@ -51,9 +79,12 @@ export const useCasesStore = create<CasesStore>()(
       cases: [],
 
       addCase: (caseData) => {
+        const remainingAmount = calculateRemainingAmount(caseData.totalFee, caseData.paidAmount)
+        
         const newCase: Case = {
           ...caseData,
           id: crypto.randomUUID(),
+          remainingAmount,
           createdAt: new Date(),
           updatedAt: new Date(),
         }
@@ -62,9 +93,21 @@ export const useCasesStore = create<CasesStore>()(
 
       updateCase: (id, caseData) => {
         set((state) => ({
-          cases: state.cases.map((c) =>
-            c.id === id ? { ...c, ...caseData, updatedAt: new Date() } : c
-          ),
+          cases: state.cases.map((c) => {
+            if (c.id !== id) return c
+            
+            const updatedCase = { ...c, ...caseData, updatedAt: new Date() }
+            
+            // اگر totalFee یا paidAmount تغییر کرد، remainingAmount را دوباره محاسبه کن
+            if (caseData.totalFee !== undefined || caseData.paidAmount !== undefined) {
+              updatedCase.remainingAmount = calculateRemainingAmount(
+                updatedCase.totalFee,
+                updatedCase.paidAmount
+              )
+            }
+            
+            return updatedCase
+          }),
         }))
       },
 
@@ -76,6 +119,28 @@ export const useCasesStore = create<CasesStore>()(
 
       getCaseById: (id) => {
         return get().cases.find((c) => c.id === id)
+      },
+
+      // پرونده‌های فعال (غیر بسته شده و غیر آرشیو شده)
+      getActiveCases: () => {
+        return get().cases.filter(
+          (c) => c.status !== 'archived' && !c.closedAt
+        )
+      },
+
+      // پرونده‌های در انتظار بررسی
+      getPendingCases: () => {
+        return get().cases.filter((c) => c.status === 'pending')
+      },
+
+      // پرونده‌های ثبت شده در ماه جاری
+      getMonthlyCases: () => {
+        return get().cases.filter((c) => isInCurrentMonth(c.createdAt))
+      },
+
+      // مجموع بدهی‌ها
+      getTotalDebt: () => {
+        return get().cases.reduce((sum, c) => sum + c.remainingAmount, 0)
       },
     }),
     {

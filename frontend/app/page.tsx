@@ -32,33 +32,15 @@ export default function HomePage() {
         />
       </div>
 
-      <header className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-white/5">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-sm tracking-tight">
-            د
-          </div>
-          <span className="font-bold text-lg tracking-tight">دادیار</span>
-        </div>
-        <nav className="hidden md:flex items-center gap-8 text-sm text-zinc-400">
-          <a href="#features" className="hover:text-white transition-colors">امکانات</a>
-          <a href="#about" className="hover:text-white transition-colors">درباره ما</a>
-          <a href="#pricing" className="hover:text-white transition-colors">قیمت‌گذاری</a>
-        </nav>
-        <Link
-          href="/login"
-          className="text-sm px-5 py-2 rounded-full border border-white/10 hover:border-white/30 text-zinc-300 hover:text-white transition-all duration-200"
-        >
-          ورود
-        </Link>
-      </header>
+      
 
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-6 py-20">
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-6 py-10">
         <div
           className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-300 text-xs font-medium mb-8 transition-all duration-700 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}
           style={{ transitionDelay: "100ms" }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-          نسل جدید مدیریت پرونده‌های حقوقی
+          نسل جدید مدیریت پرونده‌های حقوقی با کمک دادیار
         </div>
 
         <h1
@@ -115,11 +97,11 @@ export default function HomePage() {
           className={`mt-8 text-xs text-zinc-600 transition-all duration-700 ${mounted ? "opacity-100" : "opacity-0"}`}
           style={{ transitionDelay: "700ms" }}
         >
-          بیش از ۵۰۰ وکیل از دادیار استفاده می‌کنند
+          بیش از ۵۰۰۰ وکیل از دادیار استفاده می‌کنند
         </p>
       </main>
 
-      <section id="features" className="relative z-10 border-t border-white/5 px-8 py-16">
+      <section id="features" className="relative z-10 border-t border-white/5 px-8 py-0">
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
             {

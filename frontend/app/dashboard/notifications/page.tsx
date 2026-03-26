@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -10,11 +11,11 @@ export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState<"all" | "lawyer" | "client">("all");
   const [showForm, setShowForm] = useState(false);
 
-  const { notifications, markAsRead, dismiss, markAllAsRead } =
+  const { notifications, markAsRead, dismiss, markAllAsRead, markAsCompleted } =
     useNotificationStore();
 
-  const activeNotifications = notifications.filter(n => n.status !== 'dismissed');
-  const unreadCount = activeNotifications.filter(n => n.status === "unread").length;
+  const activeNotifications = notifications.filter((n) => n.status !== "dismissed");
+  const unreadCount = activeNotifications.filter((n) => n.status === "unread").length;
 
   const filtered = activeNotifications.filter((n) => {
     if (activeTab === "all") return true;
@@ -23,8 +24,8 @@ export default function NotificationsPage() {
 
   const tabs = [
     { key: "all", label: "همه" },
-    { key: "lawyer", label: "وکیل" },
-    { key: "client", label: "موکل" },
+    { key: "lawyer", label: "یادداشت من" },
+    { key: "client", label: "یادآوری موکل" },
   ] as const;
 
   return (
@@ -35,7 +36,9 @@ export default function NotificationsPage() {
             <Bell size={20} className="text-blue-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">یادداشت‌ها و اعلان‌ها</h1>
+            <h1 className="text-xl font-bold text-gray-900">
+              یادداشت‌ها و اعلان‌ها
+            </h1>
             {unreadCount > 0 && (
               <p className="text-sm text-gray-500">{unreadCount} خوانده‌نشده</p>
             )}
@@ -64,7 +67,9 @@ export default function NotificationsPage() {
 
       {showForm && (
         <div className="mb-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">افزودن یادآوری جدید</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mb-4">
+            افزودن یادآوری جدید
+          </h2>
           <AddReminderForm onClose={() => setShowForm(false)} />
         </div>
       )}
@@ -99,6 +104,7 @@ export default function NotificationsPage() {
                 notification={n}
                 onRead={() => markAsRead(n.id)}
                 onDismiss={() => dismiss(n.id)}
+                onToggleComplete={() => markAsCompleted(n.id)}
               />
             ))}
           </div>

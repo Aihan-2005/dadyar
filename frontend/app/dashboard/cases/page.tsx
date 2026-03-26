@@ -151,7 +151,7 @@ export default function CasesListPage() {
             
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">
-                نام موکل
+                نام موکیل
               </label>
               <input
                 type="text"

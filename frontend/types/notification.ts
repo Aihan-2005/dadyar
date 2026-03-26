@@ -27,6 +27,7 @@ export interface Notification {
   createdAt: string       
   scheduledFor?: string  
   readAt?: string
+  completed?: boolean  
 }
 
 export interface CreateReminderPayload {
