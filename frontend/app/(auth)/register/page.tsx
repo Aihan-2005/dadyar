@@ -82,8 +82,8 @@ import { useAuthStore } from '@/store/auth.store'
 import { useRouter } from 'next/navigation'
 
 const registerSchema = z.object({
-  firstName: z.string().min(2, 'نام الزامی است'),
-  lastName: z.string().min(2, 'نام خانوادگی الزامی است'),
+  email: z.string().email('ایمیل معتبر نیست'),
+  password: z.string().min(6, 'رمز عبور باید حداقل ۶ کاراکتر باشد'),
 })
 
 type RegisterFormData = z.infer<typeof registerSchema>
@@ -103,8 +103,8 @@ export default function RegisterPage() {
   const onSubmit = (data: RegisterFormData) => {
     login({
       id: crypto.randomUUID(),
-      firstName: data.firstName,
-      lastName: data.lastName,
+      firstName: data.email,
+      lastName: data.password,
     })
 
     router.push('/dashboard')
@@ -119,30 +119,30 @@ export default function RegisterPage() {
         <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">ثبت‌نام وکیل</h1>
 
         <div className="mb-4">
-          <label htmlFor="firstName" className="block text-gray-700 font-medium mb-2">نام:</label>
+         
           <input
-            {...register('firstName')}
-            placeholder="نام"
+            {...register('email')}
+            placeholder="ایمیل"
             className="w-full p-4 rounded-lg border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-blue-500 ring-opacity-50 text-gray-900"
             type="text"
             id="firstName"
           />
-          {errors.firstName && (
-            <p className="text-red-500 text-sm mt-2">{errors.firstName.message}</p>
+          {errors.email && (
+            <p className="text-red-500 text-sm mt-2">{errors.email.message}</p>
           )}
         </div>
 
         <div className="mb-4">
-          <label htmlFor="lastName" className="block text-gray-700 font-medium mb-2">نام خانوادگی:</label>
+          
           <input
-            {...register('lastName')}
-            placeholder="نام خانوادگی"
+            {...register('password')}
+            placeholder="رمز عبور "
             className="w-full p-4 rounded-lg border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-blue-500 ring-opacity-50 text-gray-900"
             type="text"
             id="lastName"
           />
-          {errors.lastName && (
-            <p className="text-red-500 text-sm mt-2">{errors.lastName.message}</p>
+          {errors.password && (
+            <p className="text-red-500 text-sm mt-2">{errors.password.message}</p>
           )}
         </div>
 

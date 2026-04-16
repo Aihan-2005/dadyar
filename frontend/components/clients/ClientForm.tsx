@@ -52,7 +52,7 @@ export function ClientForm({ client, onSubmit, onCancel }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 text-gray-600">
         <div>
           <label className={labelCls}>نام *</label>
           <input
@@ -77,7 +77,7 @@ export function ClientForm({ client, onSubmit, onCancel }: Props) {
         </div>
       </div>
 
-      <div>
+      <div className='text-gray-600'>
         <label className={labelCls}>کد ملی *</label>
         <input
           type="text"
@@ -91,7 +91,7 @@ export function ClientForm({ client, onSubmit, onCancel }: Props) {
         />
       </div>
 
-      <div>
+      <div className='text-gray-600'>
         <label className={labelCls}>شماره تماس *</label>
         <input
           type="tel"
@@ -104,7 +104,7 @@ export function ClientForm({ client, onSubmit, onCancel }: Props) {
           required
         />
       </div>
-         <div>
+         <div className='text-gray-600'>
         <label className={labelCls}>رمز شخصی</label>
         <input
           type="email"
@@ -115,7 +115,7 @@ export function ClientForm({ client, onSubmit, onCancel }: Props) {
         />
       </div>
 
-      <div>
+      <div className='text-gray-600'>
         <label className={labelCls}>ایمیل</label>
         <input
           type="email"
@@ -128,7 +128,7 @@ export function ClientForm({ client, onSubmit, onCancel }: Props) {
 
  
 
-      <div>
+      <div className='text-gray-600'>
         <label className={labelCls}>آدرس</label>
         <textarea
           className={inputCls}

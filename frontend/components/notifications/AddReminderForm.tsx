@@ -497,6 +497,9 @@ import { useState } from "react";
 import { User, Users, Calendar, Plus, X } from "lucide-react";
 import { useNotificationStore } from "@/store/notification.store";
 import { useCasesStore } from "@/store/cases.store";
+import { useMemo } from "react"
+import { useClientStore } from "@/store/client.store"
+
 import type {
   NotificationTarget,
   NotificationPriority,
@@ -571,7 +574,7 @@ export function AddReminderForm({ onClose }: AddReminderFormProps) {
   const [priority, setPriority] = useState<NotificationPriority>("medium");
   const [clientId, setClientId] = useState("");
   const [caseId, setCaseId] = useState("");
-  
+  const addReminder = useNotificationStore((state) => state.addReminder);
   const [dateTimes, setDateTimes] = useState<DateTimeInput[]>([
     {
       id: "1",
@@ -583,16 +586,41 @@ export function AddReminderForm({ onClose }: AddReminderFormProps) {
     },
   ]);
 
-  const { addReminder } = useNotificationStore();
-  const { cases } = useCasesStore();
+const cases = useCasesStore((s) => s.cases)
+const storeClients = useClientStore((s) => s.clients)
 
-  const clients = Array.from(
-    new Map(
-      cases.flatMap((c) =>
-        c.clients.map((client) => [client.phone, { id: client.phone, name: client.name }])
-      )
-    ).values()
-  );
+const clients = useMemo(() => {
+  const map = new Map()
+
+storeClients.forEach((c) => {
+  const fullName = `${c.firstName} ${c.lastName}`.trim()
+
+  map.set(c.id, {
+    id: c.id,
+    name: fullName,
+    phone: c.phoneNumber,
+  })
+})
+
+
+  // موکلین از پرونده‌ها
+  cases.forEach((c) => {
+    if (c.clientName) {
+      const key = c.clientPhone || c.clientName
+
+      if (!map.has(key)) {
+        map.set(key, {
+          id: key,
+          name: c.clientName,
+          phone: c.clientPhone,
+        })
+      }
+    }
+  })
+
+  return Array.from(map.values())
+}, [cases, storeClients])
+
 
   const addDateTime = () => {
     setDateTimes([
@@ -648,7 +676,6 @@ export function AddReminderForm({ onClose }: AddReminderFormProps) {
         scheduledDates.push(date.toISOString());
       }
     });
-
     if (target === "both") {
       scheduledDates.forEach((scheduledFor) => {
         const payload: CreateReminderPayload = {
@@ -739,6 +766,8 @@ export function AddReminderForm({ onClose }: AddReminderFormProps) {
     "فروردین", "اردیبهشت", "خرداد", "تیر", "مرداد", "شهریور",
     "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند"
   ];
+console.log("storeClients:", storeClients)
+console.log("cases:", cases)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -902,7 +931,7 @@ export function AddReminderForm({ onClose }: AddReminderFormProps) {
 
               <div className="space-y-3">
                 <div className="grid grid-cols-3 gap-2">
-                  <div>
+                  <div className="text-gray-600">
                     <label className="text-xs text-gray-600 mb-1 block">سال</label>
                     <input
                       type="number"
@@ -914,7 +943,7 @@ export function AddReminderForm({ onClose }: AddReminderFormProps) {
                       max="1500"
                     />
                   </div>
-                  <div>
+                  <div className="text-gray-600">
                     <label className="text-xs text-gray-600 mb-1 block">ماه</label>
                     <select
                       value={dt.jalaliMonth}
@@ -929,7 +958,7 @@ export function AddReminderForm({ onClose }: AddReminderFormProps) {
                       ))}
                     </select>
                   </div>
-                  <div>
+                  <div className="text-gray-600">
                     <label className="text-xs text-gray-600 mb-1 block">روز</label>
                     <input
                       type="number"
@@ -944,7 +973,7 @@ export function AddReminderForm({ onClose }: AddReminderFormProps) {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
+                  <div className="text-gray-600">
                     <label className="text-xs text-gray-600 mb-1 block">ساعت</label>
                     <input
                       type="number"
@@ -956,7 +985,7 @@ export function AddReminderForm({ onClose }: AddReminderFormProps) {
                       max="23"
                     />
                   </div>
-                  <div>
+                  <div className="text-gray-600">
                     <label className="text-xs text-gray-600 mb-1 block">دقیقه</label>
                     <input
                       type="number"

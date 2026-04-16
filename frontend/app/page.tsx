@@ -89,7 +89,7 @@ export default function HomePage() {
             href="/login"
             className="inline-flex items-center justify-center h-13 px-8 rounded-full border border-white/10 text-zinc-300 hover:text-white hover:border-white/25 hover:bg-white/5 font-medium text-base transition-all duration-200"
           >
-            ورود به حساب
+           ورود وکلا
           </Link>
         </div>
 
