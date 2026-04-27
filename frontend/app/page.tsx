@@ -77,7 +77,7 @@ export default function HomePage() {
             className="group relative inline-flex items-center justify-center gap-2 h-13 px-8 rounded-full font-bold text-base overflow-hidden"
             style={{ background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)" }}
           >
-            <span className="relative z-10">شروع رایگان</span>
+            <span className="relative z-10">ورود موکلین </span>
             <span className="relative z-10 text-lg">←</span>
             <div
               className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
