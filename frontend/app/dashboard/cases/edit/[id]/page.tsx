@@ -80,9 +80,9 @@ const caseSchema = z.object({
   opposingLawyers: z.array(lawyerSchema).optional(),
   status: z.enum(['pending', 'in-progress', 'completed', 'archived']),
   description: z.string().optional(),
-  paymentType: z.enum(['cash', 'non-cash']),
+  paymentType: z.enum(['cash', 'installment']),
   cashPayments: z.array(paymentSchema).optional(),
-  nonCashDescription: z.string().optional(),
+  installmentDescription: z.string().optional(),
 })
 
 type CaseFormData = z.infer<typeof caseSchema>
@@ -94,7 +94,7 @@ export default function EditCasePage({ params }: EditCasePageProps) {
   const updateCase = useCasesStore((s) => s.updateCase)
   const caseItem = getCaseById(id)
 
-  const [paymentType, setPaymentType] = useState<'cash' | 'non-cash'>(caseItem?.paymentType || 'cash')
+  const [paymentType, setPaymentType] = useState<'cash' | 'installment'>(caseItem?.paymentType || 'cash')
   const [isCourtTypeDropdownOpen, setIsCourtTypeDropdownOpen] = useState(false)
   const [courtTypeInput, setCourtTypeInput] = useState(caseItem?.courtBranch?.courtType || '')
   const [filteredCourtTypes, setFilteredCourtTypes] = useState(COURT_TYPES)
@@ -120,7 +120,7 @@ export default function EditCasePage({ params }: EditCasePageProps) {
       status: caseItem?.status || 'pending',
       description: caseItem?.description || '',
       paymentType: caseItem?.paymentType || 'cash',
-      nonCashDescription: caseItem?.nonCashDescription || '',
+      installmentDescription: caseItem?.installmentDescription || '',
       clients: caseItem?.clients || [{ name: '', phone: '', nationalId: '', role: '' }],
       opposingParties: caseItem?.opposingParties || [],
       coLawyers: caseItem?.coLawyers || [],
@@ -842,11 +842,11 @@ export default function EditCasePage({ params }: EditCasePageProps) {
               <label className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
                 <input
                   type="radio"
-                  value="non-cash"
+                  value="installment"
                   {...register('paymentType')}
                   onChange={() => {
-                    setPaymentType('non-cash')
-                    setValue('paymentType', 'non-cash')
+                    setPaymentType('installment')
+                    setValue('paymentType', 'installment')
                   }}
                   className="text-blue-600"
                 />
@@ -930,14 +930,14 @@ export default function EditCasePage({ params }: EditCasePageProps) {
             </div>
           )}
 
-          {paymentType === 'non-cash' && (
+          {paymentType === 'installment' && (
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 space-y-4">
               <h3 className="font-medium text-blue-800 text-lg">توضیحات پرداخت غیر نقدی</h3>
               <p className="text-sm text-blue-600">
                 در صورتی که پرداخت به صورت غیر نقدی (مثل زمین، ملک، خودرو و ...) انجام می‌شود، جزئیات را وارد کنید.
               </p>
               <textarea
-                {...register('nonCashDescription')}
+                {...register('installmentDescription')}
                 rows={6}
                 className="w-full px-4 py-3 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 placeholder="مثال: یک قطعه زمین به مساحت 200 متر مربع واقع در تهران، خیابان ولیعصر، پلاک ثبتی 12345"

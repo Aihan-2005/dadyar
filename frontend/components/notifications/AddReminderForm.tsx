@@ -491,6 +491,10 @@
 //   );
 // }
 // components/notifications/AddReminderForm.tsx
+
+
+
+
 "use client";
 
 import { useState } from "react";
@@ -676,68 +680,69 @@ storeClients.forEach((c) => {
         scheduledDates.push(date.toISOString());
       }
     });
-    if (target === "both") {
-      scheduledDates.forEach((scheduledFor) => {
-        const payload: CreateReminderPayload = {
-          title,
-          message: message || undefined,
-          priority,
-          target: "lawyer",
-          scheduledFor,
-          clientId: clientId || undefined,
-          clientName: selectedClient?.name,
-          caseId: caseId || undefined,
-          caseName: selectedCase?.title,
-        };
-        addReminder(payload);
-      });
+   if (target === "both") {
+  scheduledDates.forEach((scheduledFor) => {
+    const payload: CreateReminderPayload = {
+      title,
+      ...(message && { message }),
+      priority,
+      target: "lawyer",
+      scheduledFor,
+      ...(clientId && { clientId }),
+      ...(selectedClient?.name && { clientName: selectedClient.name }),
+      ...(caseId && { caseId }),
+      ...(selectedCase?.title && { caseName: selectedCase.title }),
+    };
+    addReminder(payload);
+  });
 
-      if (clientId) {
-        scheduledDates.forEach((scheduledFor) => {
-          const payload: CreateReminderPayload = {
-            title,
-            message: message || undefined,
-            priority,
-            target: "client",
-            scheduledFor,
-            clientId,
-            clientName: selectedClient?.name,
-            caseId: caseId || undefined,
-            caseName: selectedCase?.title,
-          };
-          addReminder(payload);
-        });
-      }
-    } else {
-      if (scheduledDates.length > 0) {
-        scheduledDates.forEach((scheduledFor) => {
-          const payload: CreateReminderPayload = {
-            title,
-            message: message || undefined,
-            priority,
-            target: target as NotificationTarget,
-            scheduledFor,
-            clientId: clientId || undefined,
-            clientName: selectedClient?.name,
-            caseId: caseId || undefined,
-            caseName: selectedCase?.title,
-          };
-          addReminder(payload);
-        });
-      } else {
-        const payload: CreateReminderPayload = {
-          title,
-          message: message || undefined,
-          priority,
-          target: target as NotificationTarget,
-          clientId: clientId || undefined,
-          clientName: selectedClient?.name,
-          caseId: caseId || undefined,
-          caseName: selectedCase?.title,
-        };
-        addReminder(payload);
-      }
-    }
+  if (clientId) {
+    scheduledDates.forEach((scheduledFor) => {
+      const payload: CreateReminderPayload = {
+        title,
+        ...(message && { message }),
+        priority,
+        target: "client",
+        scheduledFor,
+        clientId,
+        ...(selectedClient?.name && { clientName: selectedClient.name }),
+        ...(caseId && { caseId }),
+        ...(selectedCase?.title && { caseName: selectedCase.title }),
+      };
+      addReminder(payload);
+    });
+  }
+} else {
+  if (scheduledDates.length > 0) {
+    scheduledDates.forEach((scheduledFor) => {
+      const payload: CreateReminderPayload = {
+        title,
+        ...(message && { message }),
+        priority,
+        target: target as NotificationTarget,
+        scheduledFor,
+        ...(clientId && { clientId }),
+        ...(selectedClient?.name && { clientName: selectedClient.name }),
+        ...(caseId && { caseId }),
+        ...(selectedCase?.title && { caseName: selectedCase.title }),
+      };
+      addReminder(payload);
+    });
+  } else {
+    const payload: CreateReminderPayload = {
+      title,
+      ...(message && { message }),
+      priority,
+      target: target as NotificationTarget,
+      ...(clientId && { clientId }),
+      ...(selectedClient?.name && { clientName: selectedClient.name }),
+      ...(caseId && { caseId }),
+      ...(selectedCase?.title && { caseName: selectedCase.title }),
+    };
+    addReminder(payload);
+  }
+}
+
 
     setTitle("");
     setMessage("");

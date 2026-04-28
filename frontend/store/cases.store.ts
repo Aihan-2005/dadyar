@@ -11,11 +11,49 @@ export interface Installment {
   paidDate?: Date
 }
 
-export interface CourtBranch {
-  branchNumber: string   // شماره شعبه
-  courtName: string      // اسم دادگاه
-  city: string           // اسم شهر
+export interface Client {
+  name: string
+  phone: string
+  nationalId?: string
+  role?: string
 }
+
+export interface OpposingParty {
+  name: string
+  phone?: string
+  nationalId?: string
+  description?: string
+}
+
+export interface Lawyer {
+  name: string
+  phone: string
+}
+
+export interface CashPayment {
+  amount: number
+  isPaid: boolean
+  paymentDate?: string
+}
+
+export interface CourtBranch {
+  province?: string
+  city?: string
+  courtType?: string
+  branch?: string
+  currentBranchNumber?: string
+
+  branchNumber?: string
+  courtName?: string
+
+  branchHistory?: {
+    branchNumber: string
+    date?: string
+    isActive: boolean
+  }[]
+}
+
+
 
 export interface Case {
   id: string
@@ -23,29 +61,55 @@ export interface Case {
   title: string
   clientName: string
   clientPhone?: string
-  caseNumber: string          // شماره پرونده (عمومی)
-  archiveNumberOffice?: string  // شماره بایگانی دفتر (ثابت از پروفایل)
-  archiveNumberLawyer?: string  // شماره بایگانی وکیل (ثابت از پروفایل)
-  archiveNumberBranch?: string  // شماره بایگانی شعبه (وارد شده توسط وکیل)
-  courtBranch?: CourtBranch    // شعبه دادگاه
-  coLawyerName?: string        // وکیل هم‌رزم
-  coLawyerInCase?: string      // وکیل توی رزمه (نفر دیگری در همان پرونده)
+  caseNumber: string         
+  archiveNumberOffice?: string  
+  archiveNumberLawyer?: string
+  archiveNumberBranch?: string  
+  courtBranch?: CourtBranch    
+  coLawyerName?: string       
+  coLawyerInCase?: string      
   status: CaseStatus
   description?: string
+  clients?: Client[]
+  opposingParties?: OpposingParty[]
+  coLawyers?: Lawyer[]
+  opposingLawyers?: Lawyer[]
+  cashPayments?: CashPayment[]
   
-  // فیلدهای مالی
-  totalFee: number              // مجموع حق‌الوکاله
-  paidAmount: number            // مبلغ پرداخت شده
-  remainingAmount: number       // مبلغ باقیمانده
+  totalFee: number              
+  paidAmount: number            
+  remainingAmount: number       
   paymentType: PaymentType
   installments?: Installment[]
-  dueDate?: Date                // سررسید پرداخت
-  
-  // تاریخ‌ها
+  dueDate?: Date                
+  lastPaymentDate?: Date 
   createdAt: Date
   updatedAt: Date
-  closedAt?: Date               // تاریخ بسته شدن پرونده
+  closedAt?: Date        
+  totalAmount?: number
+  installmentDescription?: string
+  expenses?: Expense[]
+  otherPersons?: OtherPerson[]
+      
 }
+export interface Expense {
+  title: string
+  amount: number
+  date?: string
+  description?: string
+}
+
+
+export interface OtherPerson {
+  name: string
+  phone?: string
+  nationalId?: string
+  description?: string
+}
+
+
+
+
 
 interface CasesStore {
   cases: Case[]
@@ -59,7 +123,6 @@ interface CasesStore {
   getTotalDebt: () => number
 }
 
-// تابع کمکی برای محاسبه مبلغ باقیمانده
 const calculateRemainingAmount = (totalFee: number, paidAmount: number): number => {
   return Math.max(0, totalFee - paidAmount)
 }

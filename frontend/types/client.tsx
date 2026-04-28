@@ -6,9 +6,11 @@ export interface Client {
   phoneNumber: string
   email?: string
   address?: string
+  notes?: string
+  lawyerId?: string
   createdAt: string
   updatedAt: string
-  caseIds: string[] // آرایه‌ای از ID پرونده‌ها
+  caseIds: string[] 
 }
 
 export interface CreateClientPayload {
@@ -18,6 +20,8 @@ export interface CreateClientPayload {
   phoneNumber: string
   email?: string
   address?: string
+  notes?: string
+  lawyerId?: string
 }
 
 export interface UpdateClientPayload extends Partial<CreateClientPayload> {

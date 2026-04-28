@@ -55,8 +55,8 @@ function ClientsPageContent() {
         paidAmount: c.paidAmount || 0,
         remainingDebt: remaining,
         overdueAmount,
-        lastPaymentDate: c.lastPaymentDate,
-        dueDate: c.dueDate,
+        lastPaymentDate: c.lastPaymentDate ? c.lastPaymentDate.toISOString() : undefined,
+        dueDate: c.dueDate ? c.dueDate.toISOString() : undefined,
         status: isOverdue
           ? 'overdue'
           : remaining <= 0
@@ -72,7 +72,6 @@ function ClientsPageContent() {
     )
   }, [cases])
 
-  // موکل انتخاب‌شده از سرچ
   const selectedClient = useMemo(() => {
     if (!searchTerm.trim()) return null
     return (
@@ -82,7 +81,6 @@ function ClientsPageContent() {
     )
   }, [clientSummaries, searchTerm])
 
-  // فیلتر جدول اصلی
   const filteredClients = useMemo(() => {
     if (!searchTerm.trim()) return clientSummaries
     return clientSummaries.filter((c) =>
@@ -94,7 +92,6 @@ function ClientsPageContent() {
     <div className="min-h-screen bg-zinc-50">
       <div className="max-w-7xl mx-auto p-6 md:p-8 space-y-8">
 
-        {/* ───── Header ───── */}
         <div className="flex items-center gap-4">
           <Link
             href="/dashboard/finances"
@@ -137,7 +134,6 @@ function ClientsPageContent() {
                     شماره قرارداد | موضوع | مبلغ | پرداختی‌ها | مانده | معوق
                   </p>
                 </div>
-                {/* خلاصه مالی موکل */}
                 <div className="hidden md:flex items-center gap-6 text-sm">
                   <div className="text-center">
                     <p className="text-zinc-500 text-xs">مبلغ کل</p>
@@ -172,7 +168,6 @@ function ClientsPageContent() {
           </div>
         )}
 
-        {/* ───── جدول کلی موکلین ───── */}
         <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
           <div className="px-6 py-5 border-b border-zinc-100">
             <h2 className="text-lg font-bold text-zinc-900">لیست موکلین</h2>
