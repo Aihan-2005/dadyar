@@ -25,7 +25,7 @@ export const useNotificationStore = create<NotificationState>()(
           status: 'unread',
           target: payload.target,
           title: payload.title,
-          message: payload.message,
+          message: payload.message || '',
           caseId: payload.caseId,
           caseName: payload.caseName,
           clientId: payload.clientId,

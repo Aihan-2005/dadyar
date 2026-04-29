@@ -33,7 +33,7 @@ export default function FinancesPage() {
     }, 0)
 
     const uniqueClients = new Set(cases.map((c) => c.clientName)).size
-    const activeContracts = cases.filter((c) => c.status !== 'closed').length
+    const activeContracts = cases.filter((c) => c.status !== 'archived').length
 
     return {
       totalRevenue,
@@ -83,8 +83,8 @@ export default function FinancesPage() {
         paidAmount: c.paidAmount || 0,
         remainingDebt: remaining,
         overdueAmount,
-        lastPaymentDate: c.lastPaymentDate,
-        dueDate: c.dueDate,
+        lastPaymentDate: c.lastPaymentDate?.toISOString(),
+        dueDate: c.dueDate?.toISOString(),
         status: isOverdue
           ? 'overdue'
           : remaining <= 0

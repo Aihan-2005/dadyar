@@ -53,6 +53,12 @@ const opposingPartySchema = z.object({
   nationalId: z.string().optional(),
   description: z.string().optional(),
 })
+const otherPersonSchema = z.object({
+  name: z.string().min(1, 'نام الزامی است'),
+  phone: z.string().regex(/^09\d{9}$/, 'شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود').optional().or(z.literal('')),
+  nationalId: z.string().optional(),
+  description: z.string().optional(),
+})
 
 const paymentSchema = z.object({
   amount: z.number().min(0, 'مبلغ باید بیشتر از ۰ باشد'),
@@ -87,6 +93,16 @@ const caseSchema = z.object({
   contractAmount: z.string().optional(),
   remainingAmount: z.string().optional(),
   overdueAmount: z.string().optional(),
+  expenses: z.array(
+    z.object({
+      title: z.string().optional(),
+      amount: z.number().optional(),
+      date:z.string().optional(),
+    description: z.string().optional(),
+    isPaid: z.boolean().optional(),
+    })
+  ).optional(),
+   otherPersons: z.array(otherPersonSchema).optional(),
 })
 
 type CaseFormData = z.infer<typeof caseSchema>
@@ -124,6 +140,7 @@ export default function NewCasePage() {
       contractAmount: '',
       remainingAmount: '',
       overdueAmount: '',
+      otherPersons: [],
     },
   })
 
@@ -274,7 +291,6 @@ const overdueTotal = watchCashPayments.reduce((sum, p) => {
   return sum
 }, 0)
 
-// مجموع کل پرداخت‌ها برای نمایش
 const totalCash = watchCashPayments.reduce((sum, p) => {
   return sum + (Number(p.amount) || 0)
 }, 0)
@@ -549,7 +565,6 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* موکلین */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

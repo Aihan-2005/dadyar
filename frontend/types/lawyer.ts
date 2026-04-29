@@ -6,4 +6,6 @@ export interface Lawyer{
     lastName : string
     phone?: string
     email?:string
+    clientIds?: string[]
+
 }
