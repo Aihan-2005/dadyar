@@ -523,26 +523,6 @@ interface DateTimeInput {
   minute: string;
 }
 
-function jalaliToGregorian(j_y: number, j_m: number, j_d: number): [number, number, number] {
-  let gy = j_y <= 979 ? 621 : 1600;
-  j_y -= j_y <= 979 ? 0 : 979;
-  
-  let days = 365 * j_y + Math.floor(j_y / 33) * 8 + Math.floor(((j_y % 33) + 3) / 4) + 78 + j_d;
-  
-  if (j_m < 7) days += (j_m - 1) * 31;
-  else days += (j_m - 7) * 30 + 186;
-  
-  gy += 400 * Math.floor(days / 146097);
-  days %= 146097;
-  
-  let leap = true;
-  if (days >= 36525) {
-    days--;
-    gy += 100 * Math.floor(days / 36524);
-    days %= 36524;
-    if (days >= 365) days++;
-    else leap = false;
-  }
 
   interface DateTimeInput {
     id: string;

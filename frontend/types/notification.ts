@@ -32,7 +32,7 @@ export interface Notification {
 
 export interface CreateReminderPayload {
   title: string
-  message: string
+  message?: string
   priority: NotificationPriority
   target: NotificationTarget
   caseId?: string

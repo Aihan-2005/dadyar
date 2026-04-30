@@ -28,8 +28,7 @@ import DashboardSidebar from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/header";
 import AuthGuard from "@/components/auth-guard";
 import { Menu } from "lucide-react";
-import AuthGuard  from "@/components/auth-guard";
-import { useState } from "react";
+
 
 export default function DashboardLayout({
   children,

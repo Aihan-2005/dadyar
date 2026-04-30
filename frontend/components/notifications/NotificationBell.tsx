@@ -10,7 +10,7 @@ import NotificationDropdown from "./NotificationDropdown";
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { unreadCount } = useNotificationStore();
+  const unreadCount = useNotificationStore((state) => state.getUnreadCount());
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
