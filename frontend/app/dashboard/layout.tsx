@@ -21,15 +21,14 @@
 //     </AuthGuard>
 //   );
 // }
-
 "use client";
 
 import { useState } from "react";
 import DashboardSidebar from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/header";
-
 import AuthGuard from "@/components/auth-guard";
 import { Menu } from "lucide-react";
+
 
 export default function DashboardLayout({
   children,
@@ -41,7 +40,6 @@ export default function DashboardLayout({
   return (
     <AuthGuard>
       <div className="flex min-h-screen bg-zinc-50" dir="rtl">
-
         {/* دکمه همبرگر برای موبایل */}
         <button
           onClick={() => setIsSidebarOpen(true)}
@@ -58,7 +56,6 @@ export default function DashboardLayout({
         
         <div className="flex-1 flex flex-col">
           <DashboardHeader />
-         
           <main className="flex-1 p-6 overflow-auto pt-16 lg:pt-6">
             {children}
           </main>

@@ -128,7 +128,7 @@ export default function DashboardPage() {
 
   // محاسبه آمار
   const stats = useMemo(() => {
-    const activeCases = cases.filter((c) => c.status !== 'closed').length
+    const activeCases = cases.filter((c) => c.status !== 'archived').length
     const monthlyCases = cases.filter((c) => isInCurrentMonth(c.createdAt)).length
     
     // محاسبه کل مانده طلب
