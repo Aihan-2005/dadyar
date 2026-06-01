@@ -4,13 +4,21 @@ export interface Client {
   lastName: string
   nationalId: string
   phoneNumber: string
+
+  /** فیلدهای جدید */
+  role?: string
+  landlineNumber?: string
+  birthDate?: string
+  isMinor?: boolean
+  representative?: string
+
   email?: string
   address?: string
   notes?: string
   lawyerId?: string
   createdAt: string
   updatedAt: string
-  caseIds: string[] 
+  caseIds: string[]
 }
 
 export interface CreateClientPayload {
@@ -18,6 +26,14 @@ export interface CreateClientPayload {
   lastName: string
   nationalId: string
   phoneNumber: string
+
+  /** فیلدهای جدید */
+  role?: string
+  landlineNumber?: string
+  birthDate?: string
+  isMinor?: boolean
+  representative?: string
+
   email?: string
   address?: string
   notes?: string

@@ -24,7 +24,7 @@ export default function NotificationsPage() {
 
   const tabs = [
     { key: "all", label: "همه" },
-    { key: "lawyer", label: "یادداشت من" },
+    { key: "lawyer", label: "یادآوری وکیل" },
     { key: "client", label: "یادآوری موکل" },
   ] as const;
 

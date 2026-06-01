@@ -1,15 +1,15 @@
 'use client'
-import { useEffect } from "react"
-import { useForm } from 'react-hook-form'
+
+import { useEffect, useState } from 'react'
+import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useCasesStore } from '@/store/cases.store'
 import { useAuthStore } from '@/store/auth.store'
 import { useRouter } from 'next/navigation'
+import { useClientStore } from '@/store/client.store'
 import { ArrowRight, Plus, X, ChevronDown, Users, UserX } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
-import { useFieldArray } from 'react-hook-form'
 
 const PROVINCES = [
   'تهران', 'اصفهان', 'فارس', 'خراسان رضوی', 'خوزستان', 'آذربایجان شرقی',
@@ -17,7 +17,7 @@ const PROVINCES = [
   'مرکزی', 'لرستان', 'قزوین', 'سمنان', 'یزد', 'اردبیل', 'زنجان',
   'کردستان', 'بوشهر', 'قم', 'هرمزگان', 'چهارمحال و بختیاری', 'ایلام',
   'کهگیلویه و بویراحمد', 'گلستان', 'خراسان شمالی', 'خراسان جنوبی',
-  'البرز', 'سیستان و بلوچستان'
+  'البرز', 'سیستان و بلوچستان',
 ]
 
 const COURT_TYPES = [
@@ -29,120 +29,234 @@ const COURT_TYPES = [
   'دادگاه کار',
   'دادگاه اصناف',
   'دادگاه حقوقی',
-  'دادگاه تجدیدنظر'
+  'دادگاه تجدیدنظر',
 ]
 
+
+
+
+const optionalTextSchema = z.string().trim().optional()
+
+const optionalPhoneSchema = z
+  .string()
+  .trim()
+  .refine((value) => !value || /^09\d{9}$/.test(value), {
+    message: 'شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود',
+  })
+  .optional()
+
+const optionalNumberSchema = z.preprocess((value) => {
+  if (value === '' || value === null || value === undefined) return undefined
+  if (typeof value === 'number' && Number.isNaN(value)) return undefined
+
+  const parsed = Number(value)
+  return Number.isNaN(parsed) ? undefined : parsed
+}, z.number().min(0, 'مبلغ نمی‌تواند منفی باشد').optional())
+
 const lawyerSchema = z.object({
-  name: z.string().min(1, 'نام الزامی است'),
-  phone: z.string().regex(/^09\d{9}$/, 'شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود'),
-  licenseNumber: z.string().optional(),
-  licenseExpiry: z.string().optional(),
-  licenseIssuePlace: z.string().optional(),
+  name: optionalTextSchema,
+  phone: optionalPhoneSchema,
+  licenseNumber: optionalTextSchema,
+  licenseExpiry: optionalTextSchema,
+  licenseIssuePlace: optionalTextSchema,
 })
 
 const clientSchema = z.object({
-  name: z.string().min(1, 'نام موکل الزامی است'),
-  phone: z.string().regex(/^09\d{9}$/, 'شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود'),
-  nationalId: z.string().optional(),
-  role: z.string().optional(),
+  clientId: z.string().optional(),
+  name: optionalTextSchema,
+  phone: optionalPhoneSchema,
+  nationalId: optionalTextSchema,
+  role: optionalTextSchema,
+  representative: optionalTextSchema,
+})
+const opposingPartySchema = z.object({
+  name: optionalTextSchema,
+  phone: optionalPhoneSchema,
+  nationalId: optionalTextSchema,
+  description: optionalTextSchema,
 })
 
-const opposingPartySchema = z.object({
-  name: z.string().min(1, 'نام طرف مقابل الزامی است'),
-  phone: z.string().regex(/^09\d{9}$/, 'شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود').optional().or(z.literal('')),
-  nationalId: z.string().optional(),
-  description: z.string().optional(),
-})
 const otherPersonSchema = z.object({
-  name: z.string().min(1, 'نام الزامی است'),
-  phone: z.string().regex(/^09\d{9}$/, 'شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود').optional().or(z.literal('')),
-  nationalId: z.string().optional(),
-  description: z.string().optional(),
+  name: optionalTextSchema,
+  phone: optionalPhoneSchema,
+  nationalId: optionalTextSchema,
+  description: optionalTextSchema,
 })
 
 const paymentSchema = z.object({
-  amount: z.number().min(0, 'مبلغ باید بیشتر از ۰ باشد'),
-  isPaid: z.boolean(),
-  paymentDate: z.string().optional(),
+  amount: optionalNumberSchema,
+  isPaid: z.boolean().optional(),
+  paymentDate: optionalTextSchema,
 })
 
 const branchHistorySchema = z.object({
-  branchNumber: z.string().min(1, ' شعبه الزامی است'),
-  date: z.string().optional(),
+  province: optionalTextSchema,
+  city: optionalTextSchema,
+  branchNumber: optionalTextSchema,
+  archiveNumberBranch: optionalTextSchema,
+  date: optionalTextSchema,
   isActive: z.boolean(),
 })
 
+const expenseSchema = z.object({
+  title: optionalTextSchema,
+  amount: optionalNumberSchema,
+  date: optionalTextSchema,
+  description: optionalTextSchema,
+  isPaid: z.boolean().optional(),
+})
+
 const caseSchema = z.object({
-  title: z.string().min(1, 'عنوان پرونده الزامی است'),
-  clients: z.array(clientSchema).min(1, 'حداقل یک موکل الزامی است'),
+  title: z.string().trim().min(1, 'عنوان پرونده الزامی است'),
+  status: z.enum(['pending', 'in-progress', 'completed', 'archived']),
+  clients: z.array(clientSchema).optional(),
   opposingParties: z.array(opposingPartySchema).optional(),
-  caseNumber: z.string().regex(/^\d{18}$/, 'شماره پرونده باید دقیقاً ۱۸ رقم باشد'),
-  archiveNumberBranch: z.string().regex(/^\d{7}$/, 'شماره بایگانی شعبه باید دقیقاً 7 رقم باشد').optional().or(z.literal('')),
-  province: z.string().optional(),
-  city: z.string().optional(),
-  courtType: z.string().optional(),
-  courtBranch: z.string().optional(),
-  branchHistory: z.array(branchHistorySchema).min(1, 'حداقل یک شعبه الزامی است'),
+  caseNumber: optionalTextSchema,
+  archiveNumberBranch: optionalTextSchema,
+  province: optionalTextSchema,
+  city: optionalTextSchema,
+  courtType: optionalTextSchema,
+  courtBranch: optionalTextSchema,
+  branchHistory: z.array(branchHistorySchema).optional(),
   coLawyers: z.array(lawyerSchema).optional(),
   opposingLawyers: z.array(lawyerSchema).optional(),
-  status: z.enum(['pending', 'in-progress', 'completed', 'archived']),
-  description: z.string().optional(),
-  paymentType: z.enum(['cash', 'non-cash']),
+  description: optionalTextSchema,
+  paymentType: z.enum(['cash', 'non-cash', 'both']).optional(),
   cashPayments: z.array(paymentSchema).optional(),
-  nonCashDescription: z.string().optional(),
-  contractAmount: z.string().optional(),
-  remainingAmount: z.string().optional(),
-  overdueAmount: z.string().optional(),
-  expenses: z.array(
-    z.object({
-      title: z.string().optional(),
-      amount: z.number().optional(),
-      date:z.string().optional(),
-    description: z.string().optional(),
-    isPaid: z.boolean().optional(),
-    })
-  ).optional(),
-   otherPersons: z.array(otherPersonSchema).optional(),
+  nonCashDescription: optionalTextSchema,
+  contractAmount: optionalTextSchema,
+  remainingAmount: optionalTextSchema,
+  overdueAmount: optionalTextSchema,
+  expenses: z.array(expenseSchema).optional(),
+  otherPersons: z.array(otherPersonSchema).optional(),
 })
 
 type CaseFormData = z.infer<typeof caseSchema>
+type BranchHistoryItem = z.infer<typeof branchHistorySchema>
+type CourtLocationField = 'province' | 'city' | 'branchNumber' | 'archiveNumberBranch'
+
+const cleanText = (value?: string | null) => (value ?? '').trim()
+const hasText = (value?: string | null) => cleanText(value).length > 0
+
+const hasCourtLocationValue = (location?: Partial<BranchHistoryItem>) => {
+  if (!location) return false
+
+  return Boolean(
+    hasText(location.province) ||
+      hasText(location.city) ||
+      hasText(location.branchNumber) ||
+      hasText(location.archiveNumberBranch)
+  )
+}
 
 export default function NewCasePage() {
   const router = useRouter()
   const addCase = useCasesStore((s) => s.addCase)
   const user = useAuthStore((s) => s.user)
 
-  const [paymentType, setPaymentType] = useState<'cash' | 'non-cash'>('cash')
+  const [paymentType, setPaymentType] = useState<'cash' | 'non-cash' | 'both'>('cash')
   const [isCourtTypeDropdownOpen, setIsCourtTypeDropdownOpen] = useState(false)
   const [courtTypeInput, setCourtTypeInput] = useState('')
   const [filteredCourtTypes, setFilteredCourtTypes] = useState(COURT_TYPES)
   const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    watch,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<CaseFormData>({
-    resolver: zodResolver(caseSchema),
-    defaultValues: {
-      status: 'pending',
-      paymentType: 'cash',
-      cashPayments: [],
-      clients: [{ name: '', phone: '', nationalId: '', role: '' }],
-      opposingParties: [],
-      coLawyers: [],
-      opposingLawyers: [],
-      branchHistory: [{ branchNumber: '', date: '', isActive: true }],
-      nonCashDescription: '',
-      contractAmount: '',
-      remainingAmount: '',
-      overdueAmount: '',
-      otherPersons: [],
-    },
-  })
+const {
+  register,
+  handleSubmit,
+  control,
+  watch,
+  setValue,
+  formState: { errors, isSubmitting },
+} = useForm<CaseFormData>({
+  resolver: zodResolver(caseSchema),
+  defaultValues: {
+    title: '',
+    status: 'pending',
+    paymentType: 'cash',
+    caseNumber: '',
+    cashPayments: [],
+    clients: [
+      {
+        clientId: '',
+        name: '',
+        phone: '',
+        nationalId: '',
+        role: '',
+        representative: '',
+      },
+    ],
+    opposingParties: [],
+    coLawyers: [],
+    opposingLawyers: [],
+    branchHistory: [
+      {
+        province: '',
+        city: '',
+        branchNumber: '',
+        archiveNumberBranch: '',
+        date: '',
+        isActive: true,
+      },
+    ],
+    province: '',
+    city: '',
+    courtType: '',
+    courtBranch: '',
+    archiveNumberBranch: '',
+    nonCashDescription: '',
+    contractAmount: '',
+    remainingAmount: '',
+    overdueAmount: '',
+    expenses: [],
+    otherPersons: [],
+    description: '',
+  },
+})
+
+const savedClients = useClientStore((s) => s.clients)
+
+const getSavedClientFullName = (client: any) => {
+  const fullName = `${client.firstName || ''} ${client.lastName || ''}`.trim()
+  return fullName || client.name || ''
+}
+
+const fillClientFromSavedList = (index: number, savedClientId: string) => {
+  setValue(`clients.${index}.clientId` as any, savedClientId)
+
+  if (!savedClientId) {
+    return
+  }
+
+  const selectedClient = savedClients.find(
+    (client: any) => client.id === savedClientId
+  )
+
+  if (!selectedClient) {
+    return
+  }
+
+  setValue(`clients.${index}.name` as const, getSavedClientFullName(selectedClient))
+
+  setValue(
+    `clients.${index}.phone` as const,
+    selectedClient.phoneNumber || selectedClient.phone || ''
+  )
+
+  setValue(
+    `clients.${index}.nationalId` as const,
+    selectedClient.nationalId || ''
+  )
+
+  setValue(
+    `clients.${index}.role` as const,
+    selectedClient.role || ''
+  )
+
+  setValue(
+    `clients.${index}.representative` as const,
+    selectedClient.representative || ''
+  )
+}
 
   const { fields: cashPaymentFields, append: appendCashPayment, remove: removeCashPayment } = useFieldArray({
     control,
@@ -169,149 +283,303 @@ export default function NewCasePage() {
     name: 'opposingLawyers',
   })
 
-  const { fields: branchHistoryFields, append: appendBranchHistory, remove: removeBranchHistory } = useFieldArray({
+  const { append: appendBranchHistory } = useFieldArray({
     control,
     name: 'branchHistory',
   })
 
+  const { fields: expenseFields, append: appendExpense, remove: removeExpense } = useFieldArray({
+    control,
+    name: 'expenses',
+  })
+
+  const { fields: otherPersonFields, append: appendOtherPerson, remove: removeOtherPerson } = useFieldArray({
+    control,
+    name: 'otherPersons',
+  })
+
   const watchCashPayments = watch('cashPayments') || []
   const watchBranchHistory = watch('branchHistory') || []
-  
+  const watchExpenses = watch('expenses') || []
+
+  const activeCourtLocationIndex = watchBranchHistory.findIndex((location) => location.isActive)
+  const activeCourtLocation =
+    activeCourtLocationIndex >= 0 ? watchBranchHistory[activeCourtLocationIndex] : undefined
+  const activeBranch = activeCourtLocation?.branchNumber || ''
+  const courtLocationHistory = watchBranchHistory
+    .map((location, index) => ({ location, index }))
+    .filter(({ location, index }) => index !== activeCourtLocationIndex && hasCourtLocationValue(location))
+
+  const expensesTotal = watchExpenses.reduce((sum, item) => {
+    return sum + (Number(item.amount) || 0)
+  }, 0)
+
+  const contractAmount = Number(watch('contractAmount')) || 0
+
+  const jalaliToDate = (jalali: string) => {
+    if (!jalali) return null
+
+    const parts = jalali.split('/')
+    if (parts.length !== 3) return null
+
+    const jy = Number(parts[0])
+    const jm = Number(parts[1])
+    const jd = Number(parts[2])
+
+    if (!jy || !jm || !jd) return null
+
+    const gy = jy - 621
+    return new Date(gy, jm - 1, jd)
+  }
+
+  const today = new Date()
+
+  const totalPaid = watchCashPayments.reduce((sum, payment) => {
+    if (payment.isPaid) {
+      return sum + (Number(payment.amount) || 0)
+    }
+
+    return sum
+  }, 0)
+
+  const overdueTotal = watchCashPayments.reduce((sum, payment) => {
+    if (!payment.isPaid && payment.paymentDate) {
+      const payDate = jalaliToDate(payment.paymentDate)
+
+      if (payDate && payDate < today) {
+        return sum + (Number(payment.amount) || 0)
+      }
+    }
+
+    return sum
+  }, 0)
+
+  const totalCash = watchCashPayments.reduce((sum, payment) => {
+    return sum + (Number(payment.amount) || 0)
+  }, 0)
+
+  useEffect(() => {
+    const remaining = Math.max(contractAmount - totalPaid, 0)
+
+    setValue('remainingAmount', remaining.toString())
+    setValue('overdueAmount', overdueTotal.toString())
+  }, [contractAmount, totalPaid, overdueTotal, setValue])
+
+  const setOptionalNumberValue = (value: string) => {
+    if (!value) return undefined
+
+    const numberValue = Number(value)
+    return Number.isNaN(numberValue) ? undefined : numberValue
+  }
 
   const handleCourtTypeInputChange = (value: string) => {
     setCourtTypeInput(value)
-    setValue('courtType', value)
-    const filtered = COURT_TYPES.filter(type =>
-      type.includes(value)
-    )
-    setFilteredCourtTypes(filtered)
+    setValue('courtType', value, { shouldDirty: true })
+    setFilteredCourtTypes(COURT_TYPES.filter((type) => type.includes(value)))
     setIsCourtTypeDropdownOpen(true)
   }
 
   const selectCourtType = (courtType: string) => {
     setCourtTypeInput(courtType)
-    setValue('courtType', courtType)
+    setValue('courtType', courtType, { shouldDirty: true })
     setIsCourtTypeDropdownOpen(false)
+  }
+
+  const updateActiveCourtLocationField = (fieldName: CourtLocationField, value: string) => {
+    if (activeCourtLocationIndex === -1) return
+
+    if (fieldName === 'province') {
+      setValue(`branchHistory.${activeCourtLocationIndex}.province`, value, { shouldDirty: true })
+      setValue('province', value, { shouldDirty: true })
+    }
+
+    if (fieldName === 'city') {
+      setValue(`branchHistory.${activeCourtLocationIndex}.city`, value, { shouldDirty: true })
+      setValue('city', value, { shouldDirty: true })
+    }
+
+    if (fieldName === 'branchNumber') {
+      setValue(`branchHistory.${activeCourtLocationIndex}.branchNumber`, value, { shouldDirty: true })
+      setValue('courtBranch', value, { shouldDirty: true })
+    }
+
+    if (fieldName === 'archiveNumberBranch') {
+      setValue(`branchHistory.${activeCourtLocationIndex}.archiveNumberBranch`, value, {
+        shouldDirty: true,
+      })
+      setValue('archiveNumberBranch', value, { shouldDirty: true })
+    }
+  }
+
+  const activateCourtLocation = (index: number) => {
+    watchBranchHistory.forEach((_, itemIndex) => {
+      setValue(`branchHistory.${itemIndex}.isActive`, itemIndex === index, { shouldDirty: true })
+    })
+
+    const selected = watchBranchHistory[index]
+    setValue('province', selected?.province || '', { shouldDirty: true })
+    setValue('city', selected?.city || '', { shouldDirty: true })
+    setValue('courtBranch', selected?.branchNumber || '', { shouldDirty: true })
+    setValue('archiveNumberBranch', selected?.archiveNumberBranch || '', { shouldDirty: true })
+    setIsBranchDropdownOpen(false)
+  }
+
+  const startNewCourtLocation = () => {
+    if (activeCourtLocationIndex !== -1) {
+      setValue(`branchHistory.${activeCourtLocationIndex}.isActive`, false, { shouldDirty: true })
+
+      if (!watchBranchHistory[activeCourtLocationIndex]?.date) {
+        setValue(`branchHistory.${activeCourtLocationIndex}.date`, new Date().toLocaleDateString('fa-IR'), {
+          shouldDirty: true,
+        })
+      }
+    }
+
+    appendBranchHistory({
+      province: '',
+      city: '',
+      branchNumber: '',
+      archiveNumberBranch: '',
+      date: '',
+      isActive: true,
+    })
+
+    setValue('province', '', { shouldDirty: true })
+    setValue('city', '', { shouldDirty: true })
+    setValue('courtBranch', '', { shouldDirty: true })
+    setValue('archiveNumberBranch', '', { shouldDirty: true })
+    setIsBranchDropdownOpen(false)
   }
 
   const onSubmit = async (data: CaseFormData) => {
     if (!user?.id) return
-    
-    const formattedCashPayments = data.cashPayments?.map((p) => ({
-      ...p,
-      paymentDate: p.paymentDate || undefined,
-    }))
-    
+
+    const cleanedClients = (data.clients || [])
+      .map((client) => ({
+        name: cleanText(client.name),
+        phone: cleanText(client.phone),
+        nationalId: cleanText(client.nationalId),
+        role: cleanText(client.role),
+        representative: cleanText(client.representative),
+      }))
+      .filter((client) => Object.values(client).some(Boolean))
+
+    const cleanedOpposingParties = (data.opposingParties || [])
+      .map((party) => ({
+        name: cleanText(party.name),
+        phone: cleanText(party.phone),
+        nationalId: cleanText(party.nationalId),
+        description: cleanText(party.description),
+      }))
+      .filter((party) => Object.values(party).some(Boolean))
+
+    const cleanedOtherPersons = (data.otherPersons || [])
+      .map((person) => ({
+        name: cleanText(person.name),
+        phone: cleanText(person.phone),
+        nationalId: cleanText(person.nationalId),
+        description: cleanText(person.description),
+      }))
+      .filter((person) => Object.values(person).some(Boolean))
+
+    const cleanLawyers = (lawyers?: CaseFormData['coLawyers']) =>
+      (lawyers || [])
+        .map((lawyer) => ({
+          name: cleanText(lawyer.name),
+          phone: cleanText(lawyer.phone),
+          licenseNumber: cleanText(lawyer.licenseNumber),
+          licenseExpiry: cleanText(lawyer.licenseExpiry),
+          licenseIssuePlace: cleanText(lawyer.licenseIssuePlace),
+        }))
+        .filter((lawyer) => Object.values(lawyer).some(Boolean))
+
+    const cleanedBranchHistory = (data.branchHistory || [])
+      .map((location) => ({
+        province: cleanText(location.province),
+        city: cleanText(location.city),
+        branchNumber: cleanText(location.branchNumber),
+        archiveNumberBranch: cleanText(location.archiveNumberBranch),
+        date: cleanText(location.date),
+        isActive: Boolean(location.isActive),
+      }))
+      .filter(hasCourtLocationValue)
+
+    const activeCourtLocationForSubmit =
+      cleanedBranchHistory.find((location) => location.isActive) ||
+      cleanedBranchHistory[cleanedBranchHistory.length - 1]
+
+    const formattedCashPayments = (data.cashPayments || [])
+      .map((payment) => ({
+        amount: Number(payment.amount) || 0,
+        isPaid: Boolean(payment.isPaid),
+        paymentDate: cleanText(payment.paymentDate) || undefined,
+      }))
+      .filter((payment) => payment.amount > 0 || payment.isPaid || Boolean(payment.paymentDate))
+
+    const cleanedExpenses = (data.expenses || [])
+      .map((expense) => ({
+        title: cleanText(expense.title),
+        description: cleanText(expense.description),
+        amount: Number(expense.amount) || 0,
+        date: cleanText(expense.date),
+        isPaid: Boolean(expense.isPaid),
+      }))
+      .filter(
+        (expense) =>
+          Boolean(expense.title) ||
+          Boolean(expense.description) ||
+          expense.amount > 0 ||
+          Boolean(expense.date) ||
+          expense.isPaid
+      )
+
+    const effectivePaymentType = data.paymentType || paymentType || 'cash'
+    const activeCourtType = cleanText(data.courtType || courtTypeInput)
+    const hasCourtBranchData = hasCourtLocationValue(activeCourtLocationForSubmit)
+
     addCase({
       ...data,
+      title: cleanText(data.title),
+      caseNumber: cleanText(data.caseNumber),
       lawyerId: user.id,
       archiveNumberOffice: (user as any).archiveNumberOffice,
       archiveNumberLawyer: (user as any).archiveNumberLawyer,
-      courtBranch: data.courtBranch
+      clients: cleanedClients,
+      opposingParties: cleanedOpposingParties,
+      otherPersons: cleanedOtherPersons,
+      coLawyers: cleanLawyers(data.coLawyers),
+      opposingLawyers: cleanLawyers(data.opposingLawyers),
+      branchHistory: cleanedBranchHistory,
+      province: activeCourtLocationForSubmit?.province || '',
+      city: activeCourtLocationForSubmit?.city || '',
+      courtType: activeCourtType,
+      archiveNumberBranch: activeCourtLocationForSubmit?.archiveNumberBranch || '',
+      courtBranch: hasCourtBranchData
         ? {
-            province: data.province || '',
-            city: data.city || '',
-            courtType: data.courtType || '',
-            branch: data.courtBranch,
-            currentBranchNumber: activeBranch,
-            branchHistory: data.branchHistory,
+            province: activeCourtLocationForSubmit?.province || '',
+            city: activeCourtLocationForSubmit?.city || '',
+            courtType: activeCourtType,
+            branch: activeCourtLocationForSubmit?.branchNumber || '',
+            currentBranchNumber: activeCourtLocationForSubmit?.branchNumber || '',
+            archiveNumberBranch: activeCourtLocationForSubmit?.archiveNumberBranch || '',
+            branchHistory: cleanedBranchHistory,
           }
         : undefined,
-      cashPayments: data.paymentType === 'cash' ? formattedCashPayments : [],
-      totalAmount: data.paymentType === 'cash' ? totalCash : 0,
+      paymentType: effectivePaymentType,
+      cashPayments: effectivePaymentType === 'cash' ? formattedCashPayments : [],
+      expenses: cleanedExpenses,
+      nonCashDescription: cleanText(data.nonCashDescription),
+      description: cleanText(data.description),
+      totalAmount: effectivePaymentType === 'cash' ? totalCash : 0,
     } as any)
+
     router.push('/dashboard/cases')
   }
-  const {
-  fields: expenseFields,
-  append: appendExpense,
-  remove: removeExpense,
-} = useFieldArray({
-  name: 'expenses',
-  control,
-})
-const {
-  fields: otherPersonFields,
-  append: appendOtherPerson,
-  remove: removeOtherPerson,
-} = useFieldArray({
-  control,
-  name: 'otherPersons',
-})
-const watchExpenses = watch('expenses') || [];
-const expensesTotal = watchExpenses.reduce((sum, item) => {
-  return sum + (Number(item.amount) || 0);
-}, 0);
-
-// مبالغ قرارداد و پرداخت‌ها
-const contractAmount = Number(watch('contractAmount')) || 0
-
-const cashPayments = watch('cashPayments') || []
- const activeBranch =
-  watchBranchHistory.find((b) => b.isActive)?.branchNumber || ''
-
-// تبدیل تاریخ شمسی به میلادی ساده
-const jalaliToDate = (jalali: string) => {
-  if (!jalali) return null
-  const parts = jalali.split('/')
-  if (parts.length !== 3) return null
-
-  const jy = Number(parts[0])
-  const jm = Number(parts[1])
-  const jd = Number(parts[2])
-
-  if (!jy || !jm || !jd) return null
-
-  // تبدیل تقریبی برای مقایسه
-  const gy = jy - 621
-  return new Date(gy, jm - 1, jd)
-}
-
-const today = new Date()
-
-
-// مجموع پرداخت‌های انجام شده
-const totalPaid = watchCashPayments.reduce((sum, p) => {
-  if (p.isPaid) {
-    return sum + (Number(p.amount) || 0)
-  }
-  return sum
-}, 0)
-
-// مجموع معوق‌ها
-const overdueTotal = watchCashPayments.reduce((sum, p) => {
-  if (!p.isPaid && p.paymentDate) {
-    const payDate = jalaliToDate(p.paymentDate)
-
-    if (payDate && payDate < today) {
-      return sum + (Number(p.amount) || 0)
-    }
-  }
-
-  return sum
-}, 0)
-
-const totalCash = watchCashPayments.reduce((sum, p) => {
-  return sum + (Number(p.amount) || 0)
-}, 0)
-
-useEffect(() => {
-  const remaining = Math.max(contractAmount - totalPaid, 0)
-
-  setValue('remainingAmount', remaining.toString())
-  setValue('overdueAmount', overdueTotal.toString())
-
-}, [contractAmount, totalPaid, overdueTotal, setValue])
-
-
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Link
-          href="/dashboard/cases"
-          className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
-        >
+        <Link href="/dashboard/cases" className="p-2 hover:bg-zinc-100 rounded-lg transition-colors">
           <ArrowRight size={20} />
         </Link>
         <div>
@@ -324,6 +592,12 @@ useEffect(() => {
         onSubmit={handleSubmit(onSubmit)}
         className="bg-white rounded-lg border text-zinc-900 border-zinc-200 p-4 sm:p-6 space-y-8"
       >
+        <input type="hidden" {...register('courtType')} />
+        <input type="hidden" {...register('province')} />
+        <input type="hidden" {...register('city')} />
+        <input type="hidden" {...register('courtBranch')} />
+        <input type="hidden" {...register('archiveNumberBranch')} />
+
         {/* اطلاعات پایه */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-blue-100 pb-3 mb-4">اطلاعات پایه</h2>
@@ -353,49 +627,44 @@ useEffect(() => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-900 mb-2">
-              شماره پرونده * <span className="text-xs text-zinc-500">(۱۸ رقم)</span>
-            </label>
+            <label className="block text-sm font-medium text-zinc-900 mb-2">شماره پرونده</label>
             <input
               {...register('caseNumber')}
               type="text"
-              maxLength={18}
               className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="مثال: 140312345678901234"
+              placeholder="شماره پرونده"
               dir="ltr"
             />
-            {errors.caseNumber && (
-              <p className="mt-1 text-sm text-red-600">{errors.caseNumber.message}</p>
-            )}
           </div>
         </div>
 
-        {/* شعبه دادگاه - منتقل شده به بالا */}
+        {/* شعبه دادگاه */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-green-100 pb-3 mb-4">شعبه دادگاه</h2>
 
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 space-y-6">
             <div className="relative">
-              <label className="block text-sm font-medium text-green-800 mb-2">نوع دادگاه *</label>
+              <label className="block text-sm font-medium text-green-800 mb-2">نوع دادگاه</label>
               <div className="relative">
                 <input
                   type="text"
                   value={courtTypeInput}
-                  onChange={(e) => handleCourtTypeInputChange(e.target.value)}
+                  onChange={(event) => handleCourtTypeInputChange(event.target.value)}
                   onFocus={() => setIsCourtTypeDropdownOpen(true)}
+                  onBlur={() => setTimeout(() => setIsCourtTypeDropdownOpen(false), 200)}
                   className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                  placeholder="انتخاب کنید..."
+                  placeholder="تایپ کنید یا انتخاب کنید"
                 />
                 <button
                   type="button"
-                  onClick={() => setIsCourtTypeDropdownOpen(!isCourtTypeDropdownOpen)}
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2"
+                  onClick={() => setIsCourtTypeDropdownOpen((prev) => !prev)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2"
                 >
-                  <ChevronDown size={20} className="text-green-400" />
+                  <ChevronDown size={20} className="text-green-500" />
                 </button>
-                
+
                 {isCourtTypeDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-green-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-green-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
                     {filteredCourtTypes.map((type) => (
                       <button
                         key={type}
@@ -407,24 +676,25 @@ useEffect(() => {
                       </button>
                     ))}
                     {filteredCourtTypes.length === 0 && (
-                      <div className="px-4 py-3 text-green-500">نتیجه‌ای یافت نشد</div>
+                      <div className="px-4 py-3 text-zinc-500">نتیجه‌ای یافت نشد؛ متن تایپ‌شده ذخیره می‌شود.</div>
                     )}
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-green-800 mb-2">استان *</label>
+                <label className="block text-sm font-medium text-green-800 mb-2">استان</label>
                 <select
-                  {...register('province')}
+                  value={activeCourtLocation?.province || ''}
+                  onChange={(event) => updateActiveCourtLocationField('province', event.target.value)}
                   className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                 >
                   <option value="">انتخاب استان</option>
-                  {PROVINCES.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
+                  {PROVINCES.map((province) => (
+                    <option key={province} value={province}>
+                      {province}
                     </option>
                   ))}
                 </select>
@@ -433,319 +703,332 @@ useEffect(() => {
               <div>
                 <label className="block text-sm font-medium text-green-800 mb-2">شهر</label>
                 <input
-                  {...register('city')}
                   type="text"
-                  className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  value={activeCourtLocation?.city || ''}
+                  onChange={(event) => updateActiveCourtLocationField('city', event.target.value)}
+                  className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                   placeholder="نام شهر"
                 />
               </div>
 
               <div className="relative">
-                <label className="block text-sm font-medium text-green-800 mb-2"> شعبه *</label>
+                <label className="block text-sm font-medium text-green-800 mb-2">شعبه</label>
                 <div className="relative">
                   <input
                     type="text"
                     value={activeBranch}
                     onFocus={() => {
-                      if (watchBranchHistory.filter(b => b.branchNumber && !b.isActive).length > 0) {
-                        setIsBranchDropdownOpen(true)
-                      }
+                      if (courtLocationHistory.length > 0) setIsBranchDropdownOpen(true)
                     }}
-                    onBlur={() => {
-                      setTimeout(() => setIsBranchDropdownOpen(false), 200)
-                    }}
-                    onChange={(e) => {
-                      const newValue = e.target.value;
-                      const activeIndex = watchBranchHistory.findIndex(b => b.isActive);
-                      
-                      if (activeIndex !== -1) {
-                        setValue(`branchHistory.${activeIndex}.branchNumber`, newValue);
-                      }
-                    }}
-                    className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder=" شعبه"
+                    onBlur={() => setTimeout(() => setIsBranchDropdownOpen(false), 200)}
+                    onChange={(event) => updateActiveCourtLocationField('branchNumber', event.target.value)}
+                    className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    placeholder="شماره یا نام شعبه"
                   />
-                  {watchBranchHistory.filter(b => b.branchNumber && !b.isActive).length > 0 && (
+                  {courtLocationHistory.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => setIsBranchDropdownOpen(!isBranchDropdownOpen)}
-                      className="absolute left-3 top-1/2 transform -translate-y-1/2"
+                      onClick={() => setIsBranchDropdownOpen((prev) => !prev)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2"
                     >
-                      <ChevronDown size={20} className="text-green-400" />
+                      <ChevronDown size={20} className="text-green-500" />
                     </button>
                   )}
 
-                  {isBranchDropdownOpen && watchBranchHistory.filter(b => b.branchNumber && !b.isActive).length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-green-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                  {isBranchDropdownOpen && courtLocationHistory.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-green-300 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
                       <div className="p-2 border-b border-green-200 bg-green-50">
-                        <p className="text-xs text-green-700 font-medium">تاریخچه شعبه‌ها</p>
+                        <p className="text-xs text-green-700 font-medium">تاریخچه اطلاعات شعبه</p>
                       </div>
-                      {watchBranchHistory
-                        .map((branch, index) => ({ branch, index }))
-                        .filter(({ branch }) => branch.branchNumber && !branch.isActive)
+                      {courtLocationHistory
+                        .slice()
                         .reverse()
-                        .map(({ branch, index }) => (
+                        .map(({ location, index }) => (
                           <button
                             key={index}
                             type="button"
-                            onClick={() => {
-                              const currentActiveIndex = watchBranchHistory.findIndex(b => b.isActive);
-                              if (currentActiveIndex !== -1) {
-                                setValue(`branchHistory.${currentActiveIndex}.isActive`, false);
-                                if (!watchBranchHistory[currentActiveIndex].date) {
-                                  setValue(`branchHistory.${currentActiveIndex}.date`, new Date().toLocaleDateString('fa-IR'));
-                                }
-                              }
-                              
-                              setValue(`branchHistory.${index}.isActive`, true);
-                              setIsBranchDropdownOpen(false);
-                            }}
-                            className="w-full text-right px-4 py-3 hover:bg-green-50 border-b border-green-100 last:border-b-0 flex justify-between items-center"
+                            onClick={() => activateCourtLocation(index)}
+                            className="w-full text-right px-4 py-3 hover:bg-green-50 border-b border-green-100 last:border-b-0"
                           >
-                            <span>شعبه {branch.branchNumber}</span>
-                            <span className="text-xs text-green-600">{branch.date || 'تاریخ ثبت نشده'}</span>
+                            <span className="block text-sm text-zinc-800">
+                              {location.province || 'استان نامشخص'} / {location.city || 'شهر نامشخص'} / شعبه{' '}
+                              {location.branchNumber || 'ثبت نشده'}
+                            </span>
+                            <span className="block text-xs text-green-600 mt-1">
+                              بایگانی: {location.archiveNumberBranch || 'ثبت نشده'} - {location.date || 'تاریخ ثبت نشده'}
+                            </span>
                           </button>
                         ))}
                     </div>
                   )}
                 </div>
-                
-                {activeBranch && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const currentActiveIndex = watchBranchHistory.findIndex(b => b.isActive);
-                      if (currentActiveIndex !== -1) {
-                        setValue(`branchHistory.${currentActiveIndex}.isActive`, false);
-                        setValue(`branchHistory.${currentActiveIndex}.date`, new Date().toLocaleDateString('fa-IR'));
-                      }
-                      
-                      appendBranchHistory({
-                        branchNumber: '',
-                        date: '',
-                        isActive: true
-                      });
-                    }}
-                    className="mt-2 w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
-                  >
-                    <Plus size={16} />
-                    تغییر شعبه
-                  </button>
-                )}
-                
-                {watchBranchHistory.filter(b => b.branchNumber && !b.isActive).length > 0 && (
-                  <div className="mt-2 p-3 bg-green-100 rounded-lg">
-                    <p className="text-green-700 font-medium text-xs">
-                      تعداد تغییرات شعبه: {watchBranchHistory.filter(b => b.branchNumber).length - 1}
-                    </p>
-                    <p className="text-green-600 text-xs mt-1">
-                      شعبه فعلی: {activeBranch}
-                    </p>
-                  </div>
-                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-green-800 mb-2">شماره بایگانی در شعبه دادگاه</label>
+                <input
+                  type="text"
+                  value={activeCourtLocation?.archiveNumberBranch || ''}
+                  onChange={(event) => updateActiveCourtLocationField('archiveNumberBranch', event.target.value)}
+                  className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                  placeholder="شماره بایگانی"
+                  dir="ltr"
+                />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-green-800 mb-2">
-                شماره بایگانی در شعبه دادگاه <span className="text-xs text-green-600">(7 رقم)</span>
-              </label>
-              <input
-                {...register('archiveNumberBranch')}
-                type="text"
-                maxLength={7}
-                className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="شماره بایگانی در شعبه دادگاه"
-                dir="ltr"
-              />
-              {errors.archiveNumberBranch && (
-                <p className="mt-1 text-sm text-red-600">{errors.archiveNumberBranch.message}</p>
-              )}
+            <div className="rounded-lg bg-green-100/70 border border-green-200 p-3 text-xs text-green-800 leading-6">
+              استان، شهر، شعبه و شماره بایگانی به صورت یک رکورد واحد ذخیره می‌شوند. برای تغییر این چهار مورد، دکمه زیر را بزنید تا همه با هم در یک رکورد جدید ثبت شوند.
             </div>
+
+            {hasCourtLocationValue(activeCourtLocation) && (
+              <button
+                type="button"
+                onClick={startNewCourtLocation}
+                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+              >
+                <Plus size={16} />
+                تغییر اطلاعات شعبه
+              </button>
+            )}
+
+            {courtLocationHistory.length > 0 && (
+              <div className="p-3 bg-green-100 rounded-lg">
+                <p className="text-green-700 font-medium text-xs">تعداد تغییرات اطلاعات شعبه: {courtLocationHistory.length}</p>
+                <p className="text-green-600 text-xs mt-1">شعبه فعلی: {activeBranch || 'ثبت نشده'}</p>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Users className="text-blue-600" size={20} />
-              <h2 className="text-lg font-semibold text-zinc-800">موکلین</h2>
-            </div>
+       {/* موکلین */}
+<div className="space-y-4">
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-2">
+      <Users className="text-blue-600" size={20} />
+      <h2 className="text-lg font-semibold text-zinc-800">موکلین</h2>
+    </div>
+
+    <button
+      type="button"
+      onClick={() =>
+        appendClient({
+          clientId: '',
+          name: '',
+          phone: '',
+          nationalId: '',
+          role: '',
+          representative: '',
+        } as any)
+      }
+      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+    >
+      <Plus size={16} />
+      افزودن موکل
+    </button>
+  </div>
+
+  <div className="grid gap-4">
+    {clientFields.map((field, index) => (
+      <div
+        key={field.id}
+        className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-blue-800">
+            موکل {index + 1}
+          </h3>
+
+          {clientFields.length > 1 && (
             <button
               type="button"
-              onClick={() => appendClient({ name: '', phone: '', nationalId: '', role: '' })}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              onClick={() => removeClient(index)}
+              className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             >
-              <Plus size={16} /> افزودن موکل
+              <X size={16} />
             </button>
+          )}
+        </div>
+
+        <div className="mb-4">
+          <label className="text-xs text-blue-700 font-medium block mb-1">
+            انتخاب از موکلین ثبت‌شده
+          </label>
+
+          <select
+            value={(watch(`clients.${index}.clientId` as any) as string) || ''}
+            onChange={(e) => fillClientFromSavedList(index, e.target.value)}
+            className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            <option value="">ورود دستی اطلاعات موکل</option>
+
+            {savedClients.map((client: any) => (
+              <option key={client.id} value={client.id}>
+                {getSavedClientFullName(client)}
+                {client.nationalId ? ` - ${client.nationalId}` : ''}
+                {client.phoneNumber ? ` - ${client.phoneNumber}` : ''}
+              </option>
+            ))}
+          </select>
+
+          <p className="mt-1 text-xs text-blue-500">
+            می‌توانید موکل ثبت‌شده را انتخاب کنید یا اطلاعات را دستی وارد کنید.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+          <div>
+            <label className="text-xs text-blue-700 font-medium block mb-1">
+              نام شخص حقیقی/حقوقی
+            </label>
+            <input
+              {...register(`clients.${index}.name` as const)}
+              type="text"
+              className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              placeholder="نام شخص"
+            />
           </div>
 
-          <div className="grid gap-4">
-            {clientFields.map((field, index) => (
-              <div
-                key={field.id}
-                className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-blue-800">موکل {index + 1}</h3>
-                  {clientFields.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeClient(index)}
-                      className="p-1 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div>
-                    <label className="text-xs text-blue-700 font-medium block mb-1">نام و نام خانوادگی *</label>
-                    <input
-                      {...register(`clients.${index}.name` as const)}
-                      type="text"
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      placeholder="نام کامل موکل"
-                    />
-                    {errors.clients?.[index]?.name && (
-                      <p className="mt-1 text-xs text-red-600">
-                        {errors.clients[index]?.name?.message}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-blue-700 font-medium block mb-1">شماره موبایل *</label>
-                    <input
-                      {...register(`clients.${index}.phone` as const)}
-                      type="text"
-                      maxLength={11}
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      placeholder="09123456789"
-                      dir="ltr"
-                    />
-                    {errors.clients?.[index]?.phone && (
-                      <p className="mt-1 text-xs text-red-600">
-                        {errors.clients[index]?.phone?.message}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-blue-700 font-medium block mb-1">کد ملی</label>
-                    <input
-                      {...register(`clients.${index}.nationalId` as const)}
-                      type="text"
-                      maxLength={10}
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      placeholder="1234567890"
-                      dir="ltr"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-blue-700 font-medium block mb-1">سمت</label>
-                    <input
-                      {...register(`clients.${index}.role` as const)}
-                      type="text"
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      placeholder="مثلا خواهان"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div>
+            <label className="text-xs text-blue-700 font-medium block mb-1">
+              شماره موبایل
+            </label>
+            <input
+              {...register(`clients.${index}.phone` as const)}
+              type="text"
+              maxLength={11}
+              className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              placeholder="09123456789"
+              dir="ltr"
+            />
+
+            {errors.clients?.[index]?.phone && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.clients[index]?.phone?.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="text-xs text-blue-700 font-medium block mb-1">
+              کد ملی/شناسه ملی
+            </label>
+            <input
+              {...register(`clients.${index}.nationalId` as const)}
+              type="text"
+              className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              placeholder="کد یا شناسه"
+              dir="ltr"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-blue-700 font-medium block mb-1">
+              سمت
+            </label>
+            <input
+              {...register(`clients.${index}.role` as const)}
+              type="text"
+              className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              placeholder="مثلا خواهان"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-blue-700 font-medium block mb-1">
+              نماینده
+            </label>
+            <input
+              {...register(`clients.${index}.representative` as const)}
+              type="text"
+              className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              placeholder="نام نماینده"
+            />
           </div>
         </div>
+      </div>
+    ))}
+  </div>
+</div>
 
         {/* طرف مقابل */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <UserX className="text-red-600" size={20} />
+              <UserX className="text-zinc-600" size={20} />
               <h2 className="text-lg font-semibold text-zinc-800">طرف مقابل</h2>
             </div>
             <button
               type="button"
               onClick={() => appendOpposingParty({ name: '', phone: '', nationalId: '', description: '' })}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium"
             >
               <Plus size={16} /> افزودن طرف مقابل
             </button>
           </div>
 
           {opposingPartyFields.length === 0 && (
-            <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
-              <UserX className="mx-auto text-gray-400 mb-2" size={32} />
-              <p className="text-sm text-gray-500">هیچ طرف مقابلی اضافه نشده است</p>
+            <div className="bg-zinc-50 border-2 border-dashed border-zinc-300 rounded-xl p-6 text-center">
+              <UserX className="mx-auto text-zinc-400 mb-2" size={32} />
+              <p className="text-sm text-zinc-500">هیچ طرف مقابلی اضافه نشده است</p>
             </div>
           )}
 
           <div className="grid gap-4">
             {opposingPartyFields.map((field, index) => (
-              <div
-                key={field.id}
-                className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl p-4"
-              >
+              <div key={field.id} className="bg-gradient-to-r from-zinc-50 to-slate-50 border border-zinc-200 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-red-800">طرف مقابل {index + 1}</h3>
                   <button
                     type="button"
                     onClick={() => removeOpposingParty(index)}
-                    className="p-1 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                    className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   >
                     <X size={16} />
                   </button>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                   <div>
-                    <label className="text-xs text-red-700 font-medium block mb-1">نام و نام خانوادگی *</label>
+                    <label className="text-xs text-zinc-700 font-medium block mb-1">نام شخص حقیقی/حقوقی</label>
                     <input
                       {...register(`opposingParties.${index}.name` as const)}
                       type="text"
-                      className="w-full px-3 py-2 border border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white"
+                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
                       placeholder="نام طرف مقابل"
                     />
-                    {errors.opposingParties?.[index]?.name && (
-                      <p className="mt-1 text-xs text-red-600">
-                        {errors.opposingParties[index]?.name?.message}
-                      </p>
-                    )}
                   </div>
                   <div>
-                    <label className="text-xs text-red-700 font-medium block mb-1">شماره موبایل</label>
+                    <label className="text-xs text-zinc-700 font-medium block mb-1">شماره موبایل</label>
                     <input
                       {...register(`opposingParties.${index}.phone` as const)}
                       type="text"
                       maxLength={11}
-                      className="w-full px-3 py-2 border border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white"
+                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
                       placeholder="09123456789"
                       dir="ltr"
                     />
                     {errors.opposingParties?.[index]?.phone && (
-                      <p className="mt-1 text-xs text-red-600">
-                        {errors.opposingParties[index]?.phone?.message}
-                      </p>
+                      <p className="mt-1 text-xs text-red-600">{errors.opposingParties[index]?.phone?.message}</p>
                     )}
                   </div>
                   <div>
-                    <label className="text-xs text-red-700 font-medium block mb-1">کد ملی</label>
+                    <label className="text-xs text-zinc-700 font-medium block mb-1">کد ملی/شناسه ملی</label>
                     <input
                       {...register(`opposingParties.${index}.nationalId` as const)}
                       type="text"
-                      maxLength={10}
-                      className="w-full px-3 py-2 border border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white"
-                      placeholder="1234567890"
+                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
+                      placeholder="کد یا شناسه"
                       dir="ltr"
                     />
                   </div>
                 </div>
-                
+
                 <div>
-                  <label className="text-xs text-red-700 font-medium block mb-1">توضیحات</label>
+                  <label className="text-xs text-zinc-700 font-medium block mb-1">توضیحات</label>
                   <textarea
                     {...register(`opposingParties.${index}.description` as const)}
                     rows={2}
-                    className="w-full px-3 py-2 border border-red-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 bg-white resize-none"
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white resize-none"
                     placeholder="توضیحات مربوط به طرف مقابل..."
                   />
                 </div>
@@ -757,7 +1040,7 @@ useEffect(() => {
         {/* وکلای همکار */}
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b-2 border-purple-100 pb-3">
-            <h2 className="text-lg font-semibold text-zinc-800">وکلای همکار</h2>
+            <h2 className="text-lg font-semibold text-zinc-800">وکلای همکار / سرپرست</h2>
             <button
               type="button"
               onClick={() => appendCoLawyer({ name: '', phone: '', licenseNumber: '', licenseExpiry: '', licenseIssuePlace: '' })}
@@ -775,38 +1058,29 @@ useEffect(() => {
 
           <div className="grid gap-4">
             {coLawyerFields.map((field, index) => (
-              <div
-                key={field.id}
-                className="bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-200 rounded-xl p-4"
-              >
+              <div key={field.id} className="bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-200 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-purple-800">وکیل همکار {index + 1}</h3>
                   <button
                     type="button"
                     onClick={() => removeCoLawyer(index)}
-                    className="p-1 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                    className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   >
                     <X size={16} />
                   </button>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                   <div>
-                    <label className="text-xs text-purple-700 font-medium block mb-1">نام و نام خانوادگی *</label>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">نام و نام خانوادگی</label>
                     <input
                       {...register(`coLawyers.${index}.name` as const)}
                       type="text"
                       className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
                       placeholder="نام وکیل"
                     />
-                    {errors.coLawyers?.[index]?.name && (
-                      <p className="mt-1 text-xs text-red-600">
-                        {errors.coLawyers[index]?.name?.message}
-                      </p>
-                    )}
                   </div>
                   <div>
-                    <label className="text-xs text-purple-700 font-medium block mb-1">شماره موبایل *</label>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">شماره موبایل</label>
                     <input
                       {...register(`coLawyers.${index}.phone` as const)}
                       type="text"
@@ -816,16 +1090,14 @@ useEffect(() => {
                       dir="ltr"
                     />
                     {errors.coLawyers?.[index]?.phone && (
-                      <p className="mt-1 text-xs text-red-600">
-                        {errors.coLawyers[index]?.phone?.message}
-                      </p>
+                      <p className="mt-1 text-xs text-red-600">{errors.coLawyers[index]?.phone?.message}</p>
                     )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs text-purple-700 font-medium block mb-1">شماره پروانه (اختیاری)</label>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">شماره پروانه</label>
                     <input
                       {...register(`coLawyers.${index}.licenseNumber` as const)}
                       type="text"
@@ -835,7 +1107,7 @@ useEffect(() => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-purple-700 font-medium block mb-1">تاریخ اعتبار پروانه (اختیاری)</label>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">تاریخ اعتبار پروانه</label>
                     <input
                       {...register(`coLawyers.${index}.licenseExpiry` as const)}
                       type="text"
@@ -845,7 +1117,7 @@ useEffect(() => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-purple-700 font-medium block mb-1">محل صدور پروانه (اختیاری)</label>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">حوزه وکالت</label>
                     <input
                       {...register(`coLawyers.${index}.licenseIssuePlace` as const)}
                       type="text"
@@ -880,38 +1152,29 @@ useEffect(() => {
 
           <div className="grid gap-4">
             {opposingLawyerFields.map((field, index) => (
-              <div
-                key={field.id}
-                className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4"
-              >
+              <div key={field.id} className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-orange-800">وکیل طرف مقابل {index + 1}</h3>
                   <button
                     type="button"
                     onClick={() => removeOpposingLawyer(index)}
-                    className="p-1 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                    className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   >
                     <X size={16} />
                   </button>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                   <div>
-                    <label className="text-xs text-orange-700 font-medium block mb-1">نام و نام خانوادگی *</label>
+                    <label className="text-xs text-orange-700 font-medium block mb-1">نام و نام خانوادگی</label>
                     <input
                       {...register(`opposingLawyers.${index}.name` as const)}
                       type="text"
                       className="w-full px-3 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                       placeholder="نام وکیل"
                     />
-                    {errors.opposingLawyers?.[index]?.name && (
-                      <p className="mt-1 text-xs text-red-600">
-                        {errors.opposingLawyers[index]?.name?.message}
-                      </p>
-                    )}
                   </div>
                   <div>
-                    <label className="text-xs text-orange-700 font-medium block mb-1">شماره موبایل *</label>
+                    <label className="text-xs text-orange-700 font-medium block mb-1">شماره موبایل</label>
                     <input
                       {...register(`opposingLawyers.${index}.phone` as const)}
                       type="text"
@@ -921,16 +1184,14 @@ useEffect(() => {
                       dir="ltr"
                     />
                     {errors.opposingLawyers?.[index]?.phone && (
-                      <p className="mt-1 text-xs text-red-600">
-                        {errors.opposingLawyers[index]?.phone?.message}
-                      </p>
+                      <p className="mt-1 text-xs text-red-600">{errors.opposingLawyers[index]?.phone?.message}</p>
                     )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs text-orange-700 font-medium block mb-1">شماره پروانه (اختیاری)</label>
+                    <label className="text-xs text-orange-700 font-medium block mb-1">شماره پروانه</label>
                     <input
                       {...register(`opposingLawyers.${index}.licenseNumber` as const)}
                       type="text"
@@ -940,7 +1201,7 @@ useEffect(() => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-orange-700 font-medium block mb-1">تاریخ اعتبار پروانه (اختیاری)</label>
+                    <label className="text-xs text-orange-700 font-medium block mb-1">تاریخ اعتبار پروانه</label>
                     <input
                       {...register(`opposingLawyers.${index}.licenseExpiry` as const)}
                       type="text"
@@ -950,7 +1211,7 @@ useEffect(() => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-orange-700 font-medium block mb-1">محل صدور پروانه (اختیاری)</label>
+                    <label className="text-xs text-orange-700 font-medium block mb-1"> حوزه وکالت</label>
                     <input
                       {...register(`opposingLawyers.${index}.licenseIssuePlace` as const)}
                       type="text"
@@ -964,400 +1225,397 @@ useEffect(() => {
           </div>
         </div>
 
-
-
-{/* سایر اشخاص */}
-<div className="space-y-4">
-  <div className="flex items-center justify-between border-b-2 border-green-100 pb-3">
-    <h2 className="text-lg font-semibold text-zinc-800">سایر اشخاص</h2>
-    <button
-      type="button"
-      onClick={() => appendOtherPerson({ name: '', phone: '', description: '' })}
-      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-    >
-      <Plus size={16} /> افزودن سایر اشخاص
-    </button>
-  </div>
-
-  {otherPersonFields.length === 0 && (
-    <div className="bg-green-50 border-2 border-dashed border-green-300 rounded-xl p-6 text-center">
-      <p className="text-sm text-green-600">هیچ فرد دیگری اضافه نشده</p>
-    </div>
-  )}
-
-  <div className="grid gap-4">
-    {otherPersonFields.map((field, index) => (
-      <div
-        key={field.id}
-        className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-green-800">سایر اشخاص {index + 1}</h3>
-          <button
-            type="button"
-            onClick={() => removeOtherPerson(index)}
-            className="p-1 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-          <div>
-            <label className="text-xs text-green-700 font-medium block mb-1">نام و نام خانوادگی *</label>
-            <input
-              {...register(`otherPersons.${index}.name` as const)}
-              type="text"
-              className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-              placeholder="نام فرد"
-            />
-            {errors.otherPersons?.[index]?.name && (
-              <p className="mt-1 text-xs text-red-600">
-                {errors.otherPersons[index]?.name?.message}
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="text-xs text-green-700 font-medium block mb-1">شماره موبایل *</label>
-            <input
-              {...register(`otherPersons.${index}.phone` as const)}
-              type="text"
-              maxLength={11}
-              className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-              placeholder="09123456789"
-              dir="ltr"
-            />
-            {errors.otherPersons?.[index]?.phone && (
-              <p className="mt-1 text-xs text-red-600">
-                {errors.otherPersons[index]?.phone?.message}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs text-green-700 font-medium block mb-1">توضیحات (اختیاری)</label>
-          <textarea
-            {...register(`otherPersons.${index}.description` as const)}
-            rows={3}
-            className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none bg-white"
-            placeholder="جزئیات و توضیحات فرد..."
-          />
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-
-{/* توضیحات کلی پرونده */}
-<div className="space-y-4">
-  <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-gray-100 pb-3">توضیحات کلی پرونده</h2>
-  <textarea
-    {...register('description')}
-    rows={4}
-    className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-    placeholder="جزئیات و توضیحات کلی پرونده..."
-  />
-</div>
-
-
-        {/* اطلاعات مالی */}
+        {/* سایر اشخاص */}
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-green-100 pb-3 mb-4">اطلاعات مالی</h2>
+          <div className="flex items-center justify-between border-b-2 border-green-100 pb-3">
+            <h2 className="text-lg font-semibold text-zinc-800">سایر اشخاص</h2>
+            <button
+              type="button"
+              onClick={() => appendOtherPerson({ name: '', phone: '', nationalId: '', description: '' })}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+            >
+              <Plus size={16} /> افزودن سایر اشخاص
+            </button>
+          </div>
 
-          {/* باکس‌های مبالغ */}
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {otherPersonFields.length === 0 && (
+            <div className="bg-green-50 border-2 border-dashed border-green-300 rounded-xl p-6 text-center">
+              <p className="text-sm text-green-600">هیچ فرد دیگری اضافه نشده</p>
+            </div>
+          )}
+
+          <div className="grid gap-4">
+            {otherPersonFields.map((field, index) => (
+              <div key={field.id} className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <button
+                    type="button"
+                    onClick={() => removeOtherPerson(index)}
+                    className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="text-xs text-green-700 font-medium block mb-1">نام و نام خانوادگی</label>
+                    <input
+                      {...register(`otherPersons.${index}.name` as const)}
+                      type="text"
+                      className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                      placeholder="نام فرد"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-green-700 font-medium block mb-1">شماره موبایل</label>
+                    <input
+                      {...register(`otherPersons.${index}.phone` as const)}
+                      type="text"
+                      maxLength={11}
+                      className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                      placeholder="09123456789"
+                      dir="ltr"
+                    />
+                    {errors.otherPersons?.[index]?.phone && (
+                      <p className="mt-1 text-xs text-red-600">{errors.otherPersons[index]?.phone?.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-green-700 font-medium block mb-1">توضیحات</label>
+                  <textarea
+                    {...register(`otherPersons.${index}.description` as const)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none bg-white"
+                    placeholder="جزئیات و توضیحات فرد..."
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+       {/* اطلاعات مالی */}
+<div className="space-y-4">
+  <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-green-100 pb-3 mb-4">
+    حق الوکاله
+  </h2>
+
+  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-6 space-y-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label className="block text-sm font-medium text-emerald-800 mb-2">
+          مبلغ نقدی قرارداد (ریال)
+        </label>
+        <input
+          {...register('contractAmount')}
+          type="text"
+          inputMode="numeric"
+          className="w-full px-4 py-3 border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+          placeholder="مثال: 50000000"
+          dir="ltr"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-emerald-800 mb-2">
+          مبلغ مانده قرارداد (ریال)
+        </label>
+        <input
+          value={Number(watch('remainingAmount') || 0).toLocaleString()}
+          readOnly
+          className="w-full px-4 py-3 border border-emerald-300 rounded-lg bg-emerald-50"
+          dir="ltr"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-emerald-800 mb-2">
+          مبلغ معوق (ریال)
+        </label>
+        <input
+          value={Number(watch('overdueAmount') || 0).toLocaleString()}
+          readOnly
+          className="w-full px-4 py-3 border border-emerald-300 rounded-lg bg-emerald-50"
+          dir="ltr"
+        />
+      </div>
+    </div>
+  </div>
+
+  <div className="space-y-3">
+    <label className="block text-sm font-medium text-zinc-900">
+      نوع قرارداد
+    </label>
+
+    <div className="flex flex-wrap gap-4">
+      <label className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg border border-green-200 cursor-pointer">
+        <input
+          type="radio"
+          value="cash"
+          checked={paymentType === 'cash'}
+          {...register('paymentType')}
+          onChange={() => {
+            setPaymentType('cash')
+            setValue('paymentType', 'cash')
+          }}
+          className="text-green-600"
+        />
+        <span className="text-green-800 font-medium">نقدی</span>
+      </label>
+
+      <label className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200 cursor-pointer">
+        <input
+          type="radio"
+          value="non-cash"
+          checked={paymentType === 'non-cash'}
+          {...register('paymentType')}
+          onChange={() => {
+            setPaymentType('non-cash')
+            setValue('paymentType', 'non-cash')
+          }}
+          className="text-blue-600"
+        />
+        <span className="text-blue-800 font-medium">غیر نقدی</span>
+      </label>
+
+      <button
+        type="button"
+        onClick={() => {
+          const nextValue = paymentType === 'both' ? 'cash' : 'both'
+          setPaymentType(nextValue)
+          setValue('paymentType', nextValue)
+        }}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${
+          paymentType === 'both'
+            ? 'bg-emerald-600 text-white border-emerald-600'
+            : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
+        }`}
+      >
+        <span
+          className={`w-5 h-5 rounded-md border flex items-center justify-center text-xs font-bold ${
+            paymentType === 'both'
+              ? 'bg-white text-emerald-600 border-white'
+              : 'bg-white text-transparent border-emerald-400'
+          }`}
+        >
+          ✓
+        </span>
+        نقدی و غیر نقدی
+      </button>
+    </div>
+  </div>
+
+  {(paymentType === 'cash' || paymentType === 'both') && (
+    <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <h3 className="font-medium text-green-800 text-lg">پرداخت‌های نقدی</h3>
+
+        <button
+          type="button"
+          onClick={() =>
+            appendCashPayment({
+              amount: undefined,
+              isPaid: false,
+              paymentDate: '',
+            })
+          }
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+        >
+          <Plus size={16} />
+          افزودن پرداخت
+        </button>
+      </div>
+
+      <div className="bg-green-100 p-4 rounded-lg">
+        <p className="text-green-800 font-bold text-lg">
+          مجموع پرداخت‌ها: {totalCash.toLocaleString()} ریال
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {cashPaymentFields.map((field, index) => (
+          <div
+            key={field.id}
+            className="bg-white border border-green-300 rounded-lg p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium text-green-800">
+                پرداخت {index + 1}
+              </h4>
+
+              <button
+                type="button"
+                onClick={() => removeCashPayment(index)}
+                className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-medium text-emerald-800 mb-2">مبلغ نقدی قرارداد (ریال)</label>
+                <label className="text-xs text-green-700 font-medium block mb-1">
+                  مبلغ (ریال)
+                </label>
                 <input
-                  {...register('contractAmount')}
+                  {...register(`cashPayments.${index}.amount` as const, {
+                    setValueAs: setOptionalNumberValue,
+                  })}
                   type="text"
-                  className="w-full px-4 py-3 border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                  placeholder="مثال: 50000000"
+                  inputMode="numeric"
+                  className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="0"
                   dir="ltr"
                 />
               </div>
-             <div>
-  <label className="block text-sm font-medium text-emerald-800 mb-2">
-    مبلغ مانده قرارداد (ریال)
-  </label>
- <input
-  value={Number(watch("remainingAmount") || 0).toLocaleString()}
-  readOnly
-  className="w-full px-4 py-3 border border-emerald-300 rounded-lg bg-emerald-50"
-  dir="ltr"
-/>
-</div>
 
-<div>
-  <label className="block text-sm font-medium text-emerald-800 mb-2">
-    مبلغ معوق (ریال)
-  </label>
-<input
-  value={Number(watch("overdueAmount") || 0).toLocaleString()}
-  readOnly
-  className="w-full px-4 py-3 border border-emerald-300 rounded-lg bg-emerald-50"
-  dir="ltr"
-/>
-</div>
+              <div>
+                <label className="text-xs text-green-700 font-medium block mb-1">
+                  تاریخ پرداخت (شمسی)
+                </label>
+                <input
+                  type="text"
+                  {...register(`cashPayments.${index}.paymentDate` as const)}
+                  className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="1403/12/15"
+                  dir="ltr"
+                />
+              </div>
 
+              <div className="flex items-center justify-center">
+                <label className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-lg cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register(`cashPayments.${index}.isPaid` as const)}
+                    className="text-green-600"
+                  />
+                  <span className="text-sm text-green-800 font-medium">
+                    پرداخت شده
+                  </span>
+                </label>
+              </div>
             </div>
           </div>
+        ))}
+      </div>
+    </div>
+  )}
 
-          <div>
-            <label className="block text-sm font-medium text-zinc-900 mb-2">نوع قرارداد *</label>
-            <div className="flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg border border-green-200">
-                <input
-                  type="radio"
-                  value="cash"
-                  {...register('paymentType')}
-                  onChange={() => {
-                    setPaymentType('cash')
-                    setValue('paymentType', 'cash')
-                  }}
-                  className="text-green-600"
-                />
-                <span className="text-green-800 font-medium">نقدی</span>
-              </label>
-              <label className="flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
-                <input
-                  type="radio"
-                  value="non-cash"
-                  {...register('paymentType')}
-                  onChange={() => {
-                    setPaymentType('non-cash')
-                    setValue('paymentType', 'non-cash')
-                  }}
-                  className="text-blue-600"
-                />
-                <span className="text-blue-800 font-medium">غیر نقدی</span>
-              </label>
-            </div>
-          </div>
+  {(paymentType === 'non-cash' || paymentType === 'both') && (
+    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 space-y-4">
+      <h3 className="font-medium text-blue-800 text-lg">
+        توضیحات پرداخت غیر نقدی
+      </h3>
 
-          {/* پرداخت نقدی */}
-          {paymentType === 'cash' && (
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 space-y-4">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <h3 className="font-medium text-green-800 text-lg">پرداخت‌های نقدی</h3>
-                <button
-                  type="button"
-                  onClick={() => appendCashPayment({ amount: 0, isPaid: false })}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
-                >
-                  <Plus size={16} /> افزودن پرداخت
-                </button>
-              </div>
+      <p className="text-sm text-blue-600">
+        در صورتی که پرداخت به صورت غیر نقدی مثل زمین، ملک، خودرو و ... انجام می‌شود، جزئیات را وارد کنید.
+      </p>
 
-              <div className="bg-green-100 p-4 rounded-lg">
-                <p className="text-green-800 font-bold text-lg">مجموع پرداخت‌ها: {totalCash.toLocaleString()} ریال</p>
-              </div>
+      <textarea
+        {...register('nonCashDescription')}
+        rows={6}
+        className="w-full px-4 py-3 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+        placeholder="مثال: یک قطعه زمین به مساحت 200 متر مربع واقع در تهران، خیابان ولیعصر، پلاک ثبتی 12345"
+      />
+    </div>
+  )}
+</div>
 
-              <div className="space-y-4">
-                {cashPaymentFields.map((field, index) => (
-                  <div
-                    key={field.id}
-                    className="bg-white border border-green-300 rounded-lg p-4"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm font-medium text-green-800">پرداخت {index + 1}</h4>
-                      {cashPaymentFields.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeCashPayment(index)}
-                          className="p-1 text-red-600 hover:bg-red-100 rounded-lg"
-                        >
-                          <X size={16} />
-                        </button>
-                      )}
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div>
-                        <label className="text-xs text-green-700 font-medium block mb-1">مبلغ (ریال) *</label>
-                        <input
-                          {...register(`cashPayments.${index}.amount` as const, {
-                            valueAsNumber: true,
-                          })}
-                          type="text"
-                          className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                          placeholder="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-green-700 font-medium block mb-1">تاریخ پرداخت (شمسی)</label>
-                        <input
-                          type="text"
-                          {...register(`cashPayments.${index}.paymentDate` as const)}
-                          className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                          placeholder="1403/12/15"
-                          dir="ltr"
-                        />
-                      </div>
-                      <div className="flex items-center justify-center">
-                        <label className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-lg">
-                          <input
-                            type="checkbox"
-                            {...register(`cashPayments.${index}.isPaid` as const)}
-                            className="text-green-600"
-                          />
-                          <span className="text-sm text-green-800 font-medium">پرداخت شده</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+        {/* هزینه‌ها */}
+        <div className="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-6 space-y-4 mt-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <h3 className="font-medium text-amber-800 text-lg">هزینه‌ها</h3>
 
-          {/* پرداخت غیر نقدی */}
-          {paymentType === 'non-cash' && (
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 space-y-4">
-              <h3 className="font-medium text-blue-800 text-lg">توضیحات پرداخت غیر نقدی</h3>
-              <p className="text-sm text-blue-600">
-                در صورتی که پرداخت به صورت غیر نقدی (مثل زمین، ملک، خودرو و ...) انجام می‌شود، جزئیات را وارد کنید.
-              </p>
-              <textarea
-                {...register('nonCashDescription')}
-                rows={6}
-                className="w-full px-4 py-3 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                placeholder="مثال: یک قطعه زمین به مساحت 200 متر مربع واقع در تهران، خیابان ولیعصر، پلاک ثبتی 12345"
-              />
-            </div>
-          )}
-        </div>
-        {/* بخش هزینه ها */}
-<div className="bg-gradient-to-br from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-6 space-y-4 mt-6">
-  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-    <h3 className="font-medium text-amber-800 text-lg">هزینه‌ها</h3>
-
-    <button
-      type="button"
-      onClick={() =>
-        appendExpense({
-          title: '',
-          description: '',
-          amount: 0,
-          date: '',
-          isPaid: false,
-        })
-      }
-      className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium"
-    >
-      <Plus size={16} /> افزودن هزینه
-    </button>
-  </div>
-
-  <p className="text-sm text-amber-700">
-    این بخش برای ثبت هزینه‌های جانبی وکیل است و ارتباطی با حق‌الوکاله ندارد.
-  </p>
-
-  <div className="bg-amber-100 p-4 rounded-lg">
-    <p className="text-amber-800 font-bold text-lg">
-      مجموع هزینه‌ها: {expensesTotal?.toLocaleString() || 0} ریال
-    </p>
-  </div>
-
-  <div className="space-y-4">
-    {expenseFields.map((field, index) => (
-      <div
-        key={field.id}
-        className="bg-white border border-amber-300 rounded-lg p-4"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-medium text-amber-800">
-            هزینه {index + 1}
-          </h4>
-
-          {expenseFields.length > 1 && (
             <button
               type="button"
-              onClick={() => removeExpense(index)}
-              className="p-1 text-red-600 hover:bg-red-100 rounded-lg"
+              onClick={() => appendExpense({ title: '', description: '', amount: undefined, date: '', isPaid: false })}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium"
             >
-              <X size={16} />
+              <Plus size={16} /> افزودن هزینه
             </button>
-          )}
+          </div>
+
+          <p className="text-sm text-amber-700">این بخش برای ثبت هزینه‌های جانبی وکیل است و ارتباطی با حق‌الوکاله ندارد.</p>
+
+          <div className="bg-amber-100 p-4 rounded-lg">
+            <p className="text-amber-800 font-bold text-lg">مجموع هزینه‌ها: {expensesTotal?.toLocaleString() || 0} ریال</p>
+          </div>
+
+          <div className="space-y-4">
+            {expenseFields.map((field, index) => (
+              <div key={field.id} className="bg-white border border-amber-300 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-amber-800">هزینه {index + 1}</h4>
+
+                  <button
+                    type="button"
+                    onClick={() => removeExpense(index)}
+                    className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-amber-700 block mb-1">عنوان هزینه</label>
+                    <input
+                      {...register(`expenses.${index}.title` as const)}
+                      type="text"
+                      className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      placeholder="مثال: هزینه ارسال مدارک"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-amber-700 block mb-1">موضوع/توضیح هزینه</label>
+                    <input
+                      {...register(`expenses.${index}.description` as const)}
+                      type="text"
+                      className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      placeholder="مثال: پست پیشتاز"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-amber-700 block mb-1">مبلغ (ریال)</label>
+                    <input
+                      {...register(`expenses.${index}.amount` as const, {
+                        setValueAs: setOptionalNumberValue,
+                      })}
+                      type="text"
+                      inputMode="numeric"
+                      className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      placeholder="0"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-amber-700 block mb-1">تاریخ هزینه (شمسی)</label>
+                    <input
+                      {...register(`expenses.${index}.date` as const)}
+                      type="text"
+                      dir="ltr"
+                      className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      placeholder="1403/11/01"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-3 flex justify-end">
+                  <label className="flex items-center gap-2 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+                    <input type="checkbox" {...register(`expenses.${index}.isPaid` as const)} className="text-amber-600" />
+                    <span className="text-sm font-medium text-amber-800">پرداخت شده</span>
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          {/* عنوان هزینه */}
-          <div>
-            <label className="text-xs font-medium text-amber-700 block mb-1">
-              عنوان هزینه *
-            </label>
-            <input
-              {...register(`expenses.${index}.title` as const)}
-              type="text"
-              className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-              placeholder="مثال: هزینه ارسال مدارک"
-            />
-          </div>
-
-          {/* موضوع هزینه */}
-          <div>
-            <label className="text-xs font-medium text-amber-700 block mb-1">
-              موضوع/توضیح هزینه
-            </label>
-            <input
-              {...register(`expenses.${index}.description` as const)}
-              type="text"
-              className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-              placeholder="مثال: پست پیشتاز"
-            />
-          </div>
-
-          {/* مبلغ */}
-          <div>
-            <label className="text-xs font-medium text-amber-700 block mb-1">
-              مبلغ (ریال) *
-            </label>
-            <input
-              {...register(`expenses.${index}.amount` as const, {
-                valueAsNumber: true,
-              })}
-              type="text"
-              className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-              placeholder="0"
-            />
-          </div>
-
-          {/* تاریخ */}
-          <div>
-            <label className="text-xs font-medium text-amber-700 block mb-1">
-              تاریخ هزینه (شمسی)
-            </label>
-            <input
-              {...register(`expenses.${index}.date` as const)}
-              type="text"
-              dir="ltr"
-              className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-              placeholder="1403/11/01"
-            />
-          </div>
-        </div>
-
-        {/* وضعیت پرداخت */}
-        <div className="mt-3 flex justify-end">
-          <label className="flex items-center gap-2 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
-            <input
-              type="checkbox"
-              {...register(`expenses.${index}.isPaid` as const)}
-              className="text-amber-600"
-            />
-            <span className="text-sm font-medium text-amber-800">
-              پرداخت شده
-            </span>
-          </label>
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
-
 
         {/* توضیحات */}
         <div className="space-y-4">
