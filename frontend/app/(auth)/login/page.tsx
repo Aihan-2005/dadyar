@@ -1,5 +1,5 @@
-import LoginForm from '@/components/forms/login-form'
+import AuthForm from '@/components/forms/auth-form'
 
 export default function LoginPage() {
-  return <LoginForm />
+  return <AuthForm defaultTab="login" userType="lawyer" />
 }

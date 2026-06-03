@@ -11,6 +11,7 @@
   "dependencies": {
     "@fontsource/vazirmatn": "^5.2.8",
     "@hookform/resolvers": "^5.2.2",
+    "framer-motion": "^12.40.0",
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
     "next-auth": "^4.24.13",
