@@ -72,6 +72,8 @@ const clientSchema = z.object({
 const opposingPartySchema = z.object({
   name: optionalTextSchema,
   phone: optionalPhoneSchema,
+  role: optionalTextSchema,
+  birthDate: optionalTextSchema,
   nationalId: optionalTextSchema,
   description: optionalTextSchema,
 })
@@ -80,6 +82,7 @@ const otherPersonSchema = z.object({
   name: optionalTextSchema,
   phone: optionalPhoneSchema,
   nationalId: optionalTextSchema,
+  role: optionalTextSchema,
   description: optionalTextSchema,
 })
 
@@ -576,6 +579,73 @@ const fillClientFromSavedList = (index: number, savedClientId: string) => {
     router.push('/dashboard/cases')
   }
 
+
+
+
+
+
+const normalizePersianDigits = (value: string) => {
+  return value
+    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+}
+
+const getCurrentJalaliDateParts = () => {
+  const parts = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+
+  const year = Number(normalizePersianDigits(parts.find((p) => p.type === 'year')?.value || '0'))
+  const month = Number(normalizePersianDigits(parts.find((p) => p.type === 'month')?.value || '0'))
+  const day = Number(normalizePersianDigits(parts.find((p) => p.type === 'day')?.value || '0'))
+
+  return { year, month, day }
+}
+
+const getJalaliAge = (birthDate?: string) => {
+  if (!birthDate) return null
+
+  const normalized = normalizePersianDigits(birthDate.trim())
+  const match = normalized.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/)
+
+  if (!match) return null
+
+  const birthYear = Number(match[1])
+  const birthMonth = Number(match[2])
+  const birthDay = Number(match[3])
+
+  if (!birthYear || !birthMonth || !birthDay) return null
+
+  const today = getCurrentJalaliDateParts()
+
+  let age = today.year - birthYear
+
+  if (
+    today.month < birthMonth ||
+    (today.month === birthMonth && today.day < birthDay)
+  ) {
+    age -= 1
+  }
+
+  return age
+}
+
+const isUnderLegalAge = (birthDate?: string) => {
+  const age = getJalaliAge(birthDate)
+  return age !== null && age < 18
+}
+
+
+
+
+
+
+
+
+
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <div className="flex items-center gap-4">
@@ -951,91 +1021,162 @@ const fillClientFromSavedList = (index: number, savedClientId: string) => {
   </div>
 </div>
 
-        {/* طرف مقابل */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <UserX className="text-zinc-600" size={20} />
-              <h2 className="text-lg font-semibold text-zinc-800">طرف مقابل</h2>
-            </div>
+       {/* طرف مقابل */}
+<div className="space-y-4">
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-2">
+      <UserX className="text-zinc-600" size={20} />
+      <h2 className="text-lg font-semibold text-zinc-800">طرف مقابل</h2>
+    </div>
+
+    <button
+      type="button"
+      onClick={() =>
+        appendOpposingParty({
+          name: '',
+          phone: '',
+          nationalId: '',
+          role: '',
+          birthDate: '',
+          description: '',
+        })
+      }
+      className="flex items-center gap-2 px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium"
+    >
+      <Plus size={16} />
+      افزودن طرف مقابل
+    </button>
+  </div>
+
+  {opposingPartyFields.length === 0 && (
+    <div className="bg-zinc-50 border-2 border-dashed border-zinc-300 rounded-xl p-6 text-center">
+      <UserX className="mx-auto text-zinc-400 mb-2" size={32} />
+      <p className="text-sm text-zinc-500">هیچ طرف مقابلی اضافه نشده است</p>
+    </div>
+  )}
+
+  <div className="grid gap-4">
+    {opposingPartyFields.map((field, index) => {
+      const birthDateValue = watch(`opposingParties.${index}.birthDate` as const)
+      const underLegalAge = isUnderLegalAge(birthDateValue)
+
+      return (
+        <div
+          key={field.id}
+          className="bg-gradient-to-r from-zinc-50 to-slate-50 border border-zinc-200 rounded-xl p-4"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-zinc-700">
+              طرف مقابل {index + 1}
+            </h3>
+
             <button
               type="button"
-              onClick={() => appendOpposingParty({ name: '', phone: '', nationalId: '', description: '' })}
-              className="flex items-center gap-2 px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium"
+              onClick={() => removeOpposingParty(index)}
+              className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             >
-              <Plus size={16} /> افزودن طرف مقابل
+              <X size={16} />
             </button>
           </div>
 
-          {opposingPartyFields.length === 0 && (
-            <div className="bg-zinc-50 border-2 border-dashed border-zinc-300 rounded-xl p-6 text-center">
-              <UserX className="mx-auto text-zinc-400 mb-2" size={32} />
-              <p className="text-sm text-zinc-500">هیچ طرف مقابلی اضافه نشده است</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 mb-3">
+            <div>
+              <label className="text-xs text-zinc-700 font-medium block mb-1">
+                نام شخص حقیقی/حقوقی
+              </label>
+              <input
+                {...register(`opposingParties.${index}.name` as const)}
+                type="text"
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
+                placeholder="نام طرف مقابل"
+              />
             </div>
-          )}
 
-          <div className="grid gap-4">
-            {opposingPartyFields.map((field, index) => (
-              <div key={field.id} className="bg-gradient-to-r from-zinc-50 to-slate-50 border border-zinc-200 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <button
-                    type="button"
-                    onClick={() => removeOpposingParty(index)}
-                    className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
+            <div>
+              <label className="text-xs text-zinc-700 font-medium block mb-1">
+                شماره موبایل
+              </label>
+              <input
+                {...register(`opposingParties.${index}.phone` as const)}
+                type="text"
+                maxLength={11}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
+                placeholder="09123456789"
+                dir="ltr"
+              />
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                  <div>
-                    <label className="text-xs text-zinc-700 font-medium block mb-1">نام شخص حقیقی/حقوقی</label>
-                    <input
-                      {...register(`opposingParties.${index}.name` as const)}
-                      type="text"
-                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
-                      placeholder="نام طرف مقابل"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-zinc-700 font-medium block mb-1">شماره موبایل</label>
-                    <input
-                      {...register(`opposingParties.${index}.phone` as const)}
-                      type="text"
-                      maxLength={11}
-                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
-                      placeholder="09123456789"
-                      dir="ltr"
-                    />
-                    {errors.opposingParties?.[index]?.phone && (
-                      <p className="mt-1 text-xs text-red-600">{errors.opposingParties[index]?.phone?.message}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-zinc-700 font-medium block mb-1">کد ملی/شناسه ملی</label>
-                    <input
-                      {...register(`opposingParties.${index}.nationalId` as const)}
-                      type="text"
-                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
-                      placeholder="کد یا شناسه"
-                      dir="ltr"
-                    />
-                  </div>
-                </div>
+              {errors.opposingParties?.[index]?.phone && (
+                <p className="mt-1 text-xs text-red-600">
+                  {errors.opposingParties[index]?.phone?.message}
+                </p>
+              )}
+            </div>
 
-                <div>
-                  <label className="text-xs text-zinc-700 font-medium block mb-1">توضیحات</label>
-                  <textarea
-                    {...register(`opposingParties.${index}.description` as const)}
-                    rows={2}
-                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white resize-none"
-                    placeholder="توضیحات مربوط به طرف مقابل..."
-                  />
-                </div>
-              </div>
-            ))}
+            <div>
+              <label className="text-xs text-zinc-700 font-medium block mb-1">
+                کد ملی/شناسه ملی
+              </label>
+              <input
+                {...register(`opposingParties.${index}.nationalId` as const)}
+                type="text"
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
+                placeholder="کد یا شناسه"
+                dir="ltr"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-zinc-700 font-medium block mb-1">
+                سمت
+              </label>
+              <input
+                {...register(`opposingParties.${index}.role` as const)}
+                type="text"
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
+                placeholder="مثلا خوانده"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-zinc-700 font-medium block mb-1">
+                تاریخ تولد
+              </label>
+              <input
+                {...register(`opposingParties.${index}.birthDate` as const)}
+                type="text"
+                className={`w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 bg-white ${
+                  underLegalAge
+                    ? 'border border-red-400 focus:ring-red-500'
+                    : 'border border-zinc-200 focus:ring-zinc-500'
+                }`}
+                placeholder="مثال: 1384/09/09"
+                dir="ltr"
+              />
+
+              {underLegalAge && (
+                <p className="mt-1 text-xs text-red-600 font-medium">
+                  زیر سن قانونی
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-zinc-700 font-medium block mb-1">
+              توضیحات
+            </label>
+            <textarea
+              {...register(`opposingParties.${index}.description` as const)}
+              rows={2}
+              className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white resize-none"
+              placeholder="توضیحات مربوط به طرف مقابل..."
+            />
           </div>
         </div>
+      )
+    })}
+  </div>
+</div>
 
         {/* وکلای همکار */}
         <div className="space-y-4">
@@ -1138,21 +1279,21 @@ const fillClientFromSavedList = (index: number, savedClientId: string) => {
             <button
               type="button"
               onClick={() => appendOpposingLawyer({ name: '', phone: '', licenseNumber: '', licenseExpiry: '', licenseIssuePlace: '' })}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
             >
               <Plus size={16} /> افزودن وکیل طرف مقابل
             </button>
           </div>
 
           {opposingLawyerFields.length === 0 && (
-            <div className="bg-orange-50 border-2 border-dashed border-orange-300 rounded-xl p-6 text-center">
-              <p className="text-sm text-orange-600">هیچ وکیل طرف مقابلی اضافه نشده</p>
+            <div className="bg-blue-50 border-2 border-dashed border-blue-300 rounded-xl p-6 text-center">
+              <p className="text-sm text-blue-600">هیچ وکیل طرف مقابلی اضافه نشده</p>
             </div>
           )}
 
           <div className="grid gap-4">
             {opposingLawyerFields.map((field, index) => (
-              <div key={field.id} className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4">
+              <div key={field.id} className="bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-3">
                   <button
                     type="button"
@@ -1165,16 +1306,16 @@ const fillClientFromSavedList = (index: number, savedClientId: string) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                   <div>
-                    <label className="text-xs text-orange-700 font-medium block mb-1">نام و نام خانوادگی</label>
+                    <label className="text-xs text-blue-700 font-medium block mb-1">نام و نام خانوادگی</label>
                     <input
                       {...register(`opposingLawyers.${index}.name` as const)}
                       type="text"
-                      className="w-full px-3 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                       placeholder="نام وکیل"
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-orange-700 font-medium block mb-1">شماره موبایل</label>
+                    <label className="text-xs text-blue-700 font-medium block mb-1">شماره موبایل</label>
                     <input
                       {...register(`opposingLawyers.${index}.phone` as const)}
                       type="text"
@@ -1226,77 +1367,128 @@ const fillClientFromSavedList = (index: number, savedClientId: string) => {
         </div>
 
         {/* سایر اشخاص */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between border-b-2 border-green-100 pb-3">
-            <h2 className="text-lg font-semibold text-zinc-800">سایر اشخاص</h2>
-            <button
-              type="button"
-              onClick={() => appendOtherPerson({ name: '', phone: '', nationalId: '', description: '' })}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-            >
-              <Plus size={16} /> افزودن سایر اشخاص
-            </button>
+<div className="space-y-4">
+  <div className="flex items-center justify-between border-b-2 border-green-100 pb-3">
+    <h2 className="text-lg font-semibold text-zinc-800">سایر اشخاص</h2>
+
+    <button
+      type="button"
+      onClick={() =>
+        appendOtherPerson({
+          name: '',
+          phone: '',
+          nationalId: '',
+          role: '',
+          description: '',
+        })
+      }
+      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+    >
+      <Plus size={16} />
+      افزودن سایر اشخاص
+    </button>
+  </div>
+
+  {otherPersonFields.length === 0 && (
+    <div className="bg-green-50 border-2 border-dashed border-green-300 rounded-xl p-6 text-center">
+      <p className="text-sm text-green-600">هیچ فرد دیگری اضافه نشده</p>
+    </div>
+  )}
+
+  <div className="grid gap-4">
+    {otherPersonFields.map((field, index) => (
+      <div
+        key={field.id}
+        className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-green-800">
+            سایر اشخاص {index + 1}
+          </h3>
+
+          <button
+            type="button"
+            onClick={() => removeOtherPerson(index)}
+            className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-3">
+          <div>
+            <label className="text-xs text-green-700 font-medium block mb-1">
+              نام و نام خانوادگی
+            </label>
+            <input
+              {...register(`otherPersons.${index}.name` as const)}
+              type="text"
+              className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              placeholder="نام فرد"
+            />
           </div>
 
-          {otherPersonFields.length === 0 && (
-            <div className="bg-green-50 border-2 border-dashed border-green-300 rounded-xl p-6 text-center">
-              <p className="text-sm text-green-600">هیچ فرد دیگری اضافه نشده</p>
-            </div>
-          )}
+          <div>
+            <label className="text-xs text-green-700 font-medium block mb-1">
+              شماره موبایل
+            </label>
+            <input
+              {...register(`otherPersons.${index}.phone` as const)}
+              type="text"
+              maxLength={11}
+              className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              placeholder="09123456789"
+              dir="ltr"
+            />
 
-          <div className="grid gap-4">
-            {otherPersonFields.map((field, index) => (
-              <div key={field.id} className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <button
-                    type="button"
-                    onClick={() => removeOtherPerson(index)}
-                    className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
+            {errors.otherPersons?.[index]?.phone && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.otherPersons[index]?.phone?.message}
+              </p>
+            )}
+          </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                  <div>
-                    <label className="text-xs text-green-700 font-medium block mb-1">نام و نام خانوادگی</label>
-                    <input
-                      {...register(`otherPersons.${index}.name` as const)}
-                      type="text"
-                      className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                      placeholder="نام فرد"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-green-700 font-medium block mb-1">شماره موبایل</label>
-                    <input
-                      {...register(`otherPersons.${index}.phone` as const)}
-                      type="text"
-                      maxLength={11}
-                      className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                      placeholder="09123456789"
-                      dir="ltr"
-                    />
-                    {errors.otherPersons?.[index]?.phone && (
-                      <p className="mt-1 text-xs text-red-600">{errors.otherPersons[index]?.phone?.message}</p>
-                    )}
-                  </div>
-                </div>
+          <div>
+            <label className="text-xs text-green-700 font-medium block mb-1">
+              سمت
+            </label>
+            <input
+              {...register(`otherPersons.${index}.role` as const)}
+              type="text"
+              className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              placeholder="مثلا شاهد، کارشناس، نماینده"
+            />
+          </div>
 
-                <div>
-                  <label className="text-xs text-green-700 font-medium block mb-1">توضیحات</label>
-                  <textarea
-                    {...register(`otherPersons.${index}.description` as const)}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none bg-white"
-                    placeholder="جزئیات و توضیحات فرد..."
-                  />
-                </div>
-              </div>
-            ))}
+          <div>
+            <label className="text-xs text-green-700 font-medium block mb-1">
+              کد ملی
+            </label>
+            <input
+              {...register(`otherPersons.${index}.nationalId` as const)}
+              type="text"
+              className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              placeholder="کد ملی"
+              dir="ltr"
+            />
           </div>
         </div>
 
+        <div>
+          <label className="text-xs text-green-700 font-medium block mb-1">
+            توضیحات
+          </label>
+          <textarea
+            {...register(`otherPersons.${index}.description` as const)}
+            rows={3}
+            className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none bg-white"
+            placeholder="جزئیات و توضیحات فرد..."
+          />
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
        {/* اطلاعات مالی */}
 <div className="space-y-4">
   <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-green-100 pb-3 mb-4">
