@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import SupportButton from './support'
 import { usePathname, useRouter } from 'next/navigation'
 import { 
   LayoutDashboard, 
@@ -139,8 +140,9 @@ export default function DashboardSidebar({ isOpen, onClose }: DashboardSidebarPr
             <Plus size={20} className="group-hover:scale-110 transition-transform" />
             <span className="font-medium">پرونده جدید</span>
           </Link>
+          
         </nav>
-
+           <SupportButton />   
         {/* Logout Button */}
         <div className="p-4 border-t border-zinc-200">
           <button
