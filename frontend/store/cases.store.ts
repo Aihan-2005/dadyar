@@ -1,306 +1,539 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+// import { create } from 'zustand'
+// import { persist } from 'zustand/middleware'
 
-export type CaseStatus = 'pending' | 'in-progress' | 'completed' | 'archived'
-export type PaymentType = 'cash' | 'non-cash' | 'both'
+// export type CaseStatus = 'pending' | 'in-progress' | 'completed' | 'archived'
+// export type PaymentType = 'cash' | 'non-cash' | 'both'
 
-type LegacyPaymentType = 'installment'
+// type LegacyPaymentType = 'installment'
 
-export interface CaseClient {
-  clientId?: string
-  name?: string
-  phone?: string
-  nationalId?: string
-  role?: string
-  representative?: string
-}
+// export interface CaseClient {
+//   clientId?: string
+//   name?: string
+//   phone?: string
+//   nationalId?: string
+//   role?: string
+//   representative?: string
+// }
 
-export interface OpposingParty {
-  name?: string
-  phone?: string
-  nationalId?: string
-  description?: string
-}
+// export interface OpposingParty {
+//   name?: string
+//   phone?: string
+//   nationalId?: string
+//   description?: string
+// }
 
-export interface Lawyer {
-  name?: string
-  phone?: string
-  licenseNumber?: string
-  licenseExpiry?: string
-  licenseIssuePlace?: string
-}
+// export interface Lawyer {
+//   name?: string
+//   phone?: string
+//   licenseNumber?: string
+//   licenseExpiry?: string
+//   licenseIssuePlace?: string
+// }
 
-export interface CashPayment {
-  amount?: number
-  isPaid?: boolean
-  paymentDate?: string
-}
+// export interface CashPayment {
+//   amount?: number
+//   isPaid?: boolean
+//   paymentDate?: string
+// }
 
-export interface BranchHistoryItem {
-  province?: string
-  city?: string
-  branchNumber?: string
-  archiveNumberBranch?: string
-  date?: string
-  isActive: boolean
-}
+// export interface BranchHistoryItem {
+//   province?: string
+//   city?: string
+//   branchNumber?: string
+//   archiveNumberBranch?: string
+//   date?: string
+//   isActive: boolean
+// }
 
-export interface CourtBranch {
-  province?: string
-  city?: string
-  courtType?: string
-  branch?: string
-  currentBranchNumber?: string
-  branchNumber?: string
-  courtName?: string
-  archiveNumberBranch?: string
-  branchHistory?: BranchHistoryItem[]
-}
+// export interface CourtBranch {
+//   province?: string
+//   city?: string
+//   courtType?: string
+//   branch?: string
+//   currentBranchNumber?: string
+//   branchNumber?: string
+//   courtName?: string
+//   archiveNumberBranch?: string
+//   branchHistory?: BranchHistoryItem[]
+// }
 
-export interface Expense {
-  title?: string
-  amount?: number
-  date?: string
-  description?: string
-  isPaid?: boolean
-}
+// export interface Expense {
+//   title?: string
+//   amount?: number
+//   date?: string
+//   description?: string
+//   isPaid?: boolean
+// }
 
-export interface OtherPerson {
-  name?: string
-  phone?: string
-  nationalId?: string
-  description?: string
-}
+// export interface OtherPerson {
+//   name?: string
+//   phone?: string
+//   nationalId?: string
+//   description?: string
+// }
+
+// export interface Case {
+//   id: string
+//   lawyerId?: string
+//   title: string
+//   clientName?: string
+//   clientPhone?: string
+//   caseNumber?: string
+//   archiveNumberOffice?: string
+//   archiveNumberLawyer?: string
+//   archiveNumberBranch?: string
+//   courtBranch?: CourtBranch
+//   coLawyerName?: string
+//   coLawyerInCase?: string
+//   status: CaseStatus
+//   description?: string
+//   clients?: CaseClient[]
+//   opposingParties?: OpposingParty[]
+//   coLawyers?: Lawyer[]
+//   opposingLawyers?: Lawyer[]
+//   cashPayments?: CashPayment[]
+//   paymentType?: PaymentType
+//   nonCashDescription?: string
+//   installmentDescription?: string
+//   contractAmount?: string
+//   remainingAmount?: string | number
+//   overdueAmount?: string | number
+//   totalFee?: number
+//   paidAmount?: number
+//   totalAmount?: number
+//   dueDate?: Date | string
+//   lastPaymentDate?: Date | string
+//   createdAt: Date | string
+//   updatedAt: Date | string
+//   closedAt?: Date | string
+//   expenses?: Expense[]
+//   otherPersons?: OtherPerson[]
+// }
+
+// type CreateCasePayload = Omit<Case, 'id' | 'createdAt' | 'updatedAt'>
+
+// interface CasesStore {
+//   cases: Case[]
+//   addCase: (caseData: CreateCasePayload) => Case
+//   updateCase: (id: string, caseData: Partial<Case>) => void
+//   deleteCase: (id: string) => void
+//   getCaseById: (id: string) => Case | undefined
+//   getActiveCases: () => Case[]
+//   getPendingCases: () => Case[]
+//   getMonthlyCases: () => Case[]
+//   getTotalDebt: () => number
+// }
+
+// const toNumber = (value: unknown): number => {
+//   if (value === '' || value === null || value === undefined) return 0
+//   if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+
+//   const numericValue = Number(String(value).replace(/,/g, ''))
+//   return Number.isFinite(numericValue) ? numericValue : 0
+// }
+
+// const calculatePaidAmountFromCashPayments = (cashPayments?: CashPayment[]): number => {
+//   return (cashPayments || []).reduce((sum, payment) => {
+//     if (!payment?.isPaid) return sum
+//     return sum + toNumber(payment.amount)
+//   }, 0)
+// }
+
+// const calculateTotalCashAmount = (cashPayments?: CashPayment[]): number => {
+//   return (cashPayments || []).reduce((sum, payment) => sum + toNumber(payment.amount), 0)
+// }
+
+// const calculateRemainingAmount = (caseData: Partial<Case>): number => {
+//   const contractAmount = toNumber(caseData.contractAmount)
+//   const totalFee = toNumber(caseData.totalFee)
+//   const baseAmount = contractAmount || totalFee || toNumber(caseData.totalAmount)
+//   const paidAmount =
+//     caseData.paidAmount !== undefined
+//       ? toNumber(caseData.paidAmount)
+//       : calculatePaidAmountFromCashPayments(caseData.cashPayments)
+
+//   return Math.max(baseAmount - paidAmount, 0)
+// }
+
+// const normalizePaymentType = (paymentType?: PaymentType | LegacyPaymentType): PaymentType => {
+//   if (paymentType === 'installment') return 'non-cash'
+//   if (paymentType === 'non-cash' || paymentType === 'both' || paymentType === 'cash') return paymentType
+//   return 'cash'
+// }
+
+// const cleanArray = <T extends Record<string, any>>(items?: T[]) => {
+//   return (items || []).filter((item) =>
+//     Object.values(item).some((value) => {
+//       if (typeof value === 'boolean') return value === true
+//       if (typeof value === 'number') return value !== 0
+//       if (Array.isArray(value)) return value.length > 0
+//       return String(value || '').trim() !== ''
+//     })
+//   )
+// }
+
+// const normalizeCaseData = <T extends Partial<Case>>(caseData: T): T => {
+//   const paymentType = normalizePaymentType(caseData.paymentType as PaymentType | LegacyPaymentType | undefined)
+//   const cashPayments = paymentType === 'non-cash' ? [] : cleanArray(caseData.cashPayments)
+//   const totalAmount = paymentType === 'non-cash' ? 0 : calculateTotalCashAmount(cashPayments)
+//   const paidAmount = calculatePaidAmountFromCashPayments(cashPayments)
+//   const remainingAmount = calculateRemainingAmount({
+//     ...caseData,
+//     cashPayments,
+//     paidAmount,
+//     totalAmount,
+//   })
+
+//   return {
+//     ...caseData,
+//     paymentType,
+//     cashPayments,
+//     totalAmount,
+//     paidAmount,
+//     remainingAmount,
+//     clients: cleanArray(caseData.clients),
+//     opposingParties: cleanArray(caseData.opposingParties),
+//     coLawyers: cleanArray(caseData.coLawyers),
+//     opposingLawyers: cleanArray(caseData.opposingLawyers),
+//     expenses: cleanArray(caseData.expenses),
+//     otherPersons: cleanArray(caseData.otherPersons),
+//     nonCashDescription:
+//       caseData.nonCashDescription || caseData.installmentDescription || '',
+//     installmentDescription: undefined,
+//   } as T
+// }
+
+// const isInCurrentMonth = (date: Date | string): boolean => {
+//   const normalizedDate = new Date(date)
+//   const now = new Date()
+
+//   return (
+//     normalizedDate.getMonth() === now.getMonth() &&
+//     normalizedDate.getFullYear() === now.getFullYear()
+//   )
+// }
+
+// export const useCasesStore = create<CasesStore>()(
+//   persist(
+//     (set, get) => ({
+//       cases: [],
+
+//       addCase: (caseData) => {
+//         const normalizedCaseData = normalizeCaseData(caseData)
+
+//         const newCase: Case = {
+//           ...normalizedCaseData,
+//           id: crypto.randomUUID(),
+//           title: normalizedCaseData.title || '',
+//           status: normalizedCaseData.status || 'pending',
+//           createdAt: new Date(),
+//           updatedAt: new Date(),
+//         }
+
+//         set((state) => ({ cases: [...state.cases, newCase] }))
+//         return newCase
+//       },
+
+//       updateCase: (id, caseData) => {
+//         set((state) => ({
+//           cases: state.cases.map((currentCase) => {
+//             if (currentCase.id !== id) return currentCase
+
+//             const mergedCase = {
+//               ...currentCase,
+//               ...caseData,
+//               updatedAt: new Date(),
+//             }
+
+//             return normalizeCaseData(mergedCase)
+//           }),
+//         }))
+//       },
+
+//       deleteCase: (id) => {
+//         set((state) => ({
+//           cases: state.cases.filter((currentCase) => currentCase.id !== id),
+//         }))
+//       },
+
+//       getCaseById: (id) => {
+//         return get().cases.find((currentCase) => currentCase.id === id)
+//       },
+
+//       getActiveCases: () => {
+//         return get().cases.filter(
+//           (currentCase) => currentCase.status !== 'archived' && !currentCase.closedAt
+//         )
+//       },
+
+//       getPendingCases: () => {
+//         return get().cases.filter((currentCase) => currentCase.status === 'pending')
+//       },
+
+//       getMonthlyCases: () => {
+//         return get().cases.filter((currentCase) => isInCurrentMonth(currentCase.createdAt))
+//       },
+
+//       getTotalDebt: () => {
+//         return get().cases.reduce(
+//           (sum, currentCase) => sum + toNumber(currentCase.remainingAmount),
+//           0
+//         )
+//       },
+//     }),
+//     {
+//       name: 'cases-storage',
+//       version: 2,
+//       migrate: (persistedState: any) => {
+//         if (!persistedState?.cases) return persistedState
+
+//         return {
+//           ...persistedState,
+//           cases: persistedState.cases.map((caseItem: Case & { paymentType?: PaymentType | LegacyPaymentType }) =>
+//             normalizeCaseData({
+//               ...caseItem,
+//               paymentType: normalizePaymentType(caseItem.paymentType),
+//               nonCashDescription:
+//                 caseItem.nonCashDescription || caseItem.installmentDescription || '',
+//               updatedAt: caseItem.updatedAt || new Date(),
+//               createdAt: caseItem.createdAt || new Date(),
+//             })
+//           ),
+//         }
+//       },
+//     }
+//   )
+// )
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { api } from '@/lib/api';
+
+export type CaseStatus =
+  | 'open'
+  | 'in_progress'
+  | 'closed'
+  | 'archived';
 
 export interface Case {
-  id: string
-  lawyerId?: string
-  title: string
-  clientName?: string
-  clientPhone?: string
-  caseNumber?: string
-  archiveNumberOffice?: string
-  archiveNumberLawyer?: string
-  archiveNumberBranch?: string
-  courtBranch?: CourtBranch
-  coLawyerName?: string
-  coLawyerInCase?: string
-  status: CaseStatus
-  description?: string
-  clients?: CaseClient[]
-  opposingParties?: OpposingParty[]
-  coLawyers?: Lawyer[]
-  opposingLawyers?: Lawyer[]
-  cashPayments?: CashPayment[]
-  paymentType?: PaymentType
-  nonCashDescription?: string
-  installmentDescription?: string
-  contractAmount?: string
-  remainingAmount?: string | number
-  overdueAmount?: string | number
-  totalFee?: number
-  paidAmount?: number
-  totalAmount?: number
-  dueDate?: Date | string
-  lastPaymentDate?: Date | string
-  createdAt: Date | string
-  updatedAt: Date | string
-  closedAt?: Date | string
-  expenses?: Expense[]
-  otherPersons?: OtherPerson[]
+  id: string;
+  title: string;
+  caseNumber?: string;
+  clientName?: string;
+  subject?: string;
+  courtName?: string;
+  branchName?: string;
+  status: CaseStatus;
+  description?: string;
+  totalAmount?: number;
+  paidAmount?: number;
+  remainingAmount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-type CreateCasePayload = Omit<Case, 'id' | 'createdAt' | 'updatedAt'>
+export interface CreateCasePayload {
+  title: string;
+  caseNumber?: string;
+  clientName?: string;
+  subject?: string;
+  courtName?: string;
+  branchName?: string;
+  status?: CaseStatus;
+  description?: string;
+  totalAmount?: number;
+  paidAmount?: number;
+  remainingAmount?: number;
+}
+
+export interface UpdateCasePayload {
+  title?: string;
+  caseNumber?: string;
+  clientName?: string;
+  subject?: string;
+  courtName?: string;
+  branchName?: string;
+  status?: CaseStatus;
+  description?: string;
+  totalAmount?: number;
+  paidAmount?: number;
+  remainingAmount?: number;
+}
 
 interface CasesStore {
-  cases: Case[]
-  addCase: (caseData: CreateCasePayload) => Case
-  updateCase: (id: string, caseData: Partial<Case>) => void
-  deleteCase: (id: string) => void
-  getCaseById: (id: string) => Case | undefined
-  getActiveCases: () => Case[]
-  getPendingCases: () => Case[]
-  getMonthlyCases: () => Case[]
-  getTotalDebt: () => number
-}
+  cases: Case[];
+  selectedCase: Case | null;
+  isLoading: boolean;
+  error: string | null;
 
-const toNumber = (value: unknown): number => {
-  if (value === '' || value === null || value === undefined) return 0
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+  fetchCases: () => Promise<void>;
+  fetchCaseById: (id: string) => Promise<Case | null>;
+  addCase: (caseData: CreateCasePayload) => Promise<Case | null>;
+  updateCase: (id: string, caseData: UpdateCasePayload) => Promise<Case | null>;
+  deleteCase: (id: string) => Promise<void>;
 
-  const numericValue = Number(String(value).replace(/,/g, ''))
-  return Number.isFinite(numericValue) ? numericValue : 0
-}
+  setSelectedCase: (caseItem: Case | null) => void;
+  clearError: () => void;
 
-const calculatePaidAmountFromCashPayments = (cashPayments?: CashPayment[]): number => {
-  return (cashPayments || []).reduce((sum, payment) => {
-    if (!payment?.isPaid) return sum
-    return sum + toNumber(payment.amount)
-  }, 0)
-}
-
-const calculateTotalCashAmount = (cashPayments?: CashPayment[]): number => {
-  return (cashPayments || []).reduce((sum, payment) => sum + toNumber(payment.amount), 0)
-}
-
-const calculateRemainingAmount = (caseData: Partial<Case>): number => {
-  const contractAmount = toNumber(caseData.contractAmount)
-  const totalFee = toNumber(caseData.totalFee)
-  const baseAmount = contractAmount || totalFee || toNumber(caseData.totalAmount)
-  const paidAmount =
-    caseData.paidAmount !== undefined
-      ? toNumber(caseData.paidAmount)
-      : calculatePaidAmountFromCashPayments(caseData.cashPayments)
-
-  return Math.max(baseAmount - paidAmount, 0)
-}
-
-const normalizePaymentType = (paymentType?: PaymentType | LegacyPaymentType): PaymentType => {
-  if (paymentType === 'installment') return 'non-cash'
-  if (paymentType === 'non-cash' || paymentType === 'both' || paymentType === 'cash') return paymentType
-  return 'cash'
-}
-
-const cleanArray = <T extends Record<string, any>>(items?: T[]) => {
-  return (items || []).filter((item) =>
-    Object.values(item).some((value) => {
-      if (typeof value === 'boolean') return value === true
-      if (typeof value === 'number') return value !== 0
-      if (Array.isArray(value)) return value.length > 0
-      return String(value || '').trim() !== ''
-    })
-  )
-}
-
-const normalizeCaseData = <T extends Partial<Case>>(caseData: T): T => {
-  const paymentType = normalizePaymentType(caseData.paymentType as PaymentType | LegacyPaymentType | undefined)
-  const cashPayments = paymentType === 'non-cash' ? [] : cleanArray(caseData.cashPayments)
-  const totalAmount = paymentType === 'non-cash' ? 0 : calculateTotalCashAmount(cashPayments)
-  const paidAmount = calculatePaidAmountFromCashPayments(cashPayments)
-  const remainingAmount = calculateRemainingAmount({
-    ...caseData,
-    cashPayments,
-    paidAmount,
-    totalAmount,
-  })
-
-  return {
-    ...caseData,
-    paymentType,
-    cashPayments,
-    totalAmount,
-    paidAmount,
-    remainingAmount,
-    clients: cleanArray(caseData.clients),
-    opposingParties: cleanArray(caseData.opposingParties),
-    coLawyers: cleanArray(caseData.coLawyers),
-    opposingLawyers: cleanArray(caseData.opposingLawyers),
-    expenses: cleanArray(caseData.expenses),
-    otherPersons: cleanArray(caseData.otherPersons),
-    nonCashDescription:
-      caseData.nonCashDescription || caseData.installmentDescription || '',
-    installmentDescription: undefined,
-  } as T
-}
-
-const isInCurrentMonth = (date: Date | string): boolean => {
-  const normalizedDate = new Date(date)
-  const now = new Date()
-
-  return (
-    normalizedDate.getMonth() === now.getMonth() &&
-    normalizedDate.getFullYear() === now.getFullYear()
-  )
+  getCaseById: (id: string) => Case | undefined;
+  getActiveCases: () => Case[];
+  getArchivedCases: () => Case[];
+  getTotalDebt: () => number;
 }
 
 export const useCasesStore = create<CasesStore>()(
   persist(
     (set, get) => ({
       cases: [],
+      selectedCase: null,
+      isLoading: false,
+      error: null,
 
-      addCase: (caseData) => {
-        const normalizedCaseData = normalizeCaseData(caseData)
+      fetchCases: async () => {
+        set({ isLoading: true, error: null });
 
-        const newCase: Case = {
-          ...normalizedCaseData,
-          id: crypto.randomUUID(),
-          title: normalizedCaseData.title || '',
-          status: normalizedCaseData.status || 'pending',
-          createdAt: new Date(),
-          updatedAt: new Date(),
+        try {
+          const response = await api.get('/cases');
+          const cases = response.data;
+
+          set({
+            cases: Array.isArray(cases) ? cases : [],
+            isLoading: false,
+          });
+        } catch (error: any) {
+          set({
+            isLoading: false,
+            error: error?.response?.data?.message || 'خطا در دریافت پرونده‌ها',
+          });
         }
-
-        set((state) => ({ cases: [...state.cases, newCase] }))
-        return newCase
       },
 
-      updateCase: (id, caseData) => {
-        set((state) => ({
-          cases: state.cases.map((currentCase) => {
-            if (currentCase.id !== id) return currentCase
+      fetchCaseById: async (id: string) => {
+        set({ isLoading: true, error: null });
 
-            const mergedCase = {
-              ...currentCase,
-              ...caseData,
-              updatedAt: new Date(),
-            }
+        try {
+          const response = await api.get(`/cases/${id}`);
+          const caseItem = response.data;
 
-            return normalizeCaseData(mergedCase)
-          }),
-        }))
+          set({
+            selectedCase: caseItem,
+            isLoading: false,
+          });
+
+          return caseItem;
+        } catch (error: any) {
+          set({
+            isLoading: false,
+            error: error?.response?.data?.message || 'خطا در دریافت اطلاعات پرونده',
+          });
+
+          return null;
+        }
       },
 
-      deleteCase: (id) => {
-        set((state) => ({
-          cases: state.cases.filter((currentCase) => currentCase.id !== id),
-        }))
+      addCase: async (caseData: CreateCasePayload) => {
+        set({ isLoading: true, error: null });
+
+        try {
+          const response = await api.post('/cases', caseData);
+          const newCase = response.data;
+
+          set((state) => ({
+            cases: [newCase, ...state.cases],
+            isLoading: false,
+          }));
+
+          return newCase;
+        } catch (error: any) {
+          set({
+            isLoading: false,
+            error: error?.response?.data?.message || 'خطا در ایجاد پرونده',
+          });
+
+          return null;
+        }
       },
 
-      getCaseById: (id) => {
-        return get().cases.find((currentCase) => currentCase.id === id)
+      updateCase: async (id: string, caseData: UpdateCasePayload) => {
+        set({ isLoading: true, error: null });
+
+        try {
+          const response = await api.patch(`/cases/${id}`, caseData);
+          const updatedCase = response.data;
+
+          set((state) => ({
+            cases: state.cases.map((item) =>
+              item.id === id ? updatedCase : item
+            ),
+            selectedCase:
+              state.selectedCase?.id === id ? updatedCase : state.selectedCase,
+            isLoading: false,
+          }));
+
+          return updatedCase;
+        } catch (error: any) {
+          set({
+            isLoading: false,
+            error: error?.response?.data?.message || 'خطا در ویرایش پرونده',
+          });
+
+          return null;
+        }
+      },
+
+      deleteCase: async (id: string) => {
+        set({ isLoading: true, error: null });
+
+        try {
+          await api.delete(`/cases/${id}`);
+
+          set((state) => ({
+            cases: state.cases.filter((item) => item.id !== id),
+            selectedCase:
+              state.selectedCase?.id === id ? null : state.selectedCase,
+            isLoading: false,
+          }));
+        } catch (error: any) {
+          set({
+            isLoading: false,
+            error: error?.response?.data?.message || 'خطا در حذف پرونده',
+          });
+        }
+      },
+
+      setSelectedCase: (caseItem) => {
+        set({ selectedCase: caseItem });
+      },
+
+      clearError: () => {
+        set({ error: null });
+      },
+
+      getCaseById: (id: string) => {
+        return get().cases.find((item) => item.id === id);
       },
 
       getActiveCases: () => {
         return get().cases.filter(
-          (currentCase) => currentCase.status !== 'archived' && !currentCase.closedAt
-        )
+          (item) => item.status !== 'archived' && item.status !== 'closed'
+        );
       },
 
-      getPendingCases: () => {
-        return get().cases.filter((currentCase) => currentCase.status === 'pending')
-      },
-
-      getMonthlyCases: () => {
-        return get().cases.filter((currentCase) => isInCurrentMonth(currentCase.createdAt))
+      getArchivedCases: () => {
+        return get().cases.filter((item) => item.status === 'archived');
       },
 
       getTotalDebt: () => {
-        return get().cases.reduce(
-          (sum, currentCase) => sum + toNumber(currentCase.remainingAmount),
-          0
-        )
+        return get().cases.reduce((sum, item) => {
+          return sum + Number(item.remainingAmount || 0);
+        }, 0);
       },
     }),
     {
       name: 'cases-storage',
-      version: 2,
-      migrate: (persistedState: any) => {
-        if (!persistedState?.cases) return persistedState
-
-        return {
-          ...persistedState,
-          cases: persistedState.cases.map((caseItem: Case & { paymentType?: PaymentType | LegacyPaymentType }) =>
-            normalizeCaseData({
-              ...caseItem,
-              paymentType: normalizePaymentType(caseItem.paymentType),
-              nonCashDescription:
-                caseItem.nonCashDescription || caseItem.installmentDescription || '',
-              updatedAt: caseItem.updatedAt || new Date(),
-              createdAt: caseItem.createdAt || new Date(),
-            })
-          ),
-        }
-      },
+      partialize: (state) => ({
+        cases: state.cases,
+        selectedCase: state.selectedCase,
+      }),
     }
   )
-)
+);

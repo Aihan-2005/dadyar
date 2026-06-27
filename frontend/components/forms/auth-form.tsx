@@ -38,7 +38,11 @@ export default function AuthForm({
   userType = 'lawyer',
 }: AuthFormProps) {
   const router = useRouter()
-  const login = useAuthStore((s) => s.login)
+
+  const login = useAuthStore((state) => state.login);
+  const register = useAuthStore((state) => state.register);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  // const login = useAuthStore((s) => s.login)
   const [activeTab, setActiveTab] = useState<'login' | 'register'>(defaultTab)
 
   const title = useMemo(() => {
@@ -53,29 +57,63 @@ export default function AuthForm({
     resolver: zodResolver(registerSchema),
   })
 
-  const handleLogin = async (data: LoginFormData) => {
-    await new Promise((r) => setTimeout(r, 800))
+// const handleLogin = async (data: LoginFormData) => {
+//   await new Promise((r) => setTimeout(r, 800))
 
-    login({
-      id: '1',
-      firstName: title === 'وکلا' ? 'وکیل' : 'موکل',
-      lastName: 'دادیار',
-    })
+//   useAuthStore.setState({
+//     user: {
+//       id: '1',
+//       firstName: title === 'وکلا' ? 'وکیل' : 'موکل',
+//       lastName: 'دادیار',
+//       email: data.email,
+//       role: userType,
+//     },
+//     token: 'mock-token',
+//     error: null,
+//     isLoading: false,
+//   })
 
+//   router.push('/dashboard')
+// }
+const handleLogin = async (data: LoginFormData) => {
+  try {
+        await login(data) 
     router.push('/dashboard')
+  } catch (error) {
+        console.error("Login failed", error)
   }
+}
 
-  const handleRegister = async (data: RegisterFormData) => {
-    await new Promise((r) => setTimeout(r, 800))
 
-    login({
-      id: crypto.randomUUID(),
-      firstName: data.firstName,
-      lastName: data.lastName,
-    })
+// const handleRegister = async (data: RegisterFormData) => {
+//   await new Promise((r) => setTimeout(r, 800))
 
+//   useAuthStore.setState({
+//     user: {
+//       id: crypto.randomUUID(),
+//       firstName: data.firstName,
+//       lastName: data.lastName,
+//       email: data.email,
+//       phone: data.phone,
+//       role: userType,
+//     },
+//     token: 'mock-token',
+//     error: null,
+//     isLoading: false,
+//   })
+
+//   router.push('/dashboard')
+// }
+const handleRegister = async (data: RegisterFormData) => {
+  try {
+        await register({ ...data, role: userType })
     router.push('/dashboard')
+  } catch (error) {
+    console.error("Register failed", error)
   }
+}
+
+
 
   return (
     <div
