@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://meabbaspour.endpointforge.ir:4000/dadyar';
+const BASE_URL = '/api';
 
 
 export const api = axios.create({
