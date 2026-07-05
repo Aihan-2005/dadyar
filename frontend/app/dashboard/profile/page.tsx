@@ -20,6 +20,8 @@ import {
   Calendar,
   FileText,
 } from 'lucide-react'
+import { saveLawyerProfile } from '@/services/lawyer.service'
+import { LawyerProfile } from '@/types/lawyer'
 
 type Education = {
   id: string
@@ -88,12 +90,31 @@ export default function ProfilePage() {
     setTempData({ ...profile })
   }
 
-  const saveEdit = () => {
-    setProfile((prev) => ({ ...prev, ...tempData }))
-    setEditingSection(null)
-    setTempData({})
+  const buildProfilePayload = (): LawyerProfile => {
+  return {
+    specialization: tempData.specialization ?? profile.specialization,
+    licenseNumber: tempData.licenseNumber ?? profile.licenseNumber,
+    yearsOfExperience: tempData.yearsOfExperience ?? profile.yearsOfExperience,
+    phone: tempData.phone ?? profile.phone,
+    website: tempData.website ?? profile.website,
+    address: tempData.address ?? profile.address,
+    bio: tempData.bio ?? profile.bio,
+    education: tempData.education ?? profile.education,
+    experience: tempData.experience ?? profile.experience,
+    skills: tempData.skills ?? profile.skills,
+    languages: tempData.languages ?? profile.languages,
   }
+}
 
+const saveEdit = async () => {
+  const payload = buildProfilePayload()
+
+  await saveLawyerProfile(payload)
+
+  setProfile(payload)
+  setEditingSection(null)
+  setTempData({})
+}
   const cancelEdit = () => {
     setEditingSection(null)
     setTempData({})

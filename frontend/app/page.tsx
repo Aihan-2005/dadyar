@@ -165,6 +165,7 @@ export default function PricingPage() {
       period: "۵ روز",
       desc: "تجربه کامل تمام امکانات دادیار",
       btn: "شروع دوره رایگان",
+        color: "blue",
     },
     {
       key: "3m",
@@ -217,11 +218,11 @@ export default function PricingPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
           {plans.map((plan, index) => (
             <div
               key={index}
-              className={`relative rounded-3xl border p-8 flex flex-col transition-all duration-300 hover:scale-[1.02] ${
+             className={`relative rounded-3xl border p-8 flex flex-col min-w-0 break-words transition-all duration-300 hover:scale-[1.02] ${
                 plan.popular
                   ? "bg-white/[0.05] border-purple-500/50 shadow-[0_0_40px_-10px_rgba(139,92,246,0.3)]"
                   : "bg-white/[0.02] border-white/10"
@@ -233,7 +234,7 @@ export default function PricingPage() {
                 </span>
               )}
 
-              <h3 className="text-xl font-bold mb-2">{plan.title}</h3>
+              <h3 className="text-xl font-bold mb-2 break-words">{plan.title}</h3>
 
               <div className="mb-6">
                 <span className="text-3xl font-black">{plan.price}</span>
