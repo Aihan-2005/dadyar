@@ -1,111 +1,211 @@
-import type { FinancialStats } from '@/types/finance'
+import type { LucideIcon } from 'lucide-react'
 import {
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
   AlertCircle,
-  Users,
+  DollarSign,
   FileText,
+  Percent,
+  Receipt,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
 } from 'lucide-react'
 
-interface Props {
+import { formatMoney } from '@/features/finance/utils/money'
+import type { FinancialStats } from '@/types/finance'
+
+interface FinanceStatsProps {
   stats: FinancialStats
 }
 
-export function FinanceStats({ stats }: Props) {
-  const collectionRate =
-    stats.totalRevenue > 0
-      ? (stats.totalReceived / stats.totalRevenue) * 100
-      : 0
+interface StatCardConfig {
+  title: string
+  value: string
+  description: string
+  icon: LucideIcon
+  iconClassName: string
+  badge?: string
+  badgeClassName?: string
+  valueClassName?: string
+}
+
+export function FinanceStats({ stats }: FinanceStatsProps) {
+  const cards: StatCardConfig[] = [
+    {
+      title: 'ارزش کل قراردادها',
+      value: formatMoney(stats.totalRevenue),
+      description: 'مجموع مبلغ قراردادهای ثبت‌شده',
+      icon: DollarSign,
+      iconClassName: 'bg-blue-50 text-blue-600',
+      badge: 'کل',
+      badgeClassName: 'bg-blue-50 text-blue-700',
+    },
+    {
+      title: 'مجموع دریافتی‌ها',
+      value: formatMoney(stats.totalReceived),
+      description: 'پرداخت‌های وصول‌شده از موکلین',
+      icon: TrendingUp,
+      iconClassName: 'bg-emerald-50 text-emerald-600',
+      badge: `${stats.collectionRate.toLocaleString('fa-IR', {
+        maximumFractionDigits: 1,
+      })}٪ وصول`,
+      badgeClassName: 'bg-emerald-50 text-emerald-700',
+      valueClassName: 'text-emerald-700',
+    },
+    {
+      title: 'مانده مطالبات',
+      value: formatMoney(stats.totalRemaining),
+      description: 'بخش پرداخت‌نشده قراردادها',
+      icon: TrendingDown,
+      iconClassName: 'bg-amber-50 text-amber-600',
+      badge:
+        stats.totalRemaining > 0
+          ? 'نیازمند پیگیری'
+          : 'تسویه‌شده',
+      badgeClassName:
+        stats.totalRemaining > 0
+          ? 'bg-amber-50 text-amber-700'
+          : 'bg-emerald-50 text-emerald-700',
+      valueClassName: 'text-amber-700',
+    },
+    {
+      title: 'مطالبات معوق',
+      value: formatMoney(stats.totalOverdue),
+      description: 'مطالباتی که از سررسید عبور کرده‌اند',
+      icon: AlertCircle,
+      iconClassName: 'bg-red-50 text-red-600',
+      badge:
+        stats.totalOverdue > 0
+          ? 'اولویت بالا'
+          : 'بدون معوق',
+      badgeClassName:
+        stats.totalOverdue > 0
+          ? 'bg-red-50 text-red-700'
+          : 'bg-emerald-50 text-emerald-700',
+      valueClassName:
+        stats.totalOverdue > 0
+          ? 'text-red-700'
+          : undefined,
+    },
+    {
+      title: 'هزینه‌های ثبت‌شده',
+      value: formatMoney(stats.totalExpenses),
+      description: 'هزینه‌های مرتبط با پرونده‌ها',
+      icon: Receipt,
+      iconClassName: 'bg-orange-50 text-orange-600',
+      badge: 'هزینه',
+      badgeClassName: 'bg-orange-50 text-orange-700',
+    },
+    {
+      title: 'خالص دریافتی',
+      value: formatMoney(stats.netCollected),
+      description: 'دریافتی‌ها پس از کسر هزینه‌های ثبت‌شده',
+      icon: Wallet,
+      iconClassName:
+        stats.netCollected >= 0
+          ? 'bg-teal-50 text-teal-600'
+          : 'bg-red-50 text-red-600',
+      badge: stats.netCollected >= 0 ? 'مثبت' : 'منفی',
+      badgeClassName:
+        stats.netCollected >= 0
+          ? 'bg-teal-50 text-teal-700'
+          : 'bg-red-50 text-red-700',
+      valueClassName:
+        stats.netCollected >= 0
+          ? 'text-teal-700'
+          : 'text-red-700',
+    },
+    {
+      title: 'نرخ وصول',
+      value: `${stats.collectionRate.toLocaleString('fa-IR', {
+        maximumFractionDigits: 1,
+      })}٪`,
+      description: 'نسبت دریافتی به ارزش قراردادها',
+      icon: Percent,
+      iconClassName: 'bg-violet-50 text-violet-600',
+      badge:
+        stats.collectionRate >= 70
+          ? 'مناسب'
+          : 'قابل بهبود',
+      badgeClassName:
+        stats.collectionRate >= 70
+          ? 'bg-emerald-50 text-emerald-700'
+          : 'bg-violet-50 text-violet-700',
+    },
+    {
+      title: 'قراردادهای فعال',
+      value: stats.activeContracts.toLocaleString('fa-IR'),
+      description: `${stats.clientCount.toLocaleString(
+        'fa-IR'
+      )} موکل دارای پرونده مالی`,
+      icon: FileText,
+      iconClassName: 'bg-indigo-50 text-indigo-600',
+      badge: 'فعال',
+      badgeClassName: 'bg-indigo-50 text-indigo-700',
+    },
+  ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+    <section
+      aria-label="خلاصه شاخص‌های مالی"
+      className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+    >
+      {cards.map((card) => (
+        <StatCard
+          key={card.title}
+          {...card}
+        />
+      ))}
+    </section>
+  )
+}
 
-      {/* کل درآمد */}
-      <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-5 text-white shadow-md">
-        <div className="flex items-start justify-between mb-3">
-          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-            <DollarSign size={20} />
-          </div>
-          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">کل</span>
+function StatCard({
+  title,
+  value,
+  description,
+  icon: Icon,
+  iconClassName,
+  badge,
+  badgeClassName,
+  valueClassName = 'text-zinc-900',
+}: StatCardConfig) {
+  return (
+    <article className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md">
+      <div className="absolute -left-8 -top-8 h-24 w-24 rounded-full bg-zinc-50 transition group-hover:scale-125" />
+
+      <div className="relative flex items-start justify-between gap-3">
+        <div
+          className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconClassName}`}
+        >
+          <Icon size={21} />
         </div>
-        <p className="text-xs opacity-80 mb-1">کل مبلغ قراردادها</p>
-        <p className="text-2xl font-bold leading-tight">
-          {stats.totalRevenue.toLocaleString('fa-IR')}
-          <span className="text-sm font-normal mr-1 opacity-80">ت</span>
-        </p>
-      </div>
 
-      {/* دریافتی‌ها */}
-      <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white shadow-md">
-        <div className="flex items-start justify-between mb-3">
-          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-            <TrendingUp size={20} />
-          </div>
-          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">
-            {collectionRate.toFixed(0)}%
+        {badge && (
+          <span
+            className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+              badgeClassName ?? 'bg-zinc-100 text-zinc-600'
+            }`}
+          >
+            {badge}
           </span>
-        </div>
-        <p className="text-xs opacity-80 mb-1">مجموع پرداختی‌ها</p>
-        <p className="text-2xl font-bold leading-tight">
-          {stats.totalReceived.toLocaleString('fa-IR')}
-          <span className="text-sm font-normal mr-1 opacity-80">ت</span>
+        )}
+      </div>
+
+      <div className="relative mt-5">
+        <p className="text-xs font-medium text-zinc-500">
+          {title}
+        </p>
+
+        <p
+          className={`mt-2 break-words text-xl font-black leading-8 ${valueClassName}`}
+        >
+          {value}
+        </p>
+
+        <p className="mt-2 text-xs leading-5 text-zinc-400">
+          {description}
         </p>
       </div>
-
-      {/* مانده */}
-      <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-5 text-white shadow-md">
-        <div className="flex items-start justify-between mb-3">
-          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-            <TrendingDown size={20} />
-          </div>
-        </div>
-        <p className="text-xs opacity-80 mb-1">مانده طلب</p>
-        <p className="text-2xl font-bold leading-tight">
-          {stats.totalRemaining.toLocaleString('fa-IR')}
-          <span className="text-sm font-normal mr-1 opacity-80">ت</span>
-        </p>
-      </div>
-
-      {/* معوقات */}
-      <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-5 text-white shadow-md">
-        <div className="flex items-start justify-between mb-3">
-          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-            <AlertCircle size={20} />
-          </div>
-          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">فوری</span>
-        </div>
-        <p className="text-xs opacity-80 mb-1">معوقات</p>
-        <p className="text-2xl font-bold leading-tight">
-          {stats.totalOverdue.toLocaleString('fa-IR')}
-          <span className="text-sm font-normal mr-1 opacity-80">ت</span>
-        </p>
-      </div>
-
-      {/* تعداد موکلین */}
-      <div className="bg-white rounded-2xl p-5 border border-zinc-200 shadow-sm">
-        <div className="flex items-start justify-between mb-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-            <Users className="text-indigo-600" size={20} />
-          </div>
-        </div>
-        <p className="text-xs text-zinc-500 mb-1">تعداد موکلین</p>
-        <p className="text-2xl font-bold text-zinc-900">{stats.clientCount}</p>
-      </div>
-
-      {/* قراردادهای فعال */}
-      <div className="bg-white rounded-2xl p-5 border border-zinc-200 shadow-sm">
-        <div className="flex items-start justify-between mb-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-            <FileText className="text-purple-600" size={20} />
-          </div>
-        </div>
-        <p className="text-xs text-zinc-500 mb-1">قراردادهای فعال</p>
-        <p className="text-2xl font-bold text-zinc-900">
-          {stats.activeContracts}
-        </p>
-      </div>
-
-    </div>
+    </article>
   )
 }
