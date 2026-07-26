@@ -1,10 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import {
   AlertCircle,
+  Database,
   FileText,
+  Plus,
   RefreshCw,
   TrendingUp,
   Users,
@@ -19,42 +21,53 @@ import {
   FinanceOverviewSkeleton,
   FinanceStaleDataNotice,
 } from '@/components/dashboard/finances/overview/FinancePageStates'
-import { buildFinanceOverview } from './../../../features/finance/domain/selectors'
+import { buildFinanceOverview } from '@/features/finance/domain/selectors'
 import { useCasesStore } from '@/store/cases.store'
 
 export default function FinancesPage() {
   const cases = useCasesStore((state) => state.cases)
   const isLoading = useCasesStore((state) => state.isLoading)
   const error = useCasesStore((state) => state.error)
-  const fetchCases = useCasesStore((state) => state.fetchCases)
-  const clearError = useCasesStore((state) => state.clearError)
+  const hasHydrated = useCasesStore((state) => state.hasHydrated)
+  const hasLoaded = useCasesStore((state) => state.hasLoaded)
+  const lastSyncedAt = useCasesStore(
+    (state) => state.lastSyncedAt
+  )
+  const fetchCases = useCasesStore(
+    (state) => state.fetchCases
+  )
 
-  const [hasRequestedData, setHasRequestedData] = useState(false)
-  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null)
+  const overview = useMemo(
+    () => buildFinanceOverview(cases),
+    [cases]
+  )
 
-  const overview = useMemo(() => buildFinanceOverview(cases), [cases])
   const hasData = overview.cases.length > 0
 
-  const refreshData = useCallback(async () => {
-    setHasRequestedData(true)
-    clearError()
-
+  const loadInitialData = useCallback(async () => {
     await fetchCases()
+  }, [fetchCases])
 
-    if (!useCasesStore.getState().error) {
-      setLastUpdatedAt(new Date())
-    }
-  }, [clearError, fetchCases])
+  const refreshData = useCallback(async () => {
+    await fetchCases({ force: true })
+  }, [fetchCases])
 
   useEffect(() => {
-    void refreshData()
-  }, [refreshData])
+    if (!hasHydrated) return
+
+    void loadInitialData()
+  }, [hasHydrated, loadInitialData])
 
   const showInitialLoading =
-    !hasData && (!hasRequestedData || isLoading)
+    !hasHydrated ||
+    (!hasLoaded && !hasData) ||
+    (isLoading && !hasData)
 
-  const updatedAtLabel = lastUpdatedAt
-    ? lastUpdatedAt.toLocaleTimeString('fa-IR', {
+  const updatedAtLabel = lastSyncedAt
+    ? new Date(lastSyncedAt).toLocaleString('fa-IR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
       })
@@ -73,27 +86,44 @@ export default function FinancesPage() {
             </div>
 
             <div>
-              <h1 className="text-2xl font-black text-zinc-900">
-                گزارش مالی
-              </h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-black text-zinc-900">
+                  گزارش مالی
+                </h1>
+
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200">
+                  <Database size={12} />
+                  داده محلی
+                </span>
+              </div>
 
               <p className="mt-1 text-sm text-zinc-500">
-                مدیریت قراردادها، وصولی‌ها، مطالبات و هزینه‌های
-                پرونده‌ها
+                گزارش یکپارچه قراردادها، پرداخت‌ها،
+                مطالبات و هزینه‌های پرونده‌ها
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/dashboard/cases/new"
+              className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800"
+            >
+              <Plus size={16} />
+              ثبت پرونده
+            </Link>
+
             <button
               type="button"
               onClick={() => void refreshData()}
-              disabled={isLoading}
+              disabled={isLoading || !hasHydrated}
               className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RefreshCw
                 size={16}
-                className={isLoading ? 'animate-spin' : undefined}
+                className={
+                  isLoading ? 'animate-spin' : undefined
+                }
               />
 
               {isLoading
@@ -119,12 +149,19 @@ export default function FinancesPage() {
           </div>
         </header>
 
-        <div className="flex min-h-5 items-center justify-end text-xs text-zinc-400">
-          {updatedAtLabel && !isLoading
-            ? `آخرین بروزرسانی: ${updatedAtLabel}`
-            : isLoading && hasData
-              ? 'در حال همگام‌سازی با سرور...'
-              : null}
+        <div className="flex min-h-5 flex-wrap items-center justify-between gap-2 text-xs text-zinc-400">
+          <p>
+            هر پرونده‌ای که در بخش ثبت پرونده ذخیره شود،
+            به‌صورت خودکار وارد این گزارش می‌شود.
+          </p>
+
+          <p>
+            {isLoading && hasData
+              ? 'در حال همگام‌سازی اطلاعات...'
+              : updatedAtLabel
+                ? `آخرین بروزرسانی: ${updatedAtLabel}`
+                : null}
+          </p>
         </div>
 
         {error && hasData && (
@@ -164,15 +201,27 @@ export default function FinancesPage() {
                     </h2>
 
                     <p className="mt-0.5 text-xs text-zinc-500">
-                      جست‌وجو، فیلتر و اولویت‌بندی مطالبات هر موکل
+                      جست‌وجو، فیلتر و اولویت‌بندی
+                      مطالبات هر موکل
                     </p>
                   </div>
                 </div>
 
-                <span className="w-fit rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-                  {overview.clients.length.toLocaleString('fa-IR')}{' '}
-                  موکل
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
+                    {overview.clients.length.toLocaleString(
+                      'fa-IR'
+                    )}{' '}
+                    موکل
+                  </span>
+
+                  <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                    {overview.cases.length.toLocaleString(
+                      'fa-IR'
+                    )}{' '}
+                    پرونده
+                  </span>
+                </div>
               </div>
 
               <OverviewTable clients={overview.clients} />

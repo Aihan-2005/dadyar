@@ -1,21 +1,36 @@
-export type CaseStatus = 'pending' | 'in-progress' | 'completed' | 'archived'
-export type PaymentType = 'cash' | 'non-cash' | 'both'
+export type CaseStatus =
+  | 'pending'
+  | 'in-progress'
+  | 'completed'
+  | 'archived'
+  | 'open'
+  | 'in_progress'
+  | 'closed'
 
-/**
- * ساختار قدیمی پرداخت اقساطی؛ برای سازگاری با داده‌های قبلی نگه داشته شده است.
- * در مدل جدید، paymentType باید cash | non-cash | both باشد.
- */
+export type PaymentType =
+  | 'cash'
+  | 'non-cash'
+  | 'both'
+
+export type DateValue = Date | string
+export type MoneyValue = number | string
+
 export interface Payment {
+  id?: string
   amount?: number
-  dueDate?: Date | string
-  paidDate?: Date | string
+  dueDate?: DateValue
+  paidDate?: DateValue
+  paymentDate?: string
   isPaid?: boolean
 }
 
 export interface ContractStage {
+  id?: string
   title?: string
   amount?: number
   isPaid?: boolean
+  dueDate?: DateValue
+  paidDate?: DateValue
 }
 
 export interface CaseClient {
@@ -31,6 +46,8 @@ export interface OpposingParty {
   name?: string
   phone?: string
   nationalId?: string
+  role?: string
+  birthDate?: string
   description?: string
 }
 
@@ -43,9 +60,12 @@ export interface Lawyer {
 }
 
 export interface CashPayment {
+  id?: string
   amount?: number
   isPaid?: boolean
   paymentDate?: string
+  dueDate?: DateValue
+  paidDate?: DateValue
 }
 
 export interface BranchHistoryItem {
@@ -70,6 +90,7 @@ export interface CourtBranch {
 }
 
 export interface Expense {
+  id?: string
   title?: string
   amount?: number
   date?: string
@@ -81,55 +102,78 @@ export interface OtherPerson {
   name?: string
   phone?: string
   nationalId?: string
+  role?: string
   description?: string
 }
 
 export interface Case {
   id: string
-  lawyerId: string
+  lawyerId?: string
 
   title: string
   status: CaseStatus
-  createdAt: Date | string
-  updatedAt: Date | string
-  closedAt?: Date | string
+  createdAt: DateValue
+  updatedAt: DateValue
+  closedAt?: DateValue
 
   caseNumber?: string
+  trackingCode?: string
   archiveNumberOffice?: string
   archiveNumberLawyer?: string
   archiveNumberBranch?: string
+
+  province?: string
+  city?: string
+  courtType?: string
+  courtName?: string
+  branchName?: string
   courtBranch?: CourtBranch
+  branchHistory?: BranchHistoryItem[]
 
   clients?: CaseClient[]
+  clientId?: string
+  clientName?: string
+  clientPhone?: string
+
   opposingParties?: OpposingParty[]
   coLawyers?: Lawyer[]
   opposingLawyers?: Lawyer[]
   otherPersons?: OtherPerson[]
 
-  description?: string
-
-  paymentType?: PaymentType
-  contractAmount?: string
-  remainingAmount?: number | string
-  overdueAmount?: string
-  cashPayments?: CashPayment[]
-  nonCashDescription?: string
-  totalAmount?: number
-  expenses?: Expense[]
-
   subject?: string
   claim?: string
   opponent?: string
-  trackingCode?: string
-  clientName?: string
-  clientPhone?: string
+  description?: string
   coLawyerName?: string
   coLawyerInCase?: string
-  contracts?: ContractStage[]
+
+  paymentType?: PaymentType
+  contractAmount?: MoneyValue
   totalFee?: number
+  totalAmount?: number
   paidAmount?: number
+  remainingAmount?: MoneyValue
+  overdueAmount?: MoneyValue
+  dueDate?: DateValue
+  lastPaymentDate?: DateValue
+
+  cashPayments?: CashPayment[]
   installments?: Payment[]
+  contracts?: ContractStage[]
+  expenses?: Expense[]
+
+  nonCashDescription?: string
   installmentDescription?: string
-  dueDate?: Date | string
-  lastPaymentDate?: Date | string
 }
+
+export type CreateCasePayload = Omit<
+  Case,
+  'id' | 'createdAt' | 'updatedAt' | 'status'
+> & {
+  title: string
+  status?: CaseStatus
+}
+
+export type UpdateCasePayload = Partial<
+  Omit<Case, 'id' | 'createdAt'>
+>

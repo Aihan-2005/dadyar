@@ -1,24 +1,75 @@
+
+
+
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useForm, useFieldArray } from 'react-hook-form'
+import {
+  useFieldArray,
+  useForm,
+} from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import {
+  ArrowRight,
+  ChevronDown,
+  Plus,
+  Users,
+  UserX,
+  X,
+} from 'lucide-react'
+
 import { useCasesStore } from '@/store/cases.store'
 import { useAuthStore } from '@/store/auth.store'
-import { useRouter } from 'next/navigation'
-import { useClientStore } from '@/store/client.store'
-import { ArrowRight, Plus, X, ChevronDown, Users, UserX } from 'lucide-react'
-import Link from 'next/link'
+import {
+  useClientStore,
+  type Client,
+} from '@/store/client.store'
+import type { CreateCasePayload } from '@/types/case'
+
+import {
+  parseFinanceDate,
+} from '@/features/finance/utils/date'
+import {
+  normalizeDigits,
+  toFiniteNumber,
+} from '@/features/finance/utils/number'
 
 const PROVINCES = [
-  'تهران', 'اصفهان', 'فارس', 'خراسان رضوی', 'خوزستان', 'آذربایجان شرقی',
-  'مازندران', 'کرمان', 'گیلان', 'آذربایجان غربی', 'همدان', 'کرمانشاه',
-  'مرکزی', 'لرستان', 'قزوین', 'سمنان', 'یزد', 'اردبیل', 'زنجان',
-  'کردستان', 'بوشهر', 'قم', 'هرمزگان', 'چهارمحال و بختیاری', 'ایلام',
-  'کهگیلویه و بویراحمد', 'گلستان', 'خراسان شمالی', 'خراسان جنوبی',
-  'البرز', 'سیستان و بلوچستان',
-]
+  'تهران',
+  'اصفهان',
+  'فارس',
+  'خراسان رضوی',
+  'خوزستان',
+  'آذربایجان شرقی',
+  'مازندران',
+  'کرمان',
+  'گیلان',
+  'آذربایجان غربی',
+  'همدان',
+  'کرمانشاه',
+  'مرکزی',
+  'لرستان',
+  'قزوین',
+  'سمنان',
+  'یزد',
+  'اردبیل',
+  'زنجان',
+  'کردستان',
+  'بوشهر',
+  'قم',
+  'هرمزگان',
+  'چهارمحال و بختیاری',
+  'ایلام',
+  'کهگیلویه و بویراحمد',
+  'گلستان',
+  'خراسان شمالی',
+  'خراسان جنوبی',
+  'البرز',
+  'سیستان و بلوچستان',
+] as const
 
 const COURT_TYPES = [
   'دادگاه عمومی',
@@ -30,45 +81,106 @@ const COURT_TYPES = [
   'دادگاه اصناف',
   'دادگاه حقوقی',
   'دادگاه تجدیدنظر',
-]
+] as const
 
-
-
-
-const optionalTextSchema = z.string().trim().optional()
-
-const optionalPhoneSchema = z
+const optionalTextSchema = z
   .string()
   .trim()
-  .refine((value) => !value || /^09\d{9}$/.test(value), {
-    message: 'شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود',
-  })
   .optional()
 
-const optionalNumberSchema = z.preprocess((value) => {
-  if (value === '' || value === null || value === undefined) return undefined
-  if (typeof value === 'number' && Number.isNaN(value)) return undefined
+const optionalPhoneSchema = z.preprocess(
+  (value) => {
+    if (
+      value === undefined ||
+      value === null ||
+      value === ''
+    ) {
+      return undefined
+    }
 
-  const parsed = Number(value)
-  return Number.isNaN(parsed) ? undefined : parsed
-}, z.number().min(0, 'مبلغ نمی‌تواند منفی باشد').optional())
+    return normalizeDigits(
+      String(value)
+    ).trim()
+  },
+  z
+    .string()
+    .refine(
+      (value) =>
+        !value ||
+        /^09\d{9}$/.test(value),
+      {
+        message:
+          'شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود',
+      }
+    )
+    .optional()
+)
+
+const preprocessOptionalNumber = (
+  value: unknown
+): unknown => {
+  if (
+    value === '' ||
+    value === null ||
+    value === undefined
+  ) {
+    return undefined
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value)
+      ? value
+      : undefined
+  }
+
+  const normalized = normalizeDigits(
+    String(value)
+  )
+    .replace(/[٬,\s]/g, '')
+    .replace(/ریال|تومان|ت/g, '')
+    .trim()
+
+  if (!normalized) {
+    return undefined
+  }
+
+  const parsed = Number(normalized)
+
+  return Number.isFinite(parsed)
+    ? parsed
+    : value
+}
+
+const optionalNumberSchema = z.preprocess(
+  preprocessOptionalNumber,
+  z
+    .number()
+    .min(
+      0,
+      'مبلغ نمی‌تواند منفی باشد'
+    )
+    .optional()
+)
 
 const lawyerSchema = z.object({
   name: optionalTextSchema,
   phone: optionalPhoneSchema,
   licenseNumber: optionalTextSchema,
   licenseExpiry: optionalTextSchema,
-  licenseIssuePlace: optionalTextSchema,
+  licenseIssuePlace:
+    optionalTextSchema,
 })
 
 const clientSchema = z.object({
-  clientId: z.string().optional(),
+  clientId: optionalTextSchema,
   name: optionalTextSchema,
   phone: optionalPhoneSchema,
   nationalId: optionalTextSchema,
   role: optionalTextSchema,
-  representative: optionalTextSchema,
+  representative:
+    optionalTextSchema,
 })
+
 const opposingPartySchema = z.object({
   name: optionalTextSchema,
   phone: optionalPhoneSchema,
@@ -88,558 +200,1776 @@ const otherPersonSchema = z.object({
 
 const paymentSchema = z.object({
   amount: optionalNumberSchema,
-  isPaid: z.boolean().optional(),
+  isPaid: z
+    .boolean()
+    .optional()
+    .default(false),
   paymentDate: optionalTextSchema,
 })
 
-const branchHistorySchema = z.object({
-  province: optionalTextSchema,
-  city: optionalTextSchema,
-  branchNumber: optionalTextSchema,
-  archiveNumberBranch: optionalTextSchema,
-  date: optionalTextSchema,
-  isActive: z.boolean(),
-})
+const branchHistorySchema =
+  z.object({
+    province: optionalTextSchema,
+    city: optionalTextSchema,
+    branchNumber:
+      optionalTextSchema,
+    archiveNumberBranch:
+      optionalTextSchema,
+    date: optionalTextSchema,
+    isActive: z.boolean(),
+  })
 
 const expenseSchema = z.object({
   title: optionalTextSchema,
   amount: optionalNumberSchema,
   date: optionalTextSchema,
   description: optionalTextSchema,
-  isPaid: z.boolean().optional(),
+  isPaid: z
+    .boolean()
+    .optional()
+    .default(false),
 })
 
 const caseSchema = z.object({
-  title: z.string().trim().min(1, 'عنوان پرونده الزامی است'),
-  status: z.enum(['pending', 'in-progress', 'completed', 'archived']),
-  clients: z.array(clientSchema).optional(),
-  opposingParties: z.array(opposingPartySchema).optional(),
+  title: z
+    .string()
+    .trim()
+    .min(
+      1,
+      'عنوان پرونده الزامی است'
+    ),
+
+  status: z.enum([
+    'pending',
+    'in-progress',
+    'completed',
+    'archived',
+  ]),
+
+  clients: z
+    .array(clientSchema)
+    .optional(),
+
+  opposingParties: z
+    .array(opposingPartySchema)
+    .optional(),
+
   caseNumber: optionalTextSchema,
-  archiveNumberBranch: optionalTextSchema,
+
+  archiveNumberBranch:
+    optionalTextSchema,
+
   province: optionalTextSchema,
   city: optionalTextSchema,
   courtType: optionalTextSchema,
+
   courtBranch: optionalTextSchema,
-  branchHistory: z.array(branchHistorySchema).optional(),
-  coLawyers: z.array(lawyerSchema).optional(),
-  opposingLawyers: z.array(lawyerSchema).optional(),
+
+  branchHistory: z
+    .array(branchHistorySchema)
+    .optional(),
+
+  coLawyers: z
+    .array(lawyerSchema)
+    .optional(),
+
+  opposingLawyers: z
+    .array(lawyerSchema)
+    .optional(),
+
   description: optionalTextSchema,
-  paymentType: z.enum(['cash', 'non-cash', 'both']).optional(),
-  cashPayments: z.array(paymentSchema).optional(),
-  nonCashDescription: optionalTextSchema,
-  contractAmount: optionalTextSchema,
-  remainingAmount: optionalTextSchema,
-  overdueAmount: optionalTextSchema,
-  expenses: z.array(expenseSchema).optional(),
-  otherPersons: z.array(otherPersonSchema).optional(),
+
+  paymentType: z
+    .enum([
+      'cash',
+      'non-cash',
+      'both',
+    ])
+    .optional(),
+
+  cashPayments: z
+    .array(paymentSchema)
+    .optional(),
+
+  nonCashDescription:
+    optionalTextSchema,
+
+  contractAmount:
+    optionalNumberSchema,
+
+  remainingAmount:
+    optionalNumberSchema,
+
+  overdueAmount:
+    optionalNumberSchema,
+
+  expenses: z
+    .array(expenseSchema)
+    .optional(),
+
+  otherPersons: z
+    .array(otherPersonSchema)
+    .optional(),
 })
 
-type CaseFormData = z.infer<typeof caseSchema>
-type BranchHistoryItem = z.infer<typeof branchHistorySchema>
-type CourtLocationField = 'province' | 'city' | 'branchNumber' | 'archiveNumberBranch'
+type CaseFormData =
+  z.infer<typeof caseSchema>
 
-const cleanText = (value?: string | null) => (value ?? '').trim()
-const hasText = (value?: string | null) => cleanText(value).length > 0
+type BranchHistoryItem =
+  z.infer<
+    typeof branchHistorySchema
+  >
 
-const hasCourtLocationValue = (location?: Partial<BranchHistoryItem>) => {
-  if (!location) return false
+type CourtLocationField =
+  | 'province'
+  | 'city'
+  | 'branchNumber'
+  | 'archiveNumberBranch'
+
+type AuthUserWithArchive = {
+  id: string
+  archiveNumberOffice?: string
+  archiveNumberLawyer?: string
+}
+
+const cleanText = (
+  value?: string | null
+): string =>
+  (value ?? '').trim()
+
+const hasText = (
+  value?: string | null
+): boolean =>
+  cleanText(value).length > 0
+
+const hasCourtLocationValue = (
+  location?:
+    Partial<BranchHistoryItem>
+): boolean => {
+  if (!location) {
+    return false
+  }
 
   return Boolean(
     hasText(location.province) ||
       hasText(location.city) ||
-      hasText(location.branchNumber) ||
-      hasText(location.archiveNumberBranch)
+      hasText(
+        location.branchNumber
+      ) ||
+      hasText(
+        location.archiveNumberBranch
+      )
   )
 }
 
-export default function NewCasePage() {
-  const router = useRouter()
-  const addCase = useCasesStore((s) => s.addCase)
-  const user = useAuthStore((s) => s.user)
+const hasMeaningfulValue = (
+  values: Record<
+    string,
+    unknown
+  >
+): boolean => {
+  return Object.values(
+    values
+  ).some((value) => {
+    if (typeof value === 'boolean') {
+      return value
+    }
 
-  const [paymentType, setPaymentType] = useState<'cash' | 'non-cash' | 'both'>('cash')
-  const [isCourtTypeDropdownOpen, setIsCourtTypeDropdownOpen] = useState(false)
-  const [courtTypeInput, setCourtTypeInput] = useState('')
-  const [filteredCourtTypes, setFilteredCourtTypes] = useState(COURT_TYPES)
-  const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false)
+    if (typeof value === 'number') {
+      return value > 0
+    }
 
-const {
-  register,
-  handleSubmit,
-  control,
-  watch,
-  setValue,
-  formState: { errors, isSubmitting },
-} = useForm<CaseFormData>({
-  resolver: zodResolver(caseSchema),
-  defaultValues: {
-    title: '',
-    status: 'pending',
-    paymentType: 'cash',
-    caseNumber: '',
-    cashPayments: [],
-    clients: [
-      {
-        clientId: '',
-        name: '',
-        phone: '',
-        nationalId: '',
-        role: '',
-        representative: '',
-      },
-    ],
-    opposingParties: [],
-    coLawyers: [],
-    opposingLawyers: [],
-    branchHistory: [
-      {
-        province: '',
-        city: '',
-        branchNumber: '',
-        archiveNumberBranch: '',
-        date: '',
-        isActive: true,
-      },
-    ],
-    province: '',
-    city: '',
-    courtType: '',
-    courtBranch: '',
-    archiveNumberBranch: '',
-    nonCashDescription: '',
-    contractAmount: '',
-    remainingAmount: '',
-    overdueAmount: '',
-    expenses: [],
-    otherPersons: [],
-    description: '',
-  },
-})
-
-const savedClients = useClientStore((s) => s.clients)
-
-const getSavedClientFullName = (client: any) => {
-  const fullName = `${client.firstName || ''} ${client.lastName || ''}`.trim()
-  return fullName || client.name || ''
+    return Boolean(
+      cleanText(
+        value === undefined ||
+          value === null
+          ? ''
+          : String(value)
+      )
+    )
+  })
 }
 
-const fillClientFromSavedList = (index: number, savedClientId: string) => {
-  setValue(`clients.${index}.clientId` as any, savedClientId)
+const getSavedClientFullName = (
+  client: Client
+): string => {
+  const fullName = [
+    client.firstName,
+    client.lastName,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
 
-  if (!savedClientId) {
-    return
-  }
-
-  const selectedClient = savedClients.find(
-    (client: any) => client.id === savedClientId
-  )
-
-  if (!selectedClient) {
-    return
-  }
-
-  setValue(`clients.${index}.name` as const, getSavedClientFullName(selectedClient))
-
-  setValue(
-    `clients.${index}.phone` as const,
-    selectedClient.phoneNumber || selectedClient.phone || ''
-  )
-
-  setValue(
-    `clients.${index}.nationalId` as const,
-    selectedClient.nationalId || ''
-  )
-
-  setValue(
-    `clients.${index}.role` as const,
-    selectedClient.role || ''
-  )
-
-  setValue(
-    `clients.${index}.representative` as const,
-    selectedClient.representative || ''
+  return (
+    fullName ||
+    client.name ||
+    ''
   )
 }
 
-  const { fields: cashPaymentFields, append: appendCashPayment, remove: removeCashPayment } = useFieldArray({
-    control,
-    name: 'cashPayments',
-  })
-
-  const { fields: clientFields, append: appendClient, remove: removeClient } = useFieldArray({
-    control,
-    name: 'clients',
-  })
-
-  const { fields: opposingPartyFields, append: appendOpposingParty, remove: removeOpposingParty } = useFieldArray({
-    control,
-    name: 'opposingParties',
-  })
-
-  const { fields: coLawyerFields, append: appendCoLawyer, remove: removeCoLawyer } = useFieldArray({
-    control,
-    name: 'coLawyers',
-  })
-
-  const { fields: opposingLawyerFields, append: appendOpposingLawyer, remove: removeOpposingLawyer } = useFieldArray({
-    control,
-    name: 'opposingLawyers',
-  })
-
-  const { append: appendBranchHistory } = useFieldArray({
-    control,
-    name: 'branchHistory',
-  })
-
-  const { fields: expenseFields, append: appendExpense, remove: removeExpense } = useFieldArray({
-    control,
-    name: 'expenses',
-  })
-
-  const { fields: otherPersonFields, append: appendOtherPerson, remove: removeOtherPerson } = useFieldArray({
-    control,
-    name: 'otherPersons',
-  })
-
-  const watchCashPayments = watch('cashPayments') || []
-  const watchBranchHistory = watch('branchHistory') || []
-  const watchExpenses = watch('expenses') || []
-
-  const activeCourtLocationIndex = watchBranchHistory.findIndex((location) => location.isActive)
-  const activeCourtLocation =
-    activeCourtLocationIndex >= 0 ? watchBranchHistory[activeCourtLocationIndex] : undefined
-  const activeBranch = activeCourtLocation?.branchNumber || ''
-  const courtLocationHistory = watchBranchHistory
-    .map((location, index) => ({ location, index }))
-    .filter(({ location, index }) => index !== activeCourtLocationIndex && hasCourtLocationValue(location))
-
-  const expensesTotal = watchExpenses.reduce((sum, item) => {
-    return sum + (Number(item.amount) || 0)
-  }, 0)
-
-  const contractAmount = Number(watch('contractAmount')) || 0
-
-  const jalaliToDate = (jalali: string) => {
-    if (!jalali) return null
-
-    const parts = jalali.split('/')
-    if (parts.length !== 3) return null
-
-    const jy = Number(parts[0])
-    const jm = Number(parts[1])
-    const jd = Number(parts[2])
-
-    if (!jy || !jm || !jd) return null
-
-    const gy = jy - 621
-    return new Date(gy, jm - 1, jd)
-  }
-
-  const today = new Date()
-
-  const totalPaid = watchCashPayments.reduce((sum, payment) => {
-    if (payment.isPaid) {
-      return sum + (Number(payment.amount) || 0)
-    }
-
-    return sum
-  }, 0)
-
-  const overdueTotal = watchCashPayments.reduce((sum, payment) => {
-    if (!payment.isPaid && payment.paymentDate) {
-      const payDate = jalaliToDate(payment.paymentDate)
-
-      if (payDate && payDate < today) {
-        return sum + (Number(payment.amount) || 0)
-      }
-    }
-
-    return sum
-  }, 0)
-
-  const totalCash = watchCashPayments.reduce((sum, payment) => {
-    return sum + (Number(payment.amount) || 0)
-  }, 0)
-
-  useEffect(() => {
-    const remaining = Math.max(contractAmount - totalPaid, 0)
-
-    setValue('remainingAmount', remaining.toString())
-    setValue('overdueAmount', overdueTotal.toString())
-  }, [contractAmount, totalPaid, overdueTotal, setValue])
-
-  const setOptionalNumberValue = (value: string) => {
-    if (!value) return undefined
-
-    const numberValue = Number(value)
-    return Number.isNaN(numberValue) ? undefined : numberValue
-  }
-
-  const handleCourtTypeInputChange = (value: string) => {
-    setCourtTypeInput(value)
-    setValue('courtType', value, { shouldDirty: true })
-    setFilteredCourtTypes(COURT_TYPES.filter((type) => type.includes(value)))
-    setIsCourtTypeDropdownOpen(true)
-  }
-
-  const selectCourtType = (courtType: string) => {
-    setCourtTypeInput(courtType)
-    setValue('courtType', courtType, { shouldDirty: true })
-    setIsCourtTypeDropdownOpen(false)
-  }
-
-  const updateActiveCourtLocationField = (fieldName: CourtLocationField, value: string) => {
-    if (activeCourtLocationIndex === -1) return
-
-    if (fieldName === 'province') {
-      setValue(`branchHistory.${activeCourtLocationIndex}.province`, value, { shouldDirty: true })
-      setValue('province', value, { shouldDirty: true })
-    }
-
-    if (fieldName === 'city') {
-      setValue(`branchHistory.${activeCourtLocationIndex}.city`, value, { shouldDirty: true })
-      setValue('city', value, { shouldDirty: true })
-    }
-
-    if (fieldName === 'branchNumber') {
-      setValue(`branchHistory.${activeCourtLocationIndex}.branchNumber`, value, { shouldDirty: true })
-      setValue('courtBranch', value, { shouldDirty: true })
-    }
-
-    if (fieldName === 'archiveNumberBranch') {
-      setValue(`branchHistory.${activeCourtLocationIndex}.archiveNumberBranch`, value, {
-        shouldDirty: true,
-      })
-      setValue('archiveNumberBranch', value, { shouldDirty: true })
-    }
-  }
-
-  const activateCourtLocation = (index: number) => {
-    watchBranchHistory.forEach((_, itemIndex) => {
-      setValue(`branchHistory.${itemIndex}.isActive`, itemIndex === index, { shouldDirty: true })
-    })
-
-    const selected = watchBranchHistory[index]
-    setValue('province', selected?.province || '', { shouldDirty: true })
-    setValue('city', selected?.city || '', { shouldDirty: true })
-    setValue('courtBranch', selected?.branchNumber || '', { shouldDirty: true })
-    setValue('archiveNumberBranch', selected?.archiveNumberBranch || '', { shouldDirty: true })
-    setIsBranchDropdownOpen(false)
-  }
-
-  const startNewCourtLocation = () => {
-    if (activeCourtLocationIndex !== -1) {
-      setValue(`branchHistory.${activeCourtLocationIndex}.isActive`, false, { shouldDirty: true })
-
-      if (!watchBranchHistory[activeCourtLocationIndex]?.date) {
-        setValue(`branchHistory.${activeCourtLocationIndex}.date`, new Date().toLocaleDateString('fa-IR'), {
-          shouldDirty: true,
-        })
-      }
-    }
-
-    appendBranchHistory({
-      province: '',
-      city: '',
-      branchNumber: '',
-      archiveNumberBranch: '',
-      date: '',
-      isActive: true,
-    })
-
-    setValue('province', '', { shouldDirty: true })
-    setValue('city', '', { shouldDirty: true })
-    setValue('courtBranch', '', { shouldDirty: true })
-    setValue('archiveNumberBranch', '', { shouldDirty: true })
-    setIsBranchDropdownOpen(false)
-  }
-
-  const onSubmit = async (data: CaseFormData) => {
-    if (!user?.id) return
-
-    const cleanedClients = (data.clients || [])
-      .map((client) => ({
-        name: cleanText(client.name),
-        phone: cleanText(client.phone),
-        nationalId: cleanText(client.nationalId),
-        role: cleanText(client.role),
-        representative: cleanText(client.representative),
-      }))
-      .filter((client) => Object.values(client).some(Boolean))
-
-    const cleanedOpposingParties = (data.opposingParties || [])
-      .map((party) => ({
-        name: cleanText(party.name),
-        phone: cleanText(party.phone),
-        nationalId: cleanText(party.nationalId),
-        description: cleanText(party.description),
-      }))
-      .filter((party) => Object.values(party).some(Boolean))
-
-    const cleanedOtherPersons = (data.otherPersons || [])
-      .map((person) => ({
-        name: cleanText(person.name),
-        phone: cleanText(person.phone),
-        nationalId: cleanText(person.nationalId),
-        description: cleanText(person.description),
-      }))
-      .filter((person) => Object.values(person).some(Boolean))
-
-    const cleanLawyers = (lawyers?: CaseFormData['coLawyers']) =>
-      (lawyers || [])
-        .map((lawyer) => ({
-          name: cleanText(lawyer.name),
-          phone: cleanText(lawyer.phone),
-          licenseNumber: cleanText(lawyer.licenseNumber),
-          licenseExpiry: cleanText(lawyer.licenseExpiry),
-          licenseIssuePlace: cleanText(lawyer.licenseIssuePlace),
-        }))
-        .filter((lawyer) => Object.values(lawyer).some(Boolean))
-
-    const cleanedBranchHistory = (data.branchHistory || [])
-      .map((location) => ({
-        province: cleanText(location.province),
-        city: cleanText(location.city),
-        branchNumber: cleanText(location.branchNumber),
-        archiveNumberBranch: cleanText(location.archiveNumberBranch),
-        date: cleanText(location.date),
-        isActive: Boolean(location.isActive),
-      }))
-      .filter(hasCourtLocationValue)
-
-    const activeCourtLocationForSubmit =
-      cleanedBranchHistory.find((location) => location.isActive) ||
-      cleanedBranchHistory[cleanedBranchHistory.length - 1]
-
-    const formattedCashPayments = (data.cashPayments || [])
-      .map((payment) => ({
-        amount: Number(payment.amount) || 0,
-        isPaid: Boolean(payment.isPaid),
-        paymentDate: cleanText(payment.paymentDate) || undefined,
-      }))
-      .filter((payment) => payment.amount > 0 || payment.isPaid || Boolean(payment.paymentDate))
-
-    const cleanedExpenses = (data.expenses || [])
-      .map((expense) => ({
-        title: cleanText(expense.title),
-        description: cleanText(expense.description),
-        amount: Number(expense.amount) || 0,
-        date: cleanText(expense.date),
-        isPaid: Boolean(expense.isPaid),
-      }))
-      .filter(
-        (expense) =>
-          Boolean(expense.title) ||
-          Boolean(expense.description) ||
-          expense.amount > 0 ||
-          Boolean(expense.date) ||
-          expense.isPaid
+const getCurrentJalaliDateParts =
+  () => {
+    const parts =
+      new Intl.DateTimeFormat(
+        'en-US-u-ca-persian-nu-latn',
+        {
+          year: 'numeric',
+          month: 'numeric',
+          day: 'numeric',
+        }
+      ).formatToParts(
+        new Date()
       )
 
-    const effectivePaymentType = data.paymentType || paymentType || 'cash'
-    const activeCourtType = cleanText(data.courtType || courtTypeInput)
-    const hasCourtBranchData = hasCourtLocationValue(activeCourtLocationForSubmit)
+    return {
+      year: Number(
+        parts.find(
+          (part) =>
+            part.type === 'year'
+        )?.value ?? 0
+      ),
 
-    addCase({
-      ...data,
-      title: cleanText(data.title),
-      caseNumber: cleanText(data.caseNumber),
-      lawyerId: user.id,
-      archiveNumberOffice: (user as any).archiveNumberOffice,
-      archiveNumberLawyer: (user as any).archiveNumberLawyer,
-      clients: cleanedClients,
-      opposingParties: cleanedOpposingParties,
-      otherPersons: cleanedOtherPersons,
-      coLawyers: cleanLawyers(data.coLawyers),
-      opposingLawyers: cleanLawyers(data.opposingLawyers),
-      branchHistory: cleanedBranchHistory,
-      province: activeCourtLocationForSubmit?.province || '',
-      city: activeCourtLocationForSubmit?.city || '',
-      courtType: activeCourtType,
-      archiveNumberBranch: activeCourtLocationForSubmit?.archiveNumberBranch || '',
-      courtBranch: hasCourtBranchData
-        ? {
-            province: activeCourtLocationForSubmit?.province || '',
-            city: activeCourtLocationForSubmit?.city || '',
-            courtType: activeCourtType,
-            branch: activeCourtLocationForSubmit?.branchNumber || '',
-            currentBranchNumber: activeCourtLocationForSubmit?.branchNumber || '',
-            archiveNumberBranch: activeCourtLocationForSubmit?.archiveNumberBranch || '',
-            branchHistory: cleanedBranchHistory,
-          }
-        : undefined,
-      paymentType: effectivePaymentType,
-      cashPayments: effectivePaymentType === 'cash' ? formattedCashPayments : [],
-      expenses: cleanedExpenses,
-      nonCashDescription: cleanText(data.nonCashDescription),
-      description: cleanText(data.description),
-      totalAmount: effectivePaymentType === 'cash' ? totalCash : 0,
-    } as any)
+      month: Number(
+        parts.find(
+          (part) =>
+            part.type === 'month'
+        )?.value ?? 0
+      ),
 
-    router.push('/dashboard/cases')
+      day: Number(
+        parts.find(
+          (part) =>
+            part.type === 'day'
+        )?.value ?? 0
+      ),
+    }
   }
 
+const getJalaliAge = (
+  birthDate?: string
+): number | null => {
+  if (!birthDate) {
+    return null
+  }
 
+  const normalized =
+    normalizeDigits(
+      birthDate.trim()
+    )
 
+  const match =
+    normalized.match(
+      /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/
+    )
 
+  if (!match) {
+    return null
+  }
 
+  const birthYear = Number(
+    match[1]
+  )
 
-const normalizePersianDigits = (value: string) => {
-  return value
-    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
-    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
-}
+  const birthMonth = Number(
+    match[2]
+  )
 
-const getCurrentJalaliDateParts = () => {
-  const parts = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date())
-
-  const year = Number(normalizePersianDigits(parts.find((p) => p.type === 'year')?.value || '0'))
-  const month = Number(normalizePersianDigits(parts.find((p) => p.type === 'month')?.value || '0'))
-  const day = Number(normalizePersianDigits(parts.find((p) => p.type === 'day')?.value || '0'))
-
-  return { year, month, day }
-}
-
-const getJalaliAge = (birthDate?: string) => {
-  if (!birthDate) return null
-
-  const normalized = normalizePersianDigits(birthDate.trim())
-  const match = normalized.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/)
-
-  if (!match) return null
-
-  const birthYear = Number(match[1])
-  const birthMonth = Number(match[2])
-  const birthDay = Number(match[3])
-
-  if (!birthYear || !birthMonth || !birthDay) return null
-
-  const today = getCurrentJalaliDateParts()
-
-  let age = today.year - birthYear
+  const birthDay = Number(
+    match[3]
+  )
 
   if (
-    today.month < birthMonth ||
-    (today.month === birthMonth && today.day < birthDay)
+    !birthYear ||
+    birthMonth < 1 ||
+    birthMonth > 12 ||
+    birthDay < 1 ||
+    birthDay > 31
   ) {
+    return null
+  }
+
+  const today =
+    getCurrentJalaliDateParts()
+
+  let age =
+    today.year - birthYear
+
+  const birthdayNotPassed =
+    today.month < birthMonth ||
+    (today.month ===
+      birthMonth &&
+      today.day < birthDay)
+
+  if (birthdayNotPassed) {
     age -= 1
   }
 
   return age
 }
 
-const isUnderLegalAge = (birthDate?: string) => {
-  const age = getJalaliAge(birthDate)
-  return age !== null && age < 18
+const isUnderLegalAge = (
+  birthDate?: string
+): boolean => {
+  const age =
+    getJalaliAge(birthDate)
+
+  return (
+    age !== null &&
+    age < 18
+  )
 }
 
+const getFirstDate = (
+  values: Array<
+    Date | null
+  >
+): Date | undefined => {
+  return values
+    .filter(
+      (date): date is Date =>
+        Boolean(date)
+    )
+    .sort(
+      (first, second) =>
+        first.getTime() -
+        second.getTime()
+    )[0]
+}
 
+const getLastDate = (
+  values: Array<
+    Date | null
+  >
+): Date | undefined => {
+  return values
+    .filter(
+      (date): date is Date =>
+        Boolean(date)
+    )
+    .sort(
+      (first, second) =>
+        second.getTime() -
+        first.getTime()
+    )[0]
+}
 
+export default function NewCasePage() {
+  const router = useRouter()
 
+  const addCase =
+    useCasesStore(
+      (state) =>
+        state.addCase
+    )
+
+  const caseError =
+    useCasesStore(
+      (state) =>
+        state.error
+    )
+
+  const clearCaseError =
+    useCasesStore(
+      (state) =>
+        state.clearError
+    )
+
+  const user =
+    useAuthStore(
+      (state) =>
+        state.user
+    )
+
+  const savedClients =
+    useClientStore(
+      (state) =>
+        state.clients
+    )
+
+  const [
+    paymentType,
+    setPaymentType,
+  ] = useState<
+    | 'cash'
+    | 'non-cash'
+    | 'both'
+  >('cash')
+
+  const [
+    isCourtTypeDropdownOpen,
+    setIsCourtTypeDropdownOpen,
+  ] = useState(false)
+
+  const [
+    courtTypeInput,
+    setCourtTypeInput,
+  ] = useState('')
+
+  const [
+    filteredCourtTypes,
+    setFilteredCourtTypes,
+  ] = useState<
+    readonly string[]
+  >(COURT_TYPES)
+
+  const [
+    isBranchDropdownOpen,
+    setIsBranchDropdownOpen,
+  ] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+
+    formState: {
+      errors,
+      isSubmitting,
+    },
+  } = useForm<CaseFormData>({
+    resolver:
+      zodResolver(caseSchema),
+
+    defaultValues: {
+      title: '',
+      status: 'pending',
+
+      paymentType: 'cash',
+
+      caseNumber: '',
+
+      cashPayments: [],
+
+      clients: [
+        {
+          clientId: '',
+          name: '',
+          phone: '',
+          nationalId: '',
+          role: '',
+          representative: '',
+        },
+      ],
+
+      opposingParties: [],
+      coLawyers: [],
+      opposingLawyers: [],
+
+      branchHistory: [
+        {
+          province: '',
+          city: '',
+          branchNumber: '',
+          archiveNumberBranch:
+            '',
+          date: '',
+          isActive: true,
+        },
+      ],
+
+      province: '',
+      city: '',
+      courtType: '',
+      courtBranch: '',
+
+      archiveNumberBranch:
+        '',
+
+      nonCashDescription: '',
+
+      contractAmount:
+        undefined,
+
+      remainingAmount:
+        undefined,
+
+      overdueAmount:
+        undefined,
+
+      expenses: [],
+      otherPersons: [],
+
+      description: '',
+    },
+  })
+
+  const {
+    fields:
+      cashPaymentFields,
+
+    append:
+      appendCashPayment,
+
+    remove:
+      removeCashPayment,
+  } = useFieldArray({
+    control,
+    name: 'cashPayments',
+  })
+
+  const {
+    fields: clientFields,
+    append: appendClient,
+    remove: removeClient,
+  } = useFieldArray({
+    control,
+    name: 'clients',
+  })
+
+  const {
+    fields:
+      opposingPartyFields,
+
+    append:
+      appendOpposingParty,
+
+    remove:
+      removeOpposingParty,
+  } = useFieldArray({
+    control,
+    name: 'opposingParties',
+  })
+
+  const {
+    fields:
+      coLawyerFields,
+
+    append:
+      appendCoLawyer,
+
+    remove:
+      removeCoLawyer,
+  } = useFieldArray({
+    control,
+    name: 'coLawyers',
+  })
+
+  const {
+    fields:
+      opposingLawyerFields,
+
+    append:
+      appendOpposingLawyer,
+
+    remove:
+      removeOpposingLawyer,
+  } = useFieldArray({
+    control,
+    name: 'opposingLawyers',
+  })
+
+  const {
+    append:
+      appendBranchHistory,
+  } = useFieldArray({
+    control,
+    name: 'branchHistory',
+  })
+
+  const {
+    fields: expenseFields,
+    append: appendExpense,
+    remove: removeExpense,
+  } = useFieldArray({
+    control,
+    name: 'expenses',
+  })
+
+  const {
+    fields:
+      otherPersonFields,
+
+    append:
+      appendOtherPerson,
+
+    remove:
+      removeOtherPerson,
+  } = useFieldArray({
+    control,
+    name: 'otherPersons',
+  })
+
+  const watchCashPayments =
+    watch(
+      'cashPayments'
+    ) ?? []
+
+  const watchBranchHistory =
+    watch(
+      'branchHistory'
+    ) ?? []
+
+  const watchExpenses =
+    watch(
+      'expenses'
+    ) ?? []
+
+  const watchedPaymentType =
+    watch(
+      'paymentType'
+    ) ?? 'cash'
+
+  const effectivePaymentType =
+    watchedPaymentType ||
+    paymentType
+
+  const activeCourtLocationIndex =
+    watchBranchHistory.findIndex(
+      (location) =>
+        location.isActive
+    )
+
+  const activeCourtLocation =
+    activeCourtLocationIndex >= 0
+      ? watchBranchHistory[
+          activeCourtLocationIndex
+        ]
+      : undefined
+
+  const activeBranch =
+    activeCourtLocation
+      ?.branchNumber ?? ''
+
+  const courtLocationHistory =
+    watchBranchHistory
+      .map(
+        (location, index) => ({
+          location,
+          index,
+        })
+      )
+      .filter(
+        ({
+          location,
+          index,
+        }) =>
+          index !==
+            activeCourtLocationIndex &&
+          hasCourtLocationValue(
+            location
+          )
+      )
+
+  const expensesTotal =
+    watchExpenses.reduce(
+      (sum, expense) =>
+        sum +
+        toFiniteNumber(
+          expense.amount
+        ),
+      0
+    )
+
+  const contractAmount =
+    toFiniteNumber(
+      watch(
+        'contractAmount'
+      )
+    )
+
+  const relevantPayments =
+    effectivePaymentType ===
+    'non-cash'
+      ? []
+      : watchCashPayments
+
+  const totalPaid =
+    relevantPayments.reduce(
+      (sum, payment) =>
+        payment.isPaid
+          ? sum +
+            toFiniteNumber(
+              payment.amount
+            )
+          : sum,
+      0
+    )
+
+  const totalCash =
+    relevantPayments.reduce(
+      (sum, payment) =>
+        sum +
+        toFiniteNumber(
+          payment.amount
+        ),
+      0
+    )
+
+  const today =
+    new Date()
+
+  today.setHours(
+    0,
+    0,
+    0,
+    0
+  )
+
+  const overdueTotal =
+    relevantPayments.reduce(
+      (sum, payment) => {
+        if (
+          payment.isPaid ||
+          !payment.paymentDate
+        ) {
+          return sum
+        }
+
+        const dueDate =
+          parseFinanceDate(
+            payment.paymentDate
+          )
+
+        if (
+          !dueDate ||
+          dueDate.getTime() >=
+            today.getTime()
+        ) {
+          return sum
+        }
+
+        return (
+          sum +
+          toFiniteNumber(
+            payment.amount
+          )
+        )
+      },
+      0
+    )
+
+  useEffect(() => {
+    const remaining =
+      Math.max(
+        contractAmount -
+          totalPaid,
+        0
+      )
+
+    setValue(
+      'remainingAmount',
+      remaining,
+      {
+        shouldDirty: false,
+        shouldValidate: false,
+      }
+    )
+
+    setValue(
+      'overdueAmount',
+      overdueTotal,
+      {
+        shouldDirty: false,
+        shouldValidate: false,
+      }
+    )
+  }, [
+    contractAmount,
+    overdueTotal,
+    setValue,
+    totalPaid,
+  ])
+
+  useEffect(() => {
+    if (
+      watchedPaymentType !==
+      paymentType
+    ) {
+      setPaymentType(
+        watchedPaymentType
+      )
+    }
+  }, [
+    paymentType,
+    watchedPaymentType,
+  ])
+
+  useEffect(() => {
+    return () => {
+      clearCaseError()
+    }
+  }, [clearCaseError])
+
+  const setOptionalNumberValue = (
+    value: unknown
+  ): number | undefined => {
+    const processed =
+      preprocessOptionalNumber(
+        value
+      )
+
+    return typeof processed ===
+      'number'
+      ? processed
+      : undefined
+  }
+
+  const fillClientFromSavedList = (
+    index: number,
+    savedClientId: string
+  ) => {
+    setValue(
+      `clients.${index}.clientId`,
+      savedClientId,
+      {
+        shouldDirty: true,
+      }
+    )
+
+    if (!savedClientId) {
+      setValue(
+        `clients.${index}.name`,
+        ''
+      )
+
+      setValue(
+        `clients.${index}.phone`,
+        ''
+      )
+
+      setValue(
+        `clients.${index}.nationalId`,
+        ''
+      )
+
+      setValue(
+        `clients.${index}.role`,
+        ''
+      )
+
+      setValue(
+        `clients.${index}.representative`,
+        ''
+      )
+
+      return
+    }
+
+    const selectedClient =
+      savedClients.find(
+        (client) =>
+          client.id ===
+          savedClientId
+      )
+
+    if (!selectedClient) {
+      return
+    }
+
+    setValue(
+      `clients.${index}.name`,
+      getSavedClientFullName(
+        selectedClient
+      ),
+      {
+        shouldDirty: true,
+      }
+    )
+
+    setValue(
+      `clients.${index}.phone`,
+      selectedClient
+        .phoneNumber ||
+        selectedClient.phone ||
+        '',
+      {
+        shouldDirty: true,
+      }
+    )
+
+    setValue(
+      `clients.${index}.nationalId`,
+      selectedClient
+        .nationalId || '',
+      {
+        shouldDirty: true,
+      }
+    )
+
+    setValue(
+      `clients.${index}.role`,
+      selectedClient.role ||
+        '',
+      {
+        shouldDirty: true,
+      }
+    )
+
+    setValue(
+      `clients.${index}.representative`,
+      selectedClient
+        .representative || '',
+      {
+        shouldDirty: true,
+      }
+    )
+  }
+
+  const handleCourtTypeInputChange =
+    (value: string) => {
+      setCourtTypeInput(
+        value
+      )
+
+      setValue(
+        'courtType',
+        value,
+        {
+          shouldDirty: true,
+        }
+      )
+
+      setFilteredCourtTypes(
+        COURT_TYPES.filter(
+          (type) =>
+            type.includes(value)
+        )
+      )
+
+      setIsCourtTypeDropdownOpen(
+        true
+      )
+    }
+
+  const selectCourtType = (
+    courtType: string
+  ) => {
+    setCourtTypeInput(
+      courtType
+    )
+
+    setValue(
+      'courtType',
+      courtType,
+      {
+        shouldDirty: true,
+      }
+    )
+
+    setIsCourtTypeDropdownOpen(
+      false
+    )
+  }
+
+  const updateActiveCourtLocationField =
+    (
+      fieldName:
+        CourtLocationField,
+
+      value: string
+    ) => {
+      if (
+        activeCourtLocationIndex ===
+        -1
+      ) {
+        return
+      }
+
+      setValue(
+        `branchHistory.${activeCourtLocationIndex}.${fieldName}`,
+        value,
+        {
+          shouldDirty: true,
+        }
+      )
+
+      if (
+        fieldName ===
+        'province'
+      ) {
+        setValue(
+          'province',
+          value,
+          {
+            shouldDirty: true,
+          }
+        )
+      }
+
+      if (
+        fieldName === 'city'
+      ) {
+        setValue(
+          'city',
+          value,
+          {
+            shouldDirty: true,
+          }
+        )
+      }
+
+      if (
+        fieldName ===
+        'branchNumber'
+      ) {
+        setValue(
+          'courtBranch',
+          value,
+          {
+            shouldDirty: true,
+          }
+        )
+      }
+
+      if (
+        fieldName ===
+        'archiveNumberBranch'
+      ) {
+        setValue(
+          'archiveNumberBranch',
+          value,
+          {
+            shouldDirty: true,
+          }
+        )
+      }
+    }
+
+  const activateCourtLocation = (
+    index: number
+  ) => {
+    watchBranchHistory.forEach(
+      (_, itemIndex) => {
+        setValue(
+          `branchHistory.${itemIndex}.isActive`,
+          itemIndex === index,
+          {
+            shouldDirty: true,
+          }
+        )
+      }
+    )
+
+    const selected =
+      watchBranchHistory[index]
+
+    setValue(
+      'province',
+      selected?.province ??
+        '',
+      {
+        shouldDirty: true,
+      }
+    )
+
+    setValue(
+      'city',
+      selected?.city ?? '',
+      {
+        shouldDirty: true,
+      }
+    )
+
+    setValue(
+      'courtBranch',
+      selected?.branchNumber ??
+        '',
+      {
+        shouldDirty: true,
+      }
+    )
+
+    setValue(
+      'archiveNumberBranch',
+      selected
+        ?.archiveNumberBranch ??
+        '',
+      {
+        shouldDirty: true,
+      }
+    )
+
+    setIsBranchDropdownOpen(
+      false
+    )
+  }
+
+  const startNewCourtLocation =
+    () => {
+      if (
+        activeCourtLocationIndex !==
+        -1
+      ) {
+        setValue(
+          `branchHistory.${activeCourtLocationIndex}.isActive`,
+          false,
+          {
+            shouldDirty: true,
+          }
+        )
+
+        if (
+          !watchBranchHistory[
+            activeCourtLocationIndex
+          ]?.date
+        ) {
+          setValue(
+            `branchHistory.${activeCourtLocationIndex}.date`,
+
+            new Intl.DateTimeFormat(
+              'fa-IR-u-ca-persian'
+            ).format(
+              new Date()
+            ),
+
+            {
+              shouldDirty: true,
+            }
+          )
+        }
+      }
+
+      appendBranchHistory({
+        province: '',
+        city: '',
+        branchNumber: '',
+        archiveNumberBranch:
+          '',
+        date: '',
+        isActive: true,
+      })
+
+      setValue(
+        'province',
+        '',
+        {
+          shouldDirty: true,
+        }
+      )
+
+      setValue(
+        'city',
+        '',
+        {
+          shouldDirty: true,
+        }
+      )
+
+      setValue(
+        'courtBranch',
+        '',
+        {
+          shouldDirty: true,
+        }
+      )
+
+      setValue(
+        'archiveNumberBranch',
+        '',
+        {
+          shouldDirty: true,
+        }
+      )
+
+      setIsBranchDropdownOpen(
+        false
+      )
+    }
+
+  const onSubmit = async (
+    data: CaseFormData
+  ) => {
+    if (!user?.id) {
+      return
+    }
+
+    clearCaseError()
+
+    const authUser =
+      user as AuthUserWithArchive
+
+    const cleanedClients =
+      (data.clients ?? [])
+        .map((client) => ({
+          clientId:
+            cleanText(
+              client.clientId
+            ) || undefined,
+
+          name:
+            cleanText(
+              client.name
+            ) || undefined,
+
+          phone:
+            cleanText(
+              client.phone
+            ) || undefined,
+
+          nationalId:
+            cleanText(
+              client.nationalId
+            ) || undefined,
+
+          role:
+            cleanText(
+              client.role
+            ) || undefined,
+
+          representative:
+            cleanText(
+              client.representative
+            ) || undefined,
+        }))
+        .filter((client) =>
+          hasMeaningfulValue(
+            client
+          )
+        )
+
+    const cleanedOpposingParties =
+      (
+        data.opposingParties ??
+        []
+      )
+        .map((party) => ({
+          name:
+            cleanText(
+              party.name
+            ) || undefined,
+
+          phone:
+            cleanText(
+              party.phone
+            ) || undefined,
+
+          nationalId:
+            cleanText(
+              party.nationalId
+            ) || undefined,
+
+          role:
+            cleanText(
+              party.role
+            ) || undefined,
+
+          birthDate:
+            cleanText(
+              party.birthDate
+            ) || undefined,
+
+          description:
+            cleanText(
+              party.description
+            ) || undefined,
+        }))
+        .filter((party) =>
+          hasMeaningfulValue(
+            party
+          )
+        )
+
+    const cleanedOtherPersons =
+      (
+        data.otherPersons ??
+        []
+      )
+        .map((person) => ({
+          name:
+            cleanText(
+              person.name
+            ) || undefined,
+
+          phone:
+            cleanText(
+              person.phone
+            ) || undefined,
+
+          nationalId:
+            cleanText(
+              person.nationalId
+            ) || undefined,
+
+          role:
+            cleanText(
+              person.role
+            ) || undefined,
+
+          description:
+            cleanText(
+              person.description
+            ) || undefined,
+        }))
+        .filter((person) =>
+          hasMeaningfulValue(
+            person
+          )
+        )
+
+    const cleanLawyers = (
+      lawyers?:
+        CaseFormData['coLawyers']
+    ) => {
+      return (
+        lawyers ?? []
+      )
+        .map((lawyer) => ({
+          name:
+            cleanText(
+              lawyer.name
+            ) || undefined,
+
+          phone:
+            cleanText(
+              lawyer.phone
+            ) || undefined,
+
+          licenseNumber:
+            cleanText(
+              lawyer.licenseNumber
+            ) || undefined,
+
+          licenseExpiry:
+            cleanText(
+              lawyer.licenseExpiry
+            ) || undefined,
+
+          licenseIssuePlace:
+            cleanText(
+              lawyer.licenseIssuePlace
+            ) || undefined,
+        }))
+        .filter((lawyer) =>
+          hasMeaningfulValue(
+            lawyer
+          )
+        )
+    }
+
+    const cleanedBranchHistory =
+      (
+        data.branchHistory ??
+        []
+      )
+        .map((location) => ({
+          province:
+            cleanText(
+              location.province
+            ) || undefined,
+
+          city:
+            cleanText(
+              location.city
+            ) || undefined,
+
+          branchNumber:
+            cleanText(
+              location.branchNumber
+            ) || undefined,
+
+          archiveNumberBranch:
+            cleanText(
+              location.archiveNumberBranch
+            ) || undefined,
+
+          date:
+            cleanText(
+              location.date
+            ) || undefined,
+
+          isActive:
+            Boolean(
+              location.isActive
+            ),
+        }))
+        .filter(
+          hasCourtLocationValue
+        )
+
+    const activeCourtLocationForSubmit =
+      cleanedBranchHistory.find(
+        (location) =>
+          location.isActive
+      ) ??
+      cleanedBranchHistory[
+        cleanedBranchHistory.length -
+          1
+      ]
+
+    const selectedPaymentType =
+      data.paymentType ??
+      paymentType ??
+      'cash'
+
+    const formattedCashPayments =
+      selectedPaymentType ===
+      'non-cash'
+        ? []
+        : (
+            data.cashPayments ??
+            []
+          )
+            .map(
+              (payment) => ({
+                amount:
+                  toFiniteNumber(
+                    payment.amount
+                  ),
+
+                isPaid:
+                  Boolean(
+                    payment.isPaid
+                  ),
+
+                paymentDate:
+                  cleanText(
+                    payment.paymentDate
+                  ) ||
+                  undefined,
+              })
+            )
+            .filter(
+              (payment) =>
+                payment.amount >
+                  0 ||
+                payment.isPaid ||
+                Boolean(
+                  payment.paymentDate
+                )
+            )
+
+    const cleanedExpenses =
+      (
+        data.expenses ??
+        []
+      )
+        .map((expense) => ({
+          title:
+            cleanText(
+              expense.title
+            ) || undefined,
+
+          description:
+            cleanText(
+              expense.description
+            ) || undefined,
+
+          amount:
+            toFiniteNumber(
+              expense.amount
+            ),
+
+          date:
+            cleanText(
+              expense.date
+            ) || undefined,
+
+          isPaid:
+            Boolean(
+              expense.isPaid
+            ),
+        }))
+        .filter((expense) =>
+          hasMeaningfulValue(
+            expense
+          )
+        )
+
+    const normalizedContractAmount =
+      toFiniteNumber(
+        data.contractAmount
+      )
+
+    const scheduledCashAmount =
+      formattedCashPayments.reduce(
+        (sum, payment) =>
+          sum +
+          payment.amount,
+        0
+      )
+
+    const paidAmount =
+      formattedCashPayments.reduce(
+        (sum, payment) =>
+          payment.isPaid
+            ? sum +
+              payment.amount
+            : sum,
+        0
+      )
+
+    const remainingAmount =
+      Math.max(
+        normalizedContractAmount -
+          paidAmount,
+        0
+      )
+
+    const startOfToday =
+      new Date()
+
+    startOfToday.setHours(
+      0,
+      0,
+      0,
+      0
+    )
+
+    const overdueAmount =
+      formattedCashPayments.reduce(
+        (sum, payment) => {
+          if (
+            payment.isPaid ||
+            !payment.paymentDate
+          ) {
+            return sum
+          }
+
+          const dueDate =
+            parseFinanceDate(
+              payment.paymentDate
+            )
+
+          if (
+            !dueDate ||
+            dueDate.getTime() >=
+              startOfToday.getTime()
+          ) {
+            return sum
+          }
+
+          return (
+            sum +
+            payment.amount
+          )
+        },
+        0
+      )
+
+    const firstDueDate =
+      getFirstDate(
+        formattedCashPayments
+          .filter(
+            (payment) =>
+              !payment.isPaid &&
+              Boolean(
+                payment.paymentDate
+              )
+          )
+          .map((payment) =>
+            parseFinanceDate(
+              payment.paymentDate
+            )
+          )
+      )
+
+    const lastPaymentDate =
+      getLastDate(
+        formattedCashPayments
+          .filter(
+            (payment) =>
+              payment.isPaid &&
+              Boolean(
+                payment.paymentDate
+              )
+          )
+          .map((payment) =>
+            parseFinanceDate(
+              payment.paymentDate
+            )
+          )
+      )
+
+    const primaryClient =
+      cleanedClients.find(
+        (client) =>
+          Boolean(
+            client.clientId
+          )
+      ) ??
+      cleanedClients.find(
+        (client) =>
+          Boolean(client.name)
+      )
+
+    const activeCourtType =
+      cleanText(
+        data.courtType ||
+          courtTypeInput
+      )
+
+    const hasCourtBranchData =
+      hasCourtLocationValue(
+        activeCourtLocationForSubmit
+      )
+
+    const payload: CreateCasePayload =
+      {
+        title:
+          cleanText(
+            data.title
+          ),
+
+        status: data.status,
+
+        caseNumber:
+          cleanText(
+            data.caseNumber
+          ) || undefined,
+
+        lawyerId:
+          authUser.id,
+
+        archiveNumberOffice:
+          authUser
+            .archiveNumberOffice,
+
+        archiveNumberLawyer:
+          authUser
+            .archiveNumberLawyer,
+
+        clients:
+          cleanedClients,
+
+        clientId:
+          primaryClient
+            ?.clientId,
+
+        clientName:
+          primaryClient
+            ?.name,
+
+        clientPhone:
+          primaryClient
+            ?.phone,
+
+        opposingParties:
+          cleanedOpposingParties,
+
+        otherPersons:
+          cleanedOtherPersons,
+
+        coLawyers:
+          cleanLawyers(
+            data.coLawyers
+          ),
+
+        opposingLawyers:
+          cleanLawyers(
+            data.opposingLawyers
+          ),
+
+        branchHistory:
+          cleanedBranchHistory,
+
+        province:
+          activeCourtLocationForSubmit
+            ?.province,
+
+        city:
+          activeCourtLocationForSubmit
+            ?.city,
+
+        courtType:
+          activeCourtType ||
+          undefined,
+
+        archiveNumberBranch:
+          activeCourtLocationForSubmit
+            ?.archiveNumberBranch,
+
+        courtBranch:
+          hasCourtBranchData
+            ? {
+                province:
+                  activeCourtLocationForSubmit
+                    ?.province,
+
+                city:
+                  activeCourtLocationForSubmit
+                    ?.city,
+
+                courtType:
+                  activeCourtType ||
+                  undefined,
+
+                branch:
+                  activeCourtLocationForSubmit
+                    ?.branchNumber,
+
+                currentBranchNumber:
+                  activeCourtLocationForSubmit
+                    ?.branchNumber,
+
+                archiveNumberBranch:
+                  activeCourtLocationForSubmit
+                    ?.archiveNumberBranch,
+
+                branchHistory:
+                  cleanedBranchHistory,
+              }
+            : undefined,
+
+        paymentType:
+          selectedPaymentType,
+
+        cashPayments:
+          formattedCashPayments,
+
+        expenses:
+          cleanedExpenses,
+
+        nonCashDescription:
+          selectedPaymentType ===
+          'cash'
+            ? ''
+            : cleanText(
+                data.nonCashDescription
+              ),
+
+        description:
+          cleanText(
+            data.description
+          ) || undefined,
+
+        contractAmount:
+          normalizedContractAmount >
+          0
+            ? String(
+                normalizedContractAmount
+              )
+            : '',
+
+        totalFee:
+          normalizedContractAmount,
+
+        totalAmount:
+          scheduledCashAmount,
+
+        paidAmount,
+
+        remainingAmount,
+
+        overdueAmount:
+          String(
+            overdueAmount
+          ),
+
+        dueDate:
+          firstDueDate
+            ?.toISOString(),
+
+        lastPaymentDate:
+          lastPaymentDate
+            ?.toISOString(),
+      }
+
+    const createdCase =
+      await addCase(payload)
+
+    if (!createdCase) {
+      return
+    }
+
+    router.push(
+      '/dashboard/cases'
+    )
+
+    router.refresh()
+  }
 
 
 
@@ -881,16 +2211,16 @@ const isUnderLegalAge = (birthDate?: string) => {
 
     <button
       type="button"
-      onClick={() =>
-        appendClient({
-          clientId: '',
-          name: '',
-          phone: '',
-          nationalId: '',
-          role: '',
-          representative: '',
-        } as any)
-      }
+    onClick={() =>
+  appendClient({
+    clientId: '',
+    name: '',
+    phone: '',
+    nationalId: '',
+    role: '',
+    representative: '',
+  })
+}
       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
     >
       <Plus size={16} />
@@ -1502,13 +2832,22 @@ const isUnderLegalAge = (birthDate?: string) => {
           مبلغ نقدی قرارداد (ریال)
         </label>
         <input
-          {...register('contractAmount')}
-          type="text"
-          inputMode="numeric"
-          className="w-full px-4 py-3 border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-          placeholder="مثال: 50000000"
-          dir="ltr"
-        />
+  {...register('contractAmount', {
+    setValueAs:
+      setOptionalNumberValue,
+  })}
+  type="text"
+  inputMode="numeric"
+  className="w-full px-4 py-3 border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+  placeholder="مثال: 50000000"
+  dir="ltr"
+/>
+
+{errors.contractAmount && (
+  <p className="mt-1 text-xs text-red-600">
+    {errors.contractAmount.message}
+  </p>
+)}
       </div>
 
       <div>
@@ -1819,6 +3158,14 @@ const isUnderLegalAge = (birthDate?: string) => {
             placeholder="جزئیات و توضیحات پرونده..."
           />
         </div>
+        {caseError && (
+  <div
+    role="alert"
+    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+  >
+    {caseError}
+  </div>
+)}
 
         <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t-2 border-zinc-200">
           <button
