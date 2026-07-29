@@ -312,19 +312,22 @@ const caseSchema = z.object({
     .optional(),
 })
 
+type CaseFormInput =
+  z.input<typeof caseSchema>
+
+
 type CaseFormData =
-  z.infer<typeof caseSchema>
+  z.output<typeof caseSchema>
 
 type BranchHistoryItem =
-  z.infer<
-    typeof branchHistorySchema
-  >
+  z.output<typeof branchHistorySchema>
 
 type CourtLocationField =
   | 'province'
   | 'city'
   | 'branchNumber'
   | 'archiveNumberBranch'
+
 
 type AuthUserWithArchive = {
   id: string
@@ -618,83 +621,96 @@ export default function NewCasePage() {
     setIsBranchDropdownOpen,
   ] = useState(false)
 
+
   const {
-    register,
-    handleSubmit,
-    control,
-    watch,
-    setValue,
+  register,
+  handleSubmit,
+  control,
+  watch,
+  setValue,
 
-    formState: {
-      errors,
-      isSubmitting,
-    },
-  } = useForm<CaseFormData>({
-    resolver:
-      zodResolver(caseSchema),
+  formState: {
+    errors,
+    isSubmitting,
+  },
+} = useForm<
+  CaseFormInput,
+  any,
+  CaseFormData
+>({
+  resolver: zodResolver(caseSchema),
 
-    defaultValues: {
-      title: '',
-      status: 'pending',
+  defaultValues: {
+    title: '',
 
-      paymentType: 'cash',
+    status: 'pending',
 
-      caseNumber: '',
+    paymentType: 'cash',
 
-      cashPayments: [],
+    caseNumber: '',
 
-      clients: [
-        {
-          clientId: '',
-          name: '',
-          phone: '',
-          nationalId: '',
-          role: '',
-          representative: '',
-        },
-      ],
+    cashPayments: [],
 
-      opposingParties: [],
-      coLawyers: [],
-      opposingLawyers: [],
+    clients: [
+      {
+        clientId: '',
+        name: '',
+        phone: '',
+        nationalId: '',
+        role: '',
+        representative: '',
+      },
+    ],
 
-      branchHistory: [
-        {
-          province: '',
-          city: '',
-          branchNumber: '',
-          archiveNumberBranch:
-            '',
-          date: '',
-          isActive: true,
-        },
-      ],
+    opposingParties: [],
 
-      province: '',
-      city: '',
-      courtType: '',
-      courtBranch: '',
+    coLawyers: [],
 
-      archiveNumberBranch:
-        '',
+    opposingLawyers: [],
 
-      nonCashDescription: '',
+    branchHistory: [
+      {
+        province: '',
+        city: '',
+        branchNumber: '',
+        archiveNumberBranch: '',
+        date: '',
+        isActive: true,
+      },
+    ],
 
-      contractAmount:
-        undefined,
+    province: '',
 
-      remainingAmount:
-        undefined,
+    city: '',
 
-      overdueAmount:
-        undefined,
+    courtType: '',
 
-      expenses: [],
-      otherPersons: [],
+    courtBranch: '',
 
-      description: '',
-    },
-  })
+    archiveNumberBranch: '',
+
+    nonCashDescription: '',
+
+    contractAmount: undefined,
+
+    remainingAmount: undefined,
+
+    overdueAmount: undefined,
+
+    expenses: [],
+
+    otherPersons: [],
+
+    description: '',
+  },
+
+  mode: 'onSubmit',
+
+  reValidateMode: 'onChange',
+})
+
+
+
 
   const {
     fields:
@@ -853,145 +869,133 @@ export default function NewCasePage() {
           )
       )
 
-  const expensesTotal =
-    watchExpenses.reduce(
-      (sum, expense) =>
-        sum +
-        toFiniteNumber(
-          expense.amount
-        ),
-      0
-    )
 
-  const contractAmount =
-    toFiniteNumber(
-      watch(
-        'contractAmount'
+      const expensesTotal =
+  watchExpenses.reduce<number>(
+    (total, expense) => {
+      return (
+        total +
+        toFiniteNumber(
+          expense.amount,
+        )
       )
-    )
-
-  const relevantPayments =
-    effectivePaymentType ===
-    'non-cash'
-      ? []
-      : watchCashPayments
-
-  const totalPaid =
-    relevantPayments.reduce(
-      (sum, payment) =>
-        payment.isPaid
-          ? sum +
-            toFiniteNumber(
-              payment.amount
-            )
-          : sum,
-      0
-    )
-
-  const totalCash =
-    relevantPayments.reduce(
-      (sum, payment) =>
-        sum +
-        toFiniteNumber(
-          payment.amount
-        ),
-      0
-    )
-
-  const today =
-    new Date()
-
-  today.setHours(
+    },
     0,
-    0,
-    0,
-    0
   )
 
-  const overdueTotal =
-    relevantPayments.reduce(
-      (sum, payment) => {
-        if (
-          payment.isPaid ||
-          !payment.paymentDate
-        ) {
-          return sum
-        }
+const contractAmount =
+  toFiniteNumber(
+    watch('contractAmount'),
+  )
 
-        const dueDate =
-          parseFinanceDate(
-            payment.paymentDate
-          )
+const relevantPayments =
+  effectivePaymentType ===
+  'non-cash'
+    ? []
+    : watchCashPayments
 
-        if (
-          !dueDate ||
-          dueDate.getTime() >=
-            today.getTime()
-        ) {
-          return sum
-        }
+const totalPaid =
+  relevantPayments.reduce<number>(
+    (total, payment) => {
+      if (
+        payment.isPaid !== true
+      ) {
+        return total
+      }
 
-        return (
-          sum +
-          toFiniteNumber(
-            payment.amount
-          )
+      return (
+        total +
+        toFiniteNumber(
+          payment.amount,
         )
-      },
-      0
-    )
+      )
+    },
+    0,
+  )
 
-  useEffect(() => {
-    const remaining =
-      Math.max(
-        contractAmount -
-          totalPaid,
-        0
+const totalCash =
+  relevantPayments.reduce<number>(
+    (total, payment) => {
+      return (
+        total +
+        toFiniteNumber(
+          payment.amount,
+        )
+      )
+    },
+    0,
+  )
+
+const today = new Date()
+
+today.setHours(
+  0,
+  0,
+  0,
+  0,
+)
+
+const overdueTotal =
+  relevantPayments.reduce<number>(
+    (total, payment) => {
+      if (
+        payment.isPaid === true
+      ) {
+        return total
+      }
+
+      const paymentDate =
+        typeof payment.paymentDate ===
+        'string'
+          ? payment.paymentDate.trim()
+          : ''
+
+      if (!paymentDate) {
+        return total
+      }
+
+      const parsedDueDate =
+        parseFinanceDate(
+          paymentDate,
+        )
+
+      if (!parsedDueDate) {
+        return total
+      }
+
+      /*
+       * یک Date جدید می‌سازیم تا مقدار بازگشتی
+       * parseFinanceDate را mutate نکنیم.
+       */
+      const dueDate =
+        new Date(
+          parsedDueDate.getTime(),
+        )
+
+      dueDate.setHours(
+        0,
+        0,
+        0,
+        0,
       )
 
-    setValue(
-      'remainingAmount',
-      remaining,
-      {
-        shouldDirty: false,
-        shouldValidate: false,
-      }
-    )
+      const isOverdue =
+        dueDate.getTime() <
+        today.getTime()
 
-    setValue(
-      'overdueAmount',
-      overdueTotal,
-      {
-        shouldDirty: false,
-        shouldValidate: false,
+      if (!isOverdue) {
+        return total
       }
-    )
-  }, [
-    contractAmount,
-    overdueTotal,
-    setValue,
-    totalPaid,
-  ])
 
-  useEffect(() => {
-    if (
-      watchedPaymentType !==
-      paymentType
-    ) {
-      setPaymentType(
-        watchedPaymentType
+      return (
+        total +
+        toFiniteNumber(
+          payment.amount,
+        )
       )
-    }
-  }, [
-    paymentType,
-    watchedPaymentType,
-  ])
-
-  useEffect(() => {
-    return () => {
-      clearCaseError()
-    }
-  }, [clearCaseError])
+    },
+    0,
+  )
 
   const setOptionalNumberValue = (
     value: unknown

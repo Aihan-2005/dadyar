@@ -133,12 +133,50 @@ const caseSchema = z.object({
   otherPersons: z.array(otherPersonSchema).optional(),
 })
 
-type CaseFormData = z.infer<typeof caseSchema>
-type BranchHistoryItem = z.infer<typeof branchHistorySchema>
-type CourtLocationField = 'province' | 'city' | 'branchNumber' | 'archiveNumberBranch'
 
-const cleanText = (value?: string | null) => (value ?? '').trim()
-const hasText = (value?: string | null) => cleanText(value).length > 0
+type CaseFormInput =
+  z.input<typeof caseSchema>
+
+type CaseFormData =
+  z.output<typeof caseSchema>
+
+
+type CaseFormContext =
+  Record<string, never>
+
+type BranchHistoryItem =
+  z.output<typeof branchHistorySchema>
+
+type CourtLocationField =
+  | 'province'
+  | 'city'
+  | 'branchNumber'
+  | 'archiveNumberBranch'
+
+
+
+function cleanText(value: unknown): string {
+  if (typeof value === 'string') {
+    return value.trim()
+  }
+
+  if (
+    typeof value === 'number' &&
+    Number.isFinite(value)
+  ) {
+    return String(value)
+  }
+
+  return ''
+}
+
+function hasText(value: unknown): boolean {
+  return cleanText(value).length > 0
+}
+
+
+
+
 
 const hasCourtLocationValue = (location?: Partial<BranchHistoryItem>) => {
   if (!location) return false
@@ -159,57 +197,442 @@ const normalizePaymentType = (value: unknown): 'cash' | 'non-cash' | 'both' => {
   return 'cash'
 }
 
-const getCourtBranchObject = (caseItem: any) => {
-  if (caseItem?.courtBranch && typeof caseItem.courtBranch === 'object') {
-    return caseItem.courtBranch
+
+
+type UnknownRecord = Record<string, unknown>
+
+function isRecord(
+  value: unknown,
+): value is UnknownRecord {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value)
+  )
+}
+
+
+/**
+ * یک مقدار ناشناخته را فقط درصورتی به آرایه objectها
+ * تبدیل می‌کند که واقعاً آرایه باشد.
+ */
+function toRecordArray(
+  value: unknown,
+): UnknownRecord[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.filter(isRecord)
+}
+
+/**
+ * statusهای قدیمی یا نامعتبر را به یکی از statusهای
+ * معتبر فرم تبدیل می‌کند.
+ */
+function normalizeCaseStatus(
+  value: unknown,
+): CaseFormData['status'] {
+  switch (value) {
+    case 'pending':
+    case 'in-progress':
+    case 'completed':
+    case 'archived':
+      return value
+
+    default:
+      return 'pending'
+  }
+}
+
+/**
+ * مقدار ورودی مبلغ ممکن است string یا number باشد.
+ * Zod هنگام submit آن را به number تبدیل خواهد کرد.
+ */
+function normalizeNumberInput(
+  value: unknown,
+): string | number | undefined {
+  if (
+    typeof value === 'number' &&
+    Number.isFinite(value)
+  ) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const normalizedValue =
+      value.trim()
+
+    return normalizedValue.length > 0
+      ? normalizedValue
+      : undefined
   }
 
   return undefined
 }
 
-const normalizeBranchHistory = (caseItem: any): BranchHistoryItem[] => {
-  const courtBranch = getCourtBranchObject(caseItem)
-  const rawHistory = Array.isArray(courtBranch?.branchHistory)
-    ? courtBranch.branchHistory
-    : Array.isArray(caseItem?.branchHistory)
-      ? caseItem.branchHistory
-      : []
+function createEmptyClient():
+  NonNullable<
+    CaseFormInput['clients']
+  >[number] {
+  return {
+    name: '',
+    phone: '',
+    nationalId: '',
+    role: '',
+    representative: '',
+  }
+}
 
-  const normalizedHistory = rawHistory.map((item: any, index: number) => ({
-    province: cleanText(item?.province || (index === 0 ? courtBranch?.province || caseItem?.province : '')),
-    city: cleanText(item?.city || (index === 0 ? courtBranch?.city || caseItem?.city : '')),
-    branchNumber: cleanText(item?.branchNumber || item?.branch || item?.courtBranch || ''),
-    archiveNumberBranch: cleanText(
-      item?.archiveNumberBranch ||
-        (index === 0 ? courtBranch?.archiveNumberBranch || caseItem?.archiveNumberBranch : '')
-    ),
-    date: cleanText(item?.date),
-    isActive: Boolean(item?.isActive),
-  }))
+function normalizeClients(
+  value: unknown,
+): NonNullable<
+  CaseFormInput['clients']
+> {
+  return toRecordArray(value).map(
+    (client) => ({
+      name: cleanText(client.name),
+      phone: cleanText(client.phone),
 
-  const hasHistory = normalizedHistory.some(hasCourtLocationValue)
+      nationalId: cleanText(
+        client.nationalId,
+      ),
 
-  if (!hasHistory) {
+      role: cleanText(client.role),
+
+      representative: cleanText(
+        client.representative,
+      ),
+    }),
+  )
+}
+
+function normalizeOpposingParties(
+  value: unknown,
+): NonNullable<
+  CaseFormInput['opposingParties']
+> {
+  return toRecordArray(value).map(
+    (party) => ({
+      name: cleanText(party.name),
+      phone: cleanText(party.phone),
+
+      nationalId: cleanText(
+        party.nationalId,
+      ),
+
+      role: cleanText(party.role),
+
+      birthDate: cleanText(
+        party.birthDate,
+      ),
+
+      description: cleanText(
+        party.description,
+      ),
+    }),
+  )
+}
+
+function normalizeLawyers(
+  value: unknown,
+): NonNullable<
+  CaseFormInput['coLawyers']
+> {
+  return toRecordArray(value).map(
+    (lawyer) => ({
+      name: cleanText(lawyer.name),
+      phone: cleanText(lawyer.phone),
+
+      licenseNumber: cleanText(
+        lawyer.licenseNumber,
+      ),
+
+      licenseExpiry: cleanText(
+        lawyer.licenseExpiry,
+      ),
+
+      licenseIssuePlace: cleanText(
+        lawyer.licenseIssuePlace,
+      ),
+    }),
+  )
+}
+
+function normalizeOtherPersons(
+  value: unknown,
+): NonNullable<
+  CaseFormInput['otherPersons']
+> {
+  return toRecordArray(value).map(
+    (person) => ({
+      name: cleanText(person.name),
+      phone: cleanText(person.phone),
+
+      nationalId: cleanText(
+        person.nationalId,
+      ),
+
+      role: cleanText(person.role),
+
+      description: cleanText(
+        person.description,
+      ),
+    }),
+  )
+}
+
+function normalizePayments(
+  value: unknown,
+): NonNullable<
+  CaseFormInput['cashPayments']
+> {
+  return toRecordArray(value).map(
+    (payment) => ({
+      amount: normalizeNumberInput(
+        payment.amount,
+      ),
+
+      isPaid:
+        payment.isPaid === true,
+
+      paymentDate: cleanText(
+        payment.paymentDate,
+      ),
+    }),
+  )
+}
+
+function normalizeExpenses(
+  value: unknown,
+): NonNullable<
+  CaseFormInput['expenses']
+> {
+  return toRecordArray(value).map(
+    (expense) => ({
+      title: cleanText(
+        expense.title,
+      ),
+
+      amount: normalizeNumberInput(
+        expense.amount,
+      ),
+
+      date: cleanText(expense.date),
+
+      description: cleanText(
+        expense.description,
+      ),
+
+      isPaid:
+        expense.isPaid === true,
+    }),
+  )
+}
+
+
+
+function getFirstTextValue(
+  ...values: unknown[]
+): string {
+  for (const value of values) {
+    if (typeof value !== 'string') {
+      continue
+    }
+
+    const normalizedValue = value.trim()
+
+    if (normalizedValue.length > 0) {
+      return normalizedValue
+    }
+  }
+
+  return ''
+}
+
+function getCourtBranchObject(
+  caseItem: unknown,
+): UnknownRecord | undefined {
+  if (!isRecord(caseItem)) {
+    return undefined
+  }
+
+  if (!isRecord(caseItem.courtBranch)) {
+    return undefined
+  }
+
+  return caseItem.courtBranch
+}
+
+function normalizeBranchHistory(
+  caseItem: unknown,
+): BranchHistoryItem[] {
+  const caseRecord: UnknownRecord =
+    isRecord(caseItem)
+      ? caseItem
+      : {}
+
+  const courtBranch =
+    getCourtBranchObject(caseItem)
+
+  const courtBranchHistory =
+    courtBranch?.branchHistory
+
+  const caseBranchHistory =
+    caseRecord.branchHistory
+
+  const rawHistory: unknown[] =
+    Array.isArray(courtBranchHistory)
+      ? courtBranchHistory
+      : Array.isArray(caseBranchHistory)
+        ? caseBranchHistory
+        : []
+
+  const normalizedHistory: BranchHistoryItem[] =
+    rawHistory.map(
+      (
+        rawItem: unknown,
+        index: number,
+      ): BranchHistoryItem => {
+        const item: UnknownRecord =
+          isRecord(rawItem)
+            ? rawItem
+            : {}
+
+        const isFirstItem = index === 0
+
+        return {
+          province: getFirstTextValue(
+            item.province,
+            isFirstItem
+              ? courtBranch?.province
+              : undefined,
+            isFirstItem
+              ? caseRecord.province
+              : undefined,
+          ),
+
+          city: getFirstTextValue(
+            item.city,
+            isFirstItem
+              ? courtBranch?.city
+              : undefined,
+            isFirstItem
+              ? caseRecord.city
+              : undefined,
+          ),
+
+          branchNumber: getFirstTextValue(
+            item.branchNumber,
+            item.branch,
+            item.courtBranch,
+          ),
+
+          archiveNumberBranch:
+            getFirstTextValue(
+              item.archiveNumberBranch,
+              isFirstItem
+                ? courtBranch
+                    ?.archiveNumberBranch
+                : undefined,
+              isFirstItem
+                ? caseRecord
+                    .archiveNumberBranch
+                : undefined,
+            ),
+
+          date: getFirstTextValue(
+            item.date,
+          ),
+
+          isActive:
+            item.isActive === true,
+        }
+      },
+    )
+
+  const cleanedHistory: BranchHistoryItem[] =
+    normalizedHistory.filter(
+      (
+        item: BranchHistoryItem,
+      ): boolean => {
+        return hasCourtLocationValue(item)
+      },
+    )
+
+  /*
+   * اگر هیچ سابقه معتبری وجود ندارد،
+   * اطلاعات فعلی پرونده را به‌عنوان اولین شعبه
+   * و محل فعال برمی‌گردانیم.
+   */
+  if (cleanedHistory.length === 0) {
+    const rawCourtBranch =
+      caseRecord.courtBranch
+
     return [
       {
-        province: cleanText(courtBranch?.province || caseItem?.province),
-        city: cleanText(courtBranch?.city || caseItem?.city),
-        branchNumber: cleanText(
-          courtBranch?.currentBranchNumber ||
-            courtBranch?.branch ||
-            (typeof caseItem?.courtBranch === 'string' ? caseItem.courtBranch : '')
+        province: getFirstTextValue(
+          courtBranch?.province,
+          caseRecord.province,
         ),
-        archiveNumberBranch: cleanText(courtBranch?.archiveNumberBranch || caseItem?.archiveNumberBranch),
+
+        city: getFirstTextValue(
+          courtBranch?.city,
+          caseRecord.city,
+        ),
+
+        branchNumber: getFirstTextValue(
+          courtBranch
+            ?.currentBranchNumber,
+          courtBranch?.branch,
+
+          typeof rawCourtBranch ===
+            'string'
+            ? rawCourtBranch
+            : undefined,
+        ),
+
+        archiveNumberBranch:
+          getFirstTextValue(
+            courtBranch
+              ?.archiveNumberBranch,
+            caseRecord
+              .archiveNumberBranch,
+          ),
+
         date: '',
+
         isActive: true,
       },
     ]
   }
 
-  const cleanedHistory = normalizedHistory.filter(hasCourtLocationValue)
+  const hasActiveLocation =
+    cleanedHistory.some(
+      (
+        item: BranchHistoryItem,
+      ): boolean => {
+        return item.isActive === true
+      },
+    )
 
-  if (!cleanedHistory.some((item) => item.isActive)) {
-    cleanedHistory[cleanedHistory.length - 1].isActive = true
+  /*
+   * اگر هیچ شعبه فعالی مشخص نشده بود،
+   * آخرین شعبه ثبت‌شده را فعال می‌کنیم.
+   */
+  if (!hasActiveLocation) {
+    const lastIndex =
+      cleanedHistory.length - 1
+
+    return cleanedHistory.map(
+      (
+        item: BranchHistoryItem,
+        index: number,
+      ): BranchHistoryItem => ({
+        ...item,
+        isActive: index === lastIndex,
+      }),
+    )
   }
 
   return cleanedHistory
@@ -220,95 +643,252 @@ export default function EditCasePage({ params }: EditCasePageProps) {
   const router = useRouter()
   const getCaseById = useCasesStore((s) => s.getCaseById)
   const updateCase = useCasesStore((s) => s.updateCase)
-  const caseItem = getCaseById(id) as any
-  const courtBranchData = getCourtBranchObject(caseItem)
-  const initialBranchHistory = normalizeBranchHistory(caseItem)
-  const activeInitialCourtLocation = initialBranchHistory.find((location) => location.isActive) || initialBranchHistory[0]
-  const initialPaymentType = normalizePaymentType(caseItem?.paymentType)
-  const initialCourtType = cleanText(courtBranchData?.courtType || caseItem?.courtType)
+  useForm
+//   const caseItem = getCaseById(id)
 
-  const [paymentType, setPaymentType] = useState<'cash' | 'non-cash' | 'both'>(initialPaymentType)
-  const [isCourtTypeDropdownOpen, setIsCourtTypeDropdownOpen] = useState(false)
-  const [courtTypeInput, setCourtTypeInput] = useState(initialCourtType)
-  const [filteredCourtTypes, setFilteredCourtTypes] = useState(COURT_TYPES)
-  const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false)
+// const courtBranchData =
+//   getCourtBranchObject(caseItem)
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    watch,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<CaseFormData>({
-    resolver: zodResolver(caseSchema),
-    defaultValues: {
-      title: cleanText(caseItem?.title),
-      status: caseItem?.status || 'pending',
-      paymentType: initialPaymentType,
-      caseNumber: cleanText(caseItem?.caseNumber),
-      cashPayments: Array.isArray(caseItem?.cashPayments) ? caseItem.cashPayments : [],
-      clients:
-        Array.isArray(caseItem?.clients) && caseItem.clients.length > 0
-          ? caseItem.clients.map((client: any) => ({
-              name: cleanText(client?.name),
-              phone: cleanText(client?.phone),
-              nationalId: cleanText(client?.nationalId),
-              role: cleanText(client?.role),
-              representative: cleanText(client?.representative),
-            }))
-          : [{ name: '', phone: '', nationalId: '', role: '', representative: '' }],
-      opposingParties: Array.isArray(caseItem?.opposingParties)
-        ? caseItem.opposingParties.map((party: any) => ({
-            name: cleanText(party?.name),
-            phone: cleanText(party?.phone),
-            nationalId: cleanText(party?.nationalId),
-            role: cleanText(party?.role),
-            birthDate: cleanText(party?.birthDate),
-            description: cleanText(party?.description),
-          }))
-        : [],
-      coLawyers: Array.isArray(caseItem?.coLawyers)
-        ? caseItem.coLawyers.map((lawyer: any) => ({
-            name: cleanText(lawyer?.name),
-            phone: cleanText(lawyer?.phone),
-            licenseNumber: cleanText(lawyer?.licenseNumber),
-            licenseExpiry: cleanText(lawyer?.licenseExpiry),
-            licenseIssuePlace: cleanText(lawyer?.licenseIssuePlace),
-          }))
-        : [],
-      opposingLawyers: Array.isArray(caseItem?.opposingLawyers)
-        ? caseItem.opposingLawyers.map((lawyer: any) => ({
-            name: cleanText(lawyer?.name),
-            phone: cleanText(lawyer?.phone),
-            licenseNumber: cleanText(lawyer?.licenseNumber),
-            licenseExpiry: cleanText(lawyer?.licenseExpiry),
-            licenseIssuePlace: cleanText(lawyer?.licenseIssuePlace),
-          }))
-        : [],
-      branchHistory: initialBranchHistory,
-      province: activeInitialCourtLocation?.province || '',
-      city: activeInitialCourtLocation?.city || '',
-      courtType: initialCourtType,
-      courtBranch: activeInitialCourtLocation?.branchNumber || '',
-      archiveNumberBranch: activeInitialCourtLocation?.archiveNumberBranch || '',
-      nonCashDescription: cleanText(caseItem?.nonCashDescription || caseItem?.installmentDescription),
-      contractAmount: cleanText(caseItem?.contractAmount),
-      remainingAmount: cleanText(caseItem?.remainingAmount),
-      overdueAmount: cleanText(caseItem?.overdueAmount),
-      expenses: Array.isArray(caseItem?.expenses) ? caseItem.expenses : [],
-      otherPersons: Array.isArray(caseItem?.otherPersons)
-        ? caseItem.otherPersons.map((person: any) => ({
-            name: cleanText(person?.name),
-            phone: cleanText(person?.phone),
-            nationalId: cleanText(person?.nationalId),
-            role: cleanText(person?.role),
-            description: cleanText(person?.description),
-          }))
-        : [],
-      description: cleanText(caseItem?.description),
-    },
-  })
+// const initialBranchHistory =
+//   normalizeBranchHistory(caseItem)
+
+// const activeInitialCourtLocation =
+//   initialBranchHistory.find(
+//     (
+//       location: BranchHistoryItem,
+//     ): boolean =>
+//       location.isActive === true,
+//   ) ?? initialBranchHistory[0]
+
+// const initialPaymentType =
+//   normalizePaymentType(
+//     caseItem?.paymentType,
+//   )
+
+// const initialCourtType =
+//   getFirstTextValue(
+//     courtBranchData?.courtType,
+//     caseItem?.courtType,
+//   )
+
+
+
+  // const [paymentType, setPaymentType] = useState<'cash' | 'non-cash' | 'both'>(initialPaymentType)
+  // const [isCourtTypeDropdownOpen, setIsCourtTypeDropdownOpen] = useState(false)
+  // const [courtTypeInput, setCourtTypeInput] = useState(initialCourtType)
+  // const [filteredCourtTypes, setFilteredCourtTypes] = useState(COURT_TYPES)
+  // const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false)
+
+  const caseItem =
+  getCaseById(id)
+
+/**
+ * ممکن است در اولین render پرونده وجود نداشته باشد.
+ * به‌جای استفاده مستقیم و ناامن، یک Record خالی
+ * به‌عنوان fallback قرار می‌دهیم.
+ */
+const caseRecord: UnknownRecord =
+  isRecord(caseItem)
+    ? caseItem
+    : {}
+
+const courtBranchData =
+  getCourtBranchObject(caseItem)
+
+const initialBranchHistory =
+  normalizeBranchHistory(caseItem)
+
+const activeInitialCourtLocation =
+  initialBranchHistory.find(
+    (
+      location: BranchHistoryItem,
+    ): boolean =>
+      location.isActive === true,
+  ) ?? initialBranchHistory[0]
+
+const initialPaymentType =
+  normalizePaymentType(
+    caseRecord.paymentType,
+  )
+
+const initialCourtType =
+  getFirstTextValue(
+    courtBranchData?.courtType,
+    caseRecord.courtType,
+  )
+
+const normalizedClients =
+  normalizeClients(
+    caseRecord.clients,
+  )
+
+/**
+ * تمام مقدارهای اولیه فرم را قبل از ارسال به
+ * React Hook Form نرمال می‌کنیم.
+ */
+const formDefaultValues:
+  CaseFormInput = {
+  title: cleanText(
+    caseRecord.title,
+  ),
+
+  status: normalizeCaseStatus(
+    caseRecord.status,
+  ),
+
+  paymentType:
+    initialPaymentType,
+
+  caseNumber: cleanText(
+    caseRecord.caseNumber,
+  ),
+
+  cashPayments:
+    normalizePayments(
+      caseRecord.cashPayments,
+    ),
+
+  clients:
+    normalizedClients.length > 0
+      ? normalizedClients
+      : [createEmptyClient()],
+
+  opposingParties:
+    normalizeOpposingParties(
+      caseRecord.opposingParties,
+    ),
+
+  coLawyers:
+    normalizeLawyers(
+      caseRecord.coLawyers,
+    ),
+
+  opposingLawyers:
+    normalizeLawyers(
+      caseRecord.opposingLawyers,
+    ),
+
+  branchHistory:
+    initialBranchHistory,
+
+  province:
+    activeInitialCourtLocation
+      ?.province ?? '',
+
+  city:
+    activeInitialCourtLocation
+      ?.city ?? '',
+
+  courtType:
+    initialCourtType,
+
+  courtBranch:
+    activeInitialCourtLocation
+      ?.branchNumber ?? '',
+
+  archiveNumberBranch:
+    activeInitialCourtLocation
+      ?.archiveNumberBranch ??
+    '',
+
+  nonCashDescription:
+    getFirstTextValue(
+      caseRecord.nonCashDescription,
+
+      /**
+       * پشتیبانی موقت از نام قدیمی این فیلد.
+       */
+      caseRecord.installmentDescription,
+    ),
+
+  contractAmount:
+    cleanText(
+      caseRecord.contractAmount,
+    ),
+
+  remainingAmount:
+    cleanText(
+      caseRecord.remainingAmount,
+    ),
+
+  overdueAmount:
+    cleanText(
+      caseRecord.overdueAmount,
+    ),
+
+  expenses:
+    normalizeExpenses(
+      caseRecord.expenses,
+    ),
+
+  otherPersons:
+    normalizeOtherPersons(
+      caseRecord.otherPersons,
+    ),
+
+  description:
+    cleanText(
+      caseRecord.description,
+    ),
+}
+
+const [
+  paymentType,
+  setPaymentType,
+] = useState<
+  CaseFormData['paymentType']
+>(initialPaymentType)
+
+const [
+  isCourtTypeDropdownOpen,
+  setIsCourtTypeDropdownOpen,
+] = useState(false)
+
+const [
+  courtTypeInput,
+  setCourtTypeInput,
+] = useState(initialCourtType)
+
+const [
+  filteredCourtTypes,
+  setFilteredCourtTypes,
+] = useState<string[]>(
+  COURT_TYPES,
+)
+
+const [
+  isBranchDropdownOpen,
+  setIsBranchDropdownOpen,
+] = useState(false)
+
+const {
+  register,
+  handleSubmit,
+  control,
+  watch,
+  setValue,
+
+  formState: {
+    errors,
+    isSubmitting,
+  },
+} = useForm<
+  CaseFormInput,
+  CaseFormContext,
+  CaseFormData
+>({
+  resolver:
+    zodResolver(caseSchema),
+
+  defaultValues:
+    formDefaultValues,
+
+  mode: 'onSubmit',
+
+  reValidateMode: 'onChange',
+})
+
+
 
   const { fields: cashPaymentFields, append: appendCashPayment, remove: removeCashPayment } = useFieldArray({
     control,

@@ -1,48 +1,8 @@
-// 'use client'
-
-// import { useEffect } from 'react'
-// import { useRouter, usePathname } from 'next/navigation'
-// import { useAuthStore } from '@/store/auth.store'
-
-// export default function AuthGuard({
-//   children,
-// }: {
-//   children: React.ReactNode
-// }) {
-//   const user = useAuthStore((s) => s.user)
-//   const router = useRouter()
-//   const pathname = usePathname()
-
-//   useEffect(() => {
-//     if (pathname.startsWith('/login') || pathname.startsWith('/register')) {
-//       return
-//     }
-
-//     if (!user) {
-//       router.replace('/login')
-//     }
-//   }, [user, router, pathname])
-
-//   if (
-//     !user &&
-//     !pathname.startsWith('/login') &&
-//     !pathname.startsWith('/register')
-//   ) {
-//     return (
-//       <div className="flex min-h-screen items-center justify-center text-sm text-zinc-500">
-//         در حال بررسی دسترسی...
-//       </div>
-//     )
-//   }
-
-//   return <>{children}</>
-// }
-
-
 'use client'
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+
 import { useAuthStore } from '@/store/auth.store'
 
 export default function AuthGuard({
@@ -50,19 +10,69 @@ export default function AuthGuard({
 }: {
   children: React.ReactNode
 }) {
-  const user = useAuthStore((s) => s.user)
   const router = useRouter()
 
+  const user = useAuthStore(
+    (state) => state.user,
+  )
+
+  const hasHydrated = useAuthStore(
+    (state) => state.hasHydrated,
+  )
+
+  const isInitialized = useAuthStore(
+    (state) => state.isInitialized,
+  )
+
+  const isSessionChecking = useAuthStore(
+    (state) =>
+      state.isSessionChecking,
+  )
+
+  const initialize = useAuthStore(
+    (state) => state.initialize,
+  )
+
+ 
   useEffect(() => {
-    if (!user) {
+    if (
+      hasHydrated &&
+      !isInitialized &&
+      !isSessionChecking
+    ) {
+      void initialize()
+    }
+  }, [
+    hasHydrated,
+    initialize,
+    isInitialized,
+    isSessionChecking,
+  ])
+
+  useEffect(() => {
+    if (
+      hasHydrated &&
+      isInitialized &&
+      !user
+    ) {
       router.replace('/login')
     }
-  }, [user, router])
+  }, [
+    hasHydrated,
+    isInitialized,
+    router,
+    user,
+  ])
 
-  if (!user) {
+  if (
+    !hasHydrated ||
+    !isInitialized ||
+    isSessionChecking ||
+    !user
+  ) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-zinc-500">
-        در حال بررسی دسترسی...
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50 text-sm text-zinc-500">
+        در حال بررسی وضعیت ورود...
       </div>
     )
   }
