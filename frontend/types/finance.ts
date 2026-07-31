@@ -7,9 +7,11 @@ export type {
   FinanceCurrency,
   FinanceDisplayUnit,
   FinanceExpenseSource,
+  FinanceNonCashPaymentSource,
   FinanceOverview,
   FinancePaymentSource,
   FinancePaymentStatus,
   FinancialStats,
   NumericValue,
+  ResolvedClientAllocation,
 } from '@/features/finance/domain/types'

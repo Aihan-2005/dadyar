@@ -17,10 +17,16 @@ export type MoneyValue = number | string
 
 export interface Payment {
   id?: string
+
+  clientId?: string
+  clientName?: string
+
   amount?: number
+
   dueDate?: DateValue
   paidDate?: DateValue
   paymentDate?: string
+
   isPaid?: boolean
 }
 
@@ -40,6 +46,9 @@ export interface CaseClient {
   nationalId?: string
   role?: string
   representative?: string
+
+
+  feeShareAmount?: MoneyValue
 }
 
 export interface OpposingParty {
@@ -61,11 +70,36 @@ export interface Lawyer {
 
 export interface CashPayment {
   id?: string
+
+  
+  clientId?: string
+  clientName?: string
+
   amount?: number
   isPaid?: boolean
+
+  
   paymentDate?: string
+
   dueDate?: DateValue
   paidDate?: DateValue
+}
+
+export interface NonCashPayment {
+  id?: string
+
+  clientId?: string
+  clientName?: string
+
+  title?: string
+  description?: string
+
+  
+  amount?: number
+
+  dueDate?: DateValue
+  deliveredDate?: DateValue
+  isDelivered?: boolean
 }
 
 export interface BranchHistoryItem {
@@ -112,12 +146,14 @@ export interface Case {
 
   title: string
   status: CaseStatus
+
   createdAt: DateValue
   updatedAt: DateValue
   closedAt?: DateValue
 
   caseNumber?: string
   trackingCode?: string
+
   archiveNumberOffice?: string
   archiveNumberLawyer?: string
   archiveNumberBranch?: string
@@ -127,10 +163,13 @@ export interface Case {
   courtType?: string
   courtName?: string
   branchName?: string
+
   courtBranch?: CourtBranch
   branchHistory?: BranchHistoryItem[]
 
   clients?: CaseClient[]
+
+  
   clientId?: string
   clientName?: string
   clientPhone?: string
@@ -144,20 +183,26 @@ export interface Case {
   claim?: string
   opponent?: string
   description?: string
+
   coLawyerName?: string
   coLawyerInCase?: string
 
   paymentType?: PaymentType
+
   contractAmount?: MoneyValue
   totalFee?: number
   totalAmount?: number
+
   paidAmount?: number
   remainingAmount?: MoneyValue
   overdueAmount?: MoneyValue
+
   dueDate?: DateValue
   lastPaymentDate?: DateValue
 
   cashPayments?: CashPayment[]
+  nonCashPayments?: NonCashPayment[]
+
   installments?: Payment[]
   contracts?: ContractStage[]
   expenses?: Expense[]

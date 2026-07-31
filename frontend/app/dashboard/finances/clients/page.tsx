@@ -1,186 +1,315 @@
 'use client'
 
-import { useCasesStore } from '@/store/cases.store'
-import { useMemo, useState, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { Users, ArrowRight } from 'lucide-react'
-import { ClientSearchBar } from '@/components/dashboard/finances/clients/ClientSearchBar'
-import { ClientFinanceTable } from '@/components/dashboard/finances/clients/ClientFinanceTable'
-import { ClientDetailTable } from '@/components/dashboard/finances/clients/ClientDetailTable'
-import type { ClientFinanceSummary } from '@/types/finance'
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
+
 import Link from 'next/link'
 
+import {
+  useSearchParams,
+} from 'next/navigation'
+
+import {
+  AlertTriangle,
+  ArrowRight,
+  Users,
+} from 'lucide-react'
+
+import {
+  ClientSearchBar,
+} from '@/components/dashboard/finances/clients/ClientSearchBar'
+
+import {
+  ClientFinanceTable,
+} from '@/components/dashboard/finances/clients/ClientFinanceTable'
+
+import {
+  ClientDetailTable,
+} from '@/components/dashboard/finances/clients/ClientDetailTable'
+
+import {
+  buildClientFinanceSummaries,
+} from '@/features/finance/domain/selectors'
+
+import {
+  useCasesStore,
+} from '@/store/cases.store'
+
+function normalizeSearchValue(
+  value: string
+): string {
+  return value
+    .trim()
+    .toLocaleLowerCase(
+      'fa-IR'
+    )
+}
+
 function ClientsPageContent() {
-  const cases = useCasesStore((s) => s.cases)
-  const searchParams = useSearchParams()
-  const [searchTerm, setSearchTerm] = useState(
-    searchParams.get('client') || ''
+  const cases =
+    useCasesStore(
+      (state) =>
+        state.cases
+    )
+
+  const hasHydrated =
+    useCasesStore(
+      (state) =>
+        state.hasHydrated
+    )
+
+  const hasLoaded =
+    useCasesStore(
+      (state) =>
+        state.hasLoaded
+    )
+
+  const fetchCases =
+    useCasesStore(
+      (state) =>
+        state.fetchCases
+    )
+
+  const searchParams =
+    useSearchParams()
+
+  const [
+    searchTerm,
+    setSearchTerm,
+  ] = useState(
+    searchParams.get(
+      'client'
+    ) ?? ''
   )
 
-  const clientSummaries = useMemo<ClientFinanceSummary[]>(() => {
-    const grouped = new Map<string, ClientFinanceSummary>()
-    const now = new Date()
+  useEffect(() => {
+    if (!hasHydrated) {
+      return
+    }
 
-    cases.forEach((c) => {
-      const clientName = c.clientName
-      const isOverdue = !!(c.dueDate && new Date(c.dueDate) < now)
-      const remaining = (c.totalFee || 0) - (c.paidAmount || 0)
-      const overdueAmount = isOverdue && remaining > 0 ? remaining : 0
+    void fetchCases()
+  }, [
+    fetchCases,
+    hasHydrated,
+  ])
 
-      if (!grouped.has(clientName)) {
-        grouped.set(clientName, {
-          clientName,
-          totalContracts: 0,
-          totalFee: 0,
-          totalPaid: 0,
-          totalRemaining: 0,
-          totalOverdue: 0,
-          cases: [],
-        })
+  const clientSummaries =
+    useMemo(
+      () =>
+        buildClientFinanceSummaries(
+          cases
+        ),
+      [cases]
+    )
+
+  const normalizedSearch =
+    normalizeSearchValue(
+      searchTerm
+    )
+
+  const filteredClients =
+    useMemo(() => {
+      if (
+        !normalizedSearch
+      ) {
+        return clientSummaries
       }
 
-      const summary = grouped.get(clientName)!
-      summary.totalContracts++
-      summary.totalFee += c.totalFee || 0
-      summary.totalPaid += c.paidAmount || 0
-      summary.totalRemaining += remaining > 0 ? remaining : 0
-      summary.totalOverdue += overdueAmount
+      return clientSummaries.filter(
+        (client) =>
+          normalizeSearchValue(
+            client.clientName
+          ).includes(
+            normalizedSearch
+          )
+      )
+    }, [
+      clientSummaries,
+      normalizedSearch,
+    ])
 
-      summary.cases.push({
-        caseId: c.id,
-        caseNumber: c.caseNumber,
-        caseTitle: c.title,
-        clientName: c.clientName,
-        totalFee: c.totalFee || 0,
-        paidAmount: c.paidAmount || 0,
-        remainingDebt: remaining,
-        overdueAmount,
-        lastPaymentDate: c.lastPaymentDate ? c.lastPaymentDate.toISOString() : undefined,
-        dueDate: c.dueDate ? c.dueDate.toISOString() : undefined,
-        status: isOverdue
-          ? 'overdue'
-          : remaining <= 0
-          ? 'paid'
-          : (c.paidAmount || 0) > 0
-          ? 'partial'
-          : 'unpaid',
-      })
-    })
+  const selectedClient =
+    useMemo(() => {
+      if (
+        !normalizedSearch
+      ) {
+        return null
+      }
 
-    return Array.from(grouped.values()).sort(
-      (a, b) => b.totalRemaining - a.totalRemaining
+      const exactMatch =
+        clientSummaries.find(
+          (client) =>
+            normalizeSearchValue(
+              client.clientName
+            ) ===
+            normalizedSearch
+        )
+
+      if (exactMatch) {
+        return exactMatch
+      }
+
+      return (
+        clientSummaries.find(
+          (client) =>
+            normalizeSearchValue(
+              client.clientName
+            ).includes(
+              normalizedSearch
+            )
+        ) ?? null
+      )
+    }, [
+      clientSummaries,
+      normalizedSearch,
+    ])
+
+  const estimatedCasesCount =
+    clientSummaries.reduce(
+      (sum, client) =>
+        sum +
+        client
+          .estimatedAllocationCases,
+      0
     )
-  }, [cases])
 
-  const selectedClient = useMemo(() => {
-    if (!searchTerm.trim()) return null
-    return (
-      clientSummaries.find((c) =>
-        c.clientName.includes(searchTerm.trim())
-      ) || null
-    )
-  }, [clientSummaries, searchTerm])
-
-  const filteredClients = useMemo(() => {
-    if (!searchTerm.trim()) return clientSummaries
-    return clientSummaries.filter((c) =>
-      c.clientName.includes(searchTerm.trim())
-    )
-  }, [clientSummaries, searchTerm])
+  const isLoading =
+    !hasHydrated ||
+    (!hasLoaded &&
+      cases.length === 0)
 
   return (
     <div className="min-h-screen bg-zinc-50">
-      <div className="max-w-7xl mx-auto p-6 md:p-8 space-y-8">
-
-        <div className="flex items-center gap-4">
+      <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 md:p-8">
+        <header className="flex items-center gap-4">
           <Link
             href="/dashboard/finances"
-            className="w-9 h-9 rounded-lg border border-zinc-200 bg-white flex items-center justify-center hover:bg-zinc-50 transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 bg-white transition-colors hover:bg-zinc-50"
           >
-            <ArrowRight size={18} className="text-zinc-600" />
+            <ArrowRight
+              size={18}
+              className="text-zinc-600"
+            />
           </Link>
+
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
-              <Users className="text-white" size={20} />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md">
+              <Users
+                className="text-white"
+                size={20}
+              />
             </div>
+
             <div>
-              <h1 className="text-2xl font-bold text-zinc-900">حساب موکلین</h1>
+              <h1 className="text-2xl font-bold text-zinc-900">
+                حساب موکلین
+              </h1>
+
               <p className="text-sm text-zinc-500">
-                جستجو و مشاهده وضعیت مالی هر موکل
+                مشاهده سهم حق‌الوکاله، پرداختی و بدهی مستقل هر موکل
               </p>
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* ───── Search ───── */}
-        <ClientSearchBar
-          value={searchTerm}
-          onChange={setSearchTerm}
-          totalCount={clientSummaries.length}
-          filteredCount={filteredClients.length}
-        />
+        {estimatedCasesCount >
+          0 && (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <AlertTriangle
+              size={19}
+              className="mt-0.5 shrink-0"
+            />
 
-        {/* ───── نمایش جزئیات موکل خاص ───── */}
-        {selectedClient && searchTerm.trim() && (
-          <div className="bg-white rounded-2xl border border-indigo-200 shadow-sm overflow-hidden">
-            <div className="px-6 py-5 border-b border-zinc-100 bg-indigo-50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-bold text-zinc-900">
-                    {selectedClient.clientName}
-                  </h2>
-                  <p className="text-xs text-zinc-500 mt-0.5">
-                    {selectedClient.totalContracts} قرارداد ·{' '}
-                    شماره قرارداد | موضوع | مبلغ | پرداختی‌ها | مانده | معوق
-                  </p>
-                </div>
-                <div className="hidden md:flex items-center gap-6 text-sm">
-                  <div className="text-center">
-                    <p className="text-zinc-500 text-xs">مبلغ کل</p>
-                    <p className="font-bold text-zinc-900">
-                      {selectedClient.totalFee.toLocaleString('fa-IR')} ت
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-zinc-500 text-xs">پرداختی</p>
-                    <p className="font-bold text-emerald-600">
-                      {selectedClient.totalPaid.toLocaleString('fa-IR')} ت
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-zinc-500 text-xs">مانده</p>
-                    <p className="font-bold text-amber-600">
-                      {selectedClient.totalRemaining.toLocaleString('fa-IR')} ت
-                    </p>
-                  </div>
-                  {selectedClient.totalOverdue > 0 && (
-                    <div className="text-center">
-                      <p className="text-zinc-500 text-xs">معوق</p>
-                      <p className="font-bold text-red-600">
-                        {selectedClient.totalOverdue.toLocaleString('fa-IR')} ت
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
+            <div>
+              <p className="font-bold">
+                برخی سهم‌ها تخمینی هستند
+              </p>
+
+              <p className="mt-1 leading-6">
+                در{' '}
+                {estimatedCasesCount.toLocaleString(
+                  'fa-IR'
+                )}{' '}
+                مورد از پرونده‌های قدیمی، سهم موکل صریح ثبت نشده است و سیستم مبلغ را موقتاً به‌صورت مساوی تقسیم کرده است.
+              </p>
             </div>
-            <ClientDetailTable cases={selectedClient.cases} />
           </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-5 border-b border-zinc-100">
-            <h2 className="text-lg font-bold text-zinc-900">لیست موکلین</h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              نام موکل | مبلغ قرارداد | پرداختی‌ها | مانده | معوق
-            </p>
-          </div>
-          <ClientFinanceTable
-            clients={filteredClients}
-            onSelectClient={setSearchTerm}
-          />
-        </div>
+        <ClientSearchBar
+          value={searchTerm}
+          onChange={
+            setSearchTerm
+          }
+          totalCount={
+            clientSummaries.length
+          }
+          filteredCount={
+            filteredClients.length
+          }
+        />
 
+        {isLoading ? (
+          <div className="rounded-2xl border border-zinc-200 bg-white p-12 text-center text-sm text-zinc-500 shadow-sm">
+            در حال آماده‌سازی حساب موکلین...
+          </div>
+        ) : selectedClient ? (
+          <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <div className="border-b border-zinc-100 px-5 py-5 sm:px-6">
+              <h2 className="text-lg font-bold text-zinc-900">
+                جزئیات مالی{' '}
+                {
+                  selectedClient.clientName
+                }
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                سهم این موکل از هر پرونده به‌صورت مستقل نمایش داده می‌شود.
+              </p>
+            </div>
+
+            <ClientDetailTable
+              cases={
+                selectedClient.cases
+              }
+            />
+          </section>
+        ) : (
+          <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <div className="border-b border-zinc-100 px-5 py-5 sm:px-6">
+              <h2 className="text-lg font-bold text-zinc-900">
+                فهرست حساب موکلین
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                برای مشاهده جزئیات، روی ردیف هر موکل کلیک کنید.
+              </p>
+            </div>
+
+            <ClientFinanceTable
+              clients={
+                filteredClients
+              }
+              onSelectClient={
+                setSearchTerm
+              }
+            />
+          </section>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ClientsPageFallback() {
+  return (
+    <div className="min-h-screen bg-zinc-50 p-8">
+      <div className="mx-auto max-w-7xl rounded-2xl border border-zinc-200 bg-white p-12 text-center text-sm text-zinc-500 shadow-sm">
+        در حال بارگذاری حساب موکلین...
       </div>
     </div>
   )
@@ -188,7 +317,11 @@ function ClientsPageContent() {
 
 export default function ClientsPage() {
   return (
-    <Suspense>
+    <Suspense
+      fallback={
+        <ClientsPageFallback />
+      }
+    >
       <ClientsPageContent />
     </Suspense>
   )

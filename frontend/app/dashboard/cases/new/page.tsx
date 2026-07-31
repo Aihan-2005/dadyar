@@ -179,6 +179,9 @@ const clientSchema = z.object({
   role: optionalTextSchema,
   representative:
     optionalTextSchema,
+
+    feeShareAmount:
+        optionalNumberSchema,
 })
 
 const opposingPartySchema = z.object({
@@ -198,7 +201,14 @@ const otherPersonSchema = z.object({
   description: optionalTextSchema,
 })
 
+
+
 const paymentSchema = z.object({
+    clientId:
+    optionalTextSchema,
+
+  clientName:
+    optionalTextSchema,
   amount: optionalNumberSchema,
   isPaid: z
     .boolean()
@@ -206,6 +216,8 @@ const paymentSchema = z.object({
     .default(false),
   paymentDate: optionalTextSchema,
 })
+
+
 
 const branchHistorySchema =
   z.object({
@@ -307,10 +319,245 @@ const caseSchema = z.object({
     .array(expenseSchema)
     .optional(),
 
+ 
+
+
   otherPersons: z
     .array(otherPersonSchema)
     .optional(),
-})
+}).superRefine(
+  (data, context) => {
+    const clients =
+      (
+        data.clients ??
+        []
+      )
+        .map(
+          (
+            client,
+            index
+          ) => ({
+            ...client,
+            index,
+
+            identity:
+              client.clientId
+                ?.trim() ||
+              client.name
+                ?.trim() ||
+              '',
+
+            share:
+              toFiniteNumber(
+                client
+                  .feeShareAmount
+              ),
+          })
+        )
+        .filter(
+          (client) =>
+            Boolean(
+              client.identity
+            )
+        )
+
+    const contractAmount =
+      toFiniteNumber(
+        data.contractAmount
+      )
+
+    if (
+      clients.length > 1 &&
+      contractAmount > 0
+    ) {
+      clients.forEach(
+        (client) => {
+          if (
+            client.share <= 0
+          ) {
+            context.addIssue({
+              code:
+                z.ZodIssueCode
+                  .custom,
+
+              path: [
+                'clients',
+                client.index,
+                'feeShareAmount',
+              ],
+
+              message:
+                'سهم حق‌الوکاله این موکل را وارد کنید',
+            })
+          }
+        }
+      )
+
+      const totalShares =
+        clients.reduce(
+          (sum, client) =>
+            sum +
+            client.share,
+          0
+        )
+
+      if (
+        totalShares !==
+        contractAmount
+      ) {
+        context.addIssue({
+          code:
+            z.ZodIssueCode
+              .custom,
+
+          path: [
+            'contractAmount',
+          ],
+
+          message:
+            'مجموع سهم موکلین باید دقیقاً برابر مبلغ کل قرارداد باشد',
+        })
+      }
+    }
+
+    const requiresClientForPayment =
+      clients.length > 1 &&
+      data.paymentType !==
+        'non-cash'
+
+    if (
+      !requiresClientForPayment
+    ) {
+      return
+    }
+
+    const validClientKeys =
+      new Set(
+        clients.map(
+          (client) =>
+            client.identity
+        )
+      )
+
+    const scheduledByClient =
+      new Map<
+        string,
+        number
+      >()
+
+    ;(
+      data.cashPayments ??
+      []
+    ).forEach(
+      (
+        payment,
+        index
+      ) => {
+        const amount =
+          toFiniteNumber(
+            payment.amount
+          )
+
+        if (
+          amount <= 0
+        ) {
+          return
+        }
+
+        const paymentClientKey =
+          payment.clientId
+            ?.trim() ||
+          payment.clientName
+            ?.trim() ||
+          ''
+
+        if (
+          !paymentClientKey
+        ) {
+          context.addIssue({
+            code:
+              z.ZodIssueCode
+                .custom,
+
+            path: [
+              'cashPayments',
+              index,
+              'clientId',
+            ],
+
+            message:
+              'موکل مرتبط با این پرداخت را مشخص کنید',
+          })
+
+          return
+        }
+
+        if (
+          !validClientKeys.has(
+            paymentClientKey
+          )
+        ) {
+          context.addIssue({
+            code:
+              z.ZodIssueCode
+                .custom,
+
+            path: [
+              'cashPayments',
+              index,
+              'clientId',
+            ],
+
+            message:
+              'موکل انتخاب‌شده در پرونده وجود ندارد',
+          })
+
+          return
+        }
+
+        scheduledByClient.set(
+          paymentClientKey,
+
+          (
+            scheduledByClient.get(
+              paymentClientKey
+            ) ?? 0
+          ) + amount
+        )
+      }
+    )
+
+    clients.forEach(
+      (client) => {
+        const scheduled =
+          scheduledByClient.get(
+            client.identity
+          ) ?? 0
+
+        if (
+          scheduled >
+          client.share
+        ) {
+          context.addIssue({
+            code:
+              z.ZodIssueCode
+                .custom,
+
+            path: [
+              'clients',
+              client.index,
+              'feeShareAmount',
+            ],
+
+            message:
+              'مجموع اقساط این موکل از سهم حق‌الوکاله او بیشتر است',
+          })
+        }
+      }
+    )
+  }
+)
+      
 
 type CaseFormInput =
   z.input<typeof caseSchema>
@@ -659,6 +906,8 @@ export default function NewCasePage() {
         nationalId: '',
         role: '',
         representative: '',
+          feeShareAmount:
+                  undefined,
       },
     ],
 
@@ -807,92 +1056,259 @@ export default function NewCasePage() {
     control,
     name: 'otherPersons',
   })
+type WatchedCashPayment = {
+  clientId?: string
+  clientName?: string
+  amount?: unknown
+  isPaid?: boolean
+  paymentDate?: string
+}
 
-  const watchCashPayments =
-    watch(
-      'cashPayments'
-    ) ?? []
+type WatchedClient = {
+  clientId?: string
+  name?: string
+  feeShareAmount?: unknown
+}
 
-  const watchBranchHistory =
-    watch(
-      'branchHistory'
-    ) ?? []
+const watchCashPayments =
+  (watch('cashPayments') ??
+    []) as WatchedCashPayment[]
 
-  const watchExpenses =
-    watch(
-      'expenses'
-    ) ?? []
+const watchClients =
+  (watch('clients') ??
+    []) as WatchedClient[]
 
-  const watchedPaymentType =
-    watch(
-      'paymentType'
-    ) ?? 'cash'
+const watchBranchHistory =
+  watch('branchHistory') ?? []
 
-  const effectivePaymentType =
-    watchedPaymentType ||
-    paymentType
+const watchExpenses =
+  watch('expenses') ?? []
 
-  const activeCourtLocationIndex =
-    watchBranchHistory.findIndex(
-      (location) =>
-        location.isActive
-    )
+const watchedPaymentType =
+  watch('paymentType') ?? 'cash'
 
-  const activeCourtLocation =
-    activeCourtLocationIndex >= 0
-      ? watchBranchHistory[
-          activeCourtLocationIndex
-        ]
-      : undefined
+const effectivePaymentType =
+  watchedPaymentType || paymentType
 
-  const activeBranch =
-    activeCourtLocation
-      ?.branchNumber ?? ''
-
-  const courtLocationHistory =
-    watchBranchHistory
-      .map(
-        (location, index) => ({
-          location,
-          index,
-        })
-      )
-      .filter(
-        ({
-          location,
-          index,
-        }) =>
-          index !==
-            activeCourtLocationIndex &&
-          hasCourtLocationValue(
-            location
-          )
-      )
-
-
-      const expensesTotal =
-  watchExpenses.reduce<number>(
-    (total, expense) => {
-      return (
-        total +
-        toFiniteNumber(
-          expense.amount,
-        )
-      )
-    },
-    0,
-  )
+/*
+|--------------------------------------------------------------------------
+| مبلغ کل قرارداد
+|--------------------------------------------------------------------------
+|
+| این متغیر باید قبل از محاسبات سهم موکلین تعریف شود.
+|
+*/
 
 const contractAmount =
   toFiniteNumber(
-    watch('contractAmount'),
+    watch('contractAmount')
   )
 
-const relevantPayments =
+/*
+|--------------------------------------------------------------------------
+| موکلین معتبر و فعال پرونده
+|--------------------------------------------------------------------------
+*/
+
+const activeClients =
+  watchClients
+    .map((client, index) => ({
+      index,
+
+      clientId:
+        client.clientId?.trim() ||
+        undefined,
+
+      clientName:
+        client.name?.trim() || '',
+
+      feeShareAmount:
+        toFiniteNumber(
+          client.feeShareAmount
+        ),
+    }))
+    .filter((client) =>
+      Boolean(
+        client.clientId ||
+          client.clientName
+      )
+    )
+
+/*
+|--------------------------------------------------------------------------
+| مقدار Option مربوط به هر موکل
+|--------------------------------------------------------------------------
+*/
+
+const getClientOptionValue = (
+  client: {
+    clientId?: string
+    clientName: string
+  }
+): string => {
+  if (client.clientId) {
+    return `id:${client.clientId}`
+  }
+
+  return `name:${client.clientName}`
+}
+
+/*
+|--------------------------------------------------------------------------
+| محاسبه سهم حق‌الوکاله موکلین
+|--------------------------------------------------------------------------
+*/
+
+const allocatedFeeTotal =
+  activeClients.reduce<number>(
+    (total, client) =>
+      total +
+      client.feeShareAmount,
+    0
+  )
+
+const unallocatedFeeAmount =
+  contractAmount -
+  allocatedFeeTotal
+
+/*
+|--------------------------------------------------------------------------
+| تقسیم مساوی حق‌الوکاله
+|--------------------------------------------------------------------------
+*/
+
+const splitFeeEqually = () => {
+  if (
+    activeClients.length === 0 ||
+    contractAmount <= 0
+  ) {
+    return
+  }
+
+  const baseAmount =
+    Math.floor(
+      contractAmount /
+        activeClients.length
+    )
+
+  let assignedAmount = 0
+
+  activeClients.forEach(
+    (client, position) => {
+      const isLastClient =
+        position ===
+        activeClients.length - 1
+
+      /*
+       * باقیمانده ناشی از تقسیم عدد صحیح به موکل آخر می‌رسد
+       * تا مجموع سهم‌ها دقیقاً برابر مبلغ قرارداد باشد.
+       */
+      const clientShare =
+        isLastClient
+          ? contractAmount -
+            assignedAmount
+          : baseAmount
+
+      assignedAmount +=
+        clientShare
+
+      setValue(
+        `clients.${client.index}.feeShareAmount`,
+        clientShare,
+        {
+          shouldDirty: true,
+          shouldValidate: true,
+        }
+      )
+    }
+  )
+}
+
+/*
+|--------------------------------------------------------------------------
+| موقعیت و شعبه فعال پرونده
+|--------------------------------------------------------------------------
+*/
+
+const activeCourtLocationIndex =
+  watchBranchHistory.findIndex(
+    (location) =>
+      location.isActive
+  )
+
+const activeCourtLocation =
+  activeCourtLocationIndex >= 0
+    ? watchBranchHistory[
+        activeCourtLocationIndex
+      ]
+    : undefined
+
+const activeBranch =
+  activeCourtLocation
+    ?.branchNumber ?? ''
+
+const courtLocationHistory =
+  watchBranchHistory
+    .map((location, index) => ({
+      location,
+      index,
+    }))
+    .filter(
+      ({
+        location,
+        index,
+      }) =>
+        index !==
+          activeCourtLocationIndex &&
+        hasCourtLocationValue(
+          location
+        )
+    )
+
+/*
+|--------------------------------------------------------------------------
+| مجموع هزینه‌های پرونده
+|--------------------------------------------------------------------------
+*/
+
+const expensesTotal =
+  watchExpenses.reduce<number>(
+    (total, expense) =>
+      total +
+      toFiniteNumber(
+        expense.amount
+      ),
+    0
+  )
+
+/*
+|--------------------------------------------------------------------------
+| پرداخت‌های قابل محاسبه
+|--------------------------------------------------------------------------
+|
+| حالت cash:
+| پرداخت‌های نقدی محاسبه می‌شوند.
+|
+| حالت both:
+| پرداخت‌های نقدی نیز محاسبه می‌شوند.
+|
+| حالت non-cash:
+| آرایه پرداخت‌های نقدی وارد محاسبات نمی‌شود.
+|
+*/
+
+const relevantPayments:
+  WatchedCashPayment[] =
   effectivePaymentType ===
   'non-cash'
     ? []
     : watchCashPayments
+
+/*
+|--------------------------------------------------------------------------
+| مجموع مبالغ پرداخت‌شده
+|--------------------------------------------------------------------------
+*/
 
 const totalPaid =
   relevantPayments.reduce<number>(
@@ -906,25 +1322,34 @@ const totalPaid =
       return (
         total +
         toFiniteNumber(
-          payment.amount,
+          payment.amount
         )
       )
     },
-    0,
+    0
   )
+
+/*
+|--------------------------------------------------------------------------
+| مجموع کل پرداخت‌ها و اقساط ثبت‌شده
+|--------------------------------------------------------------------------
+*/
 
 const totalCash =
   relevantPayments.reduce<number>(
-    (total, payment) => {
-      return (
-        total +
-        toFiniteNumber(
-          payment.amount,
-        )
-      )
-    },
-    0,
+    (total, payment) =>
+      total +
+      toFiniteNumber(
+        payment.amount
+      ),
+    0
   )
+
+/*
+|--------------------------------------------------------------------------
+| تاریخ امروز برای تشخیص مطالبات معوق
+|--------------------------------------------------------------------------
+*/
 
 const today = new Date()
 
@@ -932,12 +1357,21 @@ today.setHours(
   0,
   0,
   0,
-  0,
+  0
 )
+
+/*
+|--------------------------------------------------------------------------
+| مجموع مطالبات معوق
+|--------------------------------------------------------------------------
+*/
 
 const overdueTotal =
   relevantPayments.reduce<number>(
     (total, payment) => {
+      /*
+       * پرداخت انجام‌شده دیگر معوق نیست.
+       */
       if (
         payment.isPaid === true
       ) {
@@ -956,7 +1390,7 @@ const overdueTotal =
 
       const parsedDueDate =
         parseFinanceDate(
-          paymentDate,
+          paymentDate
         )
 
       if (!parsedDueDate) {
@@ -964,38 +1398,156 @@ const overdueTotal =
       }
 
       /*
-       * یک Date جدید می‌سازیم تا مقدار بازگشتی
-       * parseFinanceDate را mutate نکنیم.
+       * یک Date مستقل می‌سازیم تا مقدار اصلی تغییر نکند.
        */
       const dueDate =
         new Date(
-          parsedDueDate.getTime(),
+          parsedDueDate.getTime()
         )
 
       dueDate.setHours(
         0,
         0,
         0,
-        0,
+        0
       )
 
-      const isOverdue =
-        dueDate.getTime() <
+      if (
+        dueDate.getTime() >=
         today.getTime()
-
-      if (!isOverdue) {
+      ) {
         return total
       }
 
       return (
         total +
         toFiniteNumber(
-          payment.amount,
+          payment.amount
         )
       )
     },
-    0,
+    0
   )
+
+/*
+|--------------------------------------------------------------------------
+| محاسبه خودکار مانده و مطالبات معوق فرم
+|--------------------------------------------------------------------------
+*/
+
+useEffect(() => {
+  const remainingAmount =
+    Math.max(
+      contractAmount -
+        totalPaid,
+      0
+    )
+
+  setValue(
+    'remainingAmount',
+    remainingAmount,
+    {
+      shouldDirty: false,
+      shouldValidate: false,
+    }
+  )
+
+  setValue(
+    'overdueAmount',
+    overdueTotal,
+    {
+      shouldDirty: false,
+      shouldValidate: false,
+    }
+  )
+}, [
+  contractAmount,
+  totalPaid,
+  overdueTotal,
+  setValue,
+])
+
+/*
+|--------------------------------------------------------------------------
+| تخصیص خودکار کل مبلغ قرارداد به موکل تک‌نفره
+|--------------------------------------------------------------------------
+*/
+
+const singleClientIndex =
+  activeClients.length === 1
+    ? activeClients[0].index
+    : null
+
+const singleClientCurrentShare =
+  activeClients.length === 1
+    ? activeClients[0]
+        .feeShareAmount
+    : null
+
+useEffect(() => {
+  if (
+    singleClientIndex === null
+  ) {
+    return
+  }
+
+  /*
+   * جلوگیری از setValue و Render اضافه.
+   */
+  if (
+    singleClientCurrentShare ===
+    contractAmount
+  ) {
+    return
+  }
+
+  setValue(
+    `clients.${singleClientIndex}.feeShareAmount`,
+    contractAmount,
+    {
+      shouldDirty: false,
+      shouldValidate: false,
+    }
+  )
+}, [
+  contractAmount,
+  setValue,
+  singleClientCurrentShare,
+  singleClientIndex,
+])
+
+
+
+useEffect(() => {
+  if (
+    singleClientIndex === null
+  ) {
+    return
+  }
+
+  if (
+    singleClientCurrentShare ===
+    contractAmount
+  ) {
+    return
+  }
+
+  setValue(
+    `clients.${singleClientIndex}.feeShareAmount`,
+    contractAmount,
+    {
+      shouldDirty: false,
+      shouldValidate: false,
+    }
+  )
+}, [
+  contractAmount,
+  setValue,
+  singleClientCurrentShare,
+  singleClientIndex,
+])
+
+
 
   const setOptionalNumberValue = (
     value: unknown
@@ -1417,6 +1969,11 @@ const overdueTotal =
             cleanText(
               client.representative
             ) || undefined,
+              feeShareAmount:
+          toFiniteNumber(
+            client
+              .feeShareAmount
+        ),
         }))
         .filter((client) =>
           hasMeaningfulValue(
@@ -1598,42 +2155,79 @@ const overdueTotal =
       paymentType ??
       'cash'
 
-    const formattedCashPayments =
-      selectedPaymentType ===
-      'non-cash'
-        ? []
-        : (
-            data.cashPayments ??
-            []
-          )
-            .map(
-              (payment) => ({
-                amount:
-                  toFiniteNumber(
-                    payment.amount
-                  ),
-
-                isPaid:
-                  Boolean(
-                    payment.isPaid
-                  ),
-
-                paymentDate:
-                  cleanText(
-                    payment.paymentDate
-                  ) ||
-                  undefined,
-              })
+const formattedCashPayments =
+  selectedPaymentType ===
+  'non-cash'
+    ? []
+    : (
+        data.cashPayments ??
+        []
+      )
+        .map((payment) => {
+          const requestedClientId =
+            cleanText(
+              payment.clientId
             )
-            .filter(
-              (payment) =>
-                payment.amount >
-                  0 ||
-                payment.isPaid ||
-                Boolean(
-                  payment.paymentDate
-                )
+
+          const requestedClientName =
+            cleanText(
+              payment.clientName
             )
+
+          const matchedClient =
+            cleanedClients.find(
+              (client) =>
+                requestedClientId
+                  ? client.clientId ===
+                    requestedClientId
+                  : client.name ===
+                    requestedClientName
+            )
+
+          const onlyClient =
+            cleanedClients.length ===
+            1
+              ? cleanedClients[0]
+              : undefined
+
+          const paymentClient =
+            matchedClient ??
+            onlyClient
+
+          return {
+            clientId:
+              paymentClient
+                ?.clientId,
+
+            clientName:
+              paymentClient
+                ?.name,
+
+            amount:
+              toFiniteNumber(
+                payment.amount
+              ),
+
+            isPaid:
+              Boolean(
+                payment.isPaid
+              ),
+
+            paymentDate:
+              cleanText(
+                payment
+                  .paymentDate
+              ) || undefined,
+          }
+        })
+        .filter(
+          (payment) =>
+            payment.amount > 0 ||
+            payment.isPaid ||
+            Boolean(
+              payment.paymentDate
+            )
+        )
 
     const cleanedExpenses =
       (
@@ -2223,6 +2817,8 @@ const overdueTotal =
     nationalId: '',
     role: '',
     representative: '',
+    feeShareAmount:
+                  undefined,
   })
 }
       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
@@ -2880,6 +3476,157 @@ const overdueTotal =
     </div>
   </div>
 
+
+        {activeClients.length > 1 && (
+  <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-5">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h3 className="font-bold text-violet-900">
+          تقسیم حق‌الوکاله بین موکلین
+        </h3>
+
+        <p className="mt-1 text-sm leading-6 text-violet-700">
+          سهم هر موکل را مشخص کنید. مجموع سهم‌ها باید دقیقاً برابر مبلغ کل قرارداد باشد.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={
+          splitFeeEqually
+        }
+        disabled={
+          contractAmount <= 0
+        }
+        className="shrink-0 rounded-lg border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        تقسیم مساوی
+      </button>
+    </div>
+
+    <div className="mt-5 grid gap-3">
+      {activeClients.map(
+        (client) => (
+          <div
+            key={
+              client.clientId ??
+              `${client.clientName}-${client.index}`
+            }
+            className="grid grid-cols-1 items-center gap-3 rounded-xl border border-violet-200 bg-white p-4 sm:grid-cols-[minmax(0,1fr)_minmax(180px,260px)]"
+          >
+            <div className="min-w-0">
+              <p className="truncate font-bold text-zinc-900">
+                {client.clientName ||
+                  `موکل ${client.index + 1}`}
+              </p>
+
+              <p className="mt-1 text-xs text-zinc-500">
+                سهم این موکل از مبلغ کل قرارداد
+              </p>
+            </div>
+
+            <div>
+              <div className="relative">
+                <input
+                  {...register(
+                    `clients.${client.index}.feeShareAmount`,
+                    {
+                      setValueAs:
+                        setOptionalNumberValue,
+                    }
+                  )}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  dir="ltr"
+                  className="w-full rounded-lg border border-violet-200 bg-white px-3 py-2 pl-14 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                />
+
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">
+                  ریال
+                </span>
+              </div>
+
+              {errors.clients?.[
+                client.index
+              ]?.feeShareAmount && (
+                <p className="mt-1 text-xs text-red-600">
+                  {
+                    errors.clients[
+                      client.index
+                    ]?.feeShareAmount
+                      ?.message
+                  }
+                </p>
+              )}
+            </div>
+          </div>
+        )
+      )}
+    </div>
+
+    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="rounded-lg bg-white p-3 ring-1 ring-violet-100">
+        <p className="text-xs text-zinc-500">
+          مبلغ کل قرارداد
+        </p>
+
+        <p className="mt-1 font-black text-zinc-900">
+          {contractAmount.toLocaleString(
+            'fa-IR'
+          )}{' '}
+          ریال
+        </p>
+      </div>
+
+      <div className="rounded-lg bg-white p-3 ring-1 ring-violet-100">
+        <p className="text-xs text-zinc-500">
+          مجموع سهم‌های ثبت‌شده
+        </p>
+
+        <p className="mt-1 font-black text-violet-700">
+          {allocatedFeeTotal.toLocaleString(
+            'fa-IR'
+          )}{' '}
+          ریال
+        </p>
+      </div>
+
+      <div
+        className={`rounded-lg p-3 ring-1 ${
+          unallocatedFeeAmount ===
+          0
+            ? 'bg-emerald-50 ring-emerald-200'
+            : 'bg-red-50 ring-red-200'
+        }`}
+      >
+        <p className="text-xs text-zinc-500">
+          اختلاف با مبلغ قرارداد
+        </p>
+
+        <p
+          className={`mt-1 font-black ${
+            unallocatedFeeAmount ===
+            0
+              ? 'text-emerald-700'
+              : 'text-red-700'
+          }`}
+        >
+          {Math.abs(
+            unallocatedFeeAmount
+          ).toLocaleString(
+            'fa-IR'
+          )}{' '}
+          ریال
+        </p>
+      </div>
+    </div>
+  </div>
+)}
+
+
+
+
   <div className="space-y-3">
     <label className="block text-sm font-medium text-zinc-900">
       نوع قرارداد
@@ -2952,9 +3699,11 @@ const overdueTotal =
           type="button"
           onClick={() =>
             appendCashPayment({
-              amount: undefined,
-              isPaid: false,
-              paymentDate: '',
+                clientId: '',
+                clientName: '',
+                amount: undefined,
+                isPaid: false,
+                paymentDate: ''
             })
           }
           className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
@@ -2990,7 +3739,103 @@ const overdueTotal =
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {activeClients.length > 1 && (
+  <div>
+    <label className="mb-1 block text-xs font-medium text-green-700">
+      موکل مرتبط
+    </label>
+
+    <select
+      value={
+        watch(
+          `cashPayments.${index}.clientId`
+        )
+          ? `id:${watch(
+              `cashPayments.${index}.clientId`
+            )}`
+          : watch(
+                `cashPayments.${index}.clientName`
+              )
+            ? `name:${watch(
+                `cashPayments.${index}.clientName`
+              )}`
+            : ''
+      }
+      onChange={(event) => {
+        const selectedValue =
+          event.target.value
+
+        const selectedClient =
+          activeClients.find(
+            (client) =>
+              getClientOptionValue(
+                client
+              ) ===
+              selectedValue
+          )
+
+        setValue(
+          `cashPayments.${index}.clientId`,
+          selectedClient
+            ?.clientId ?? '',
+          {
+            shouldDirty: true,
+            shouldValidate: true,
+          }
+        )
+
+        setValue(
+          `cashPayments.${index}.clientName`,
+          selectedClient
+            ?.clientName ?? '',
+          {
+            shouldDirty: true,
+            shouldValidate: true,
+          }
+        )
+      }}
+      className="w-full rounded-lg border border-green-200 bg-white px-3 py-2 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500"
+    >
+      <option value="">
+        انتخاب موکل
+      </option>
+
+      {activeClients.map(
+        (client) => (
+          <option
+            key={
+              client.clientId ??
+              `${client.clientName}-${client.index}`
+            }
+            value={
+              getClientOptionValue(
+                client
+              )
+            }
+          >
+            {client.clientName ||
+              `موکل ${client.index + 1}`}
+          </option>
+        )
+      )}
+    </select>
+
+    {errors.cashPayments?.[
+      index
+    ]?.clientId && (
+      <p className="mt-1 text-xs text-red-600">
+        {
+          errors.cashPayments[
+            index
+          ]?.clientId
+            ?.message
+        }
+      </p>
+    )}
+  </div>
+)}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4  gap-3">
               <div>
                 <label className="text-xs text-green-700 font-medium block mb-1">
                   مبلغ (ریال)
@@ -3009,7 +3854,8 @@ const overdueTotal =
 
               <div>
                 <label className="text-xs text-green-700 font-medium block mb-1">
-                  تاریخ پرداخت (شمسی)
+                            تاریخ پرداخت یا سررسید (شمسی)
+
                 </label>
                 <input
                   type="text"
