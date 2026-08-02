@@ -22,7 +22,11 @@ export const financeMockCases: Case[] = [
 
     remainingAmount: 60000000,
 
-    expenses: 5000000,
+    expenses: [
+  {
+    amount: 5000000,
+  },
+],
 
     dueDate: new Date('2026-08-10'),
 
@@ -51,7 +55,11 @@ export const financeMockCases: Case[] = [
 
     remainingAmount: 50000000,
 
-    expenses: 12000000,
+   expenses: [
+  {
+    amount: 12000000,
+  },
+],
 
     dueDate: new Date('2026-06-20'),
 
@@ -80,7 +88,11 @@ export const financeMockCases: Case[] = [
 
     remainingAmount: 0,
 
-    expenses: 1000000,
+    expenses: [
+  {
+    amount: 1000000,
+  },
+],
 
     dueDate: new Date('2026-03-10'),
 
@@ -109,7 +121,11 @@ export const financeMockCases: Case[] = [
 
     remainingAmount: 200000000,
 
-    expenses: 25000000,
+       expenses: [
+  {
+    amount: 25000000,
+  },
+],
 
     dueDate: new Date('2026-05-01'),
 

@@ -8,10 +8,10 @@ interface Props {
   isOpen: boolean
   client?: Client
   onClose: () => void
-  onSubmit: (payload: CreateClientPayload) => void
+  
 }
 
-export function ClientModal({ isOpen, client, onClose, onSubmit }: Props) {
+export function ClientModal({ isOpen, client, onClose,  }: Props) {
   if (!isOpen) return null
 
   return (
@@ -36,7 +36,7 @@ export function ClientModal({ isOpen, client, onClose, onSubmit }: Props) {
           </button>
         </div>
         <div className="p-6">
-          <ClientForm client={client} onSubmit={onSubmit} onCancel={onClose} />
+          <ClientForm client={client}  onSuccess={onClose} onCancel={onClose} />
         </div>
       </div>
     </div>

@@ -208,7 +208,7 @@ export function ClientForm({ client, onSuccess, onCancel }: Props) {
     if (onSuccess) onSuccess()
   }
 
-  const inputCls = 'w-full px-4 py-2.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white text-right'
+  const inputCls = 'bg-white text-zinc-900 dark:bg-zinc-800 dark:text-white w-full px-4 py-2.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900  text-right'
   const labelCls = 'block text-sm font-medium text-zinc-700 mb-2 text-right'
 
   return (

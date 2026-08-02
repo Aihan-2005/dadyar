@@ -17,6 +17,7 @@ export type {
   CaseStatus,
   CreateCasePayload,
   UpdateCasePayload,
+  CourtBranch,
 } from '@/types/case'
 
 interface FetchCasesOptions {

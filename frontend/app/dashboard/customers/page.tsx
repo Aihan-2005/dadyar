@@ -423,12 +423,19 @@ export default function CustomersPage() {
       isMinor: isUnderLegalAge(payload.birthDate),
     } as CreateClientPayload & ClientExtraFields
 
-    if (editingClient) {
-      updateClient({ ...normalizedPayload, id: editingClient.id } as Client)
-    } else {
-      addClient(normalizedPayload as CreateClientPayload)
-    }
-
+    // if (editingClient) {
+    //   updateClient({ ...normalizedPayload, id: editingClient.id } as Client)
+    // } else {
+    //   addClient(normalizedPayload as CreateClientPayload)
+    // }
+if (editingClient) {
+  updateClient(
+    editingClient.id,
+    normalizedPayload
+  )
+} else {
+  addClient(normalizedPayload)
+}
     setIsModalOpen(false)
     setEditingClient(undefined)
   }
