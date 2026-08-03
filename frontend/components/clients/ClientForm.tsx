@@ -173,8 +173,7 @@ export function ClientForm({ client, onSuccess, onCancel }: Props) {
   const { addClient, updateClient, isLoading } = useClientStore()
   
   const [form, setForm] = useState<CreateClientPayload>({
-    firstName: '',
-    lastName: '',
+    fullName:'',
     nationalId: '',
     phoneNumber: '',
     email: '',
@@ -185,8 +184,8 @@ export function ClientForm({ client, onSuccess, onCancel }: Props) {
   useEffect(() => {
     if (client) {
       setForm({
-        firstName: client.firstName || '',
-        lastName: client.lastName || '',
+        fullName: client.fullName || '',
+        
         nationalId: client.nationalId || '',
         phoneNumber: client.phoneNumber || '',
         email: client.email || '',

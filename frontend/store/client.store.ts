@@ -251,9 +251,8 @@ import { api } from '@/lib/api'
 
 export interface Client {
   id: string
-  firstName?: string
-  lastName?: string
-  name?: string
+fullName: string
+  
   phoneNumber?: string
   phone?: string
   landlineNumber?: string
@@ -362,9 +361,8 @@ const normalizeClientPayload = <
 
   return {
     ...payload,
-    firstName: payload.firstName?.trim() || '',
-    lastName: payload.lastName?.trim() || '',
-    name: payload.name?.trim() || '',
+  fullName: payload.fullName?.trim() || '',
+    
     phoneNumber: payload.phoneNumber?.trim() || '',
     phone: payload.phone?.trim() || '',
     landlineNumber: payload.landlineNumber?.trim() || '',

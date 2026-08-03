@@ -11,6 +11,8 @@ type ClientExtraFields = {
   birthDate?: string
   address?: string
   isMinor?: boolean
+   personalPassword?: string 
+   contractNumber?: string
 }
 
 type ClientWithExtra = Client & ClientExtraFields
@@ -130,27 +132,32 @@ const isUnderLegalAge = (birthDate?: string) => {
 }
 
 const getEmptyClientForm = (): ClientFormData =>
-  ({
-    firstName: '',
-    lastName: '',
-    nationalId: '',
-    phoneNumber: '',
-    landlineNumber: '',
-    birthDate: '',
-    role: '',
-    address: '',
-    isMinor: false,
-  } as ClientFormData)
+({
+  fullName: '',
+  representative: '',
+  nationalId: '',
+  phoneNumber: '',
+  landlineNumber: '',
+  birthDate: '',
+  role: '',
+  address: '',
+  isMinor: false,
+   personalPassword: '', 
+     contractNumber: '',
+} as ClientFormData)
 
 const getClientDisplayName = (client: ClientWithExtra) =>
-  `${client.firstName || ''} ${client.lastName || ''}`.trim() || 'بدون نام'
+  client.fullName?.trim() || 'بدون نام'
 
 const getClientInitials = (client: ClientWithExtra) => {
-  const firstInitial = client.firstName?.trim()?.charAt(0) || ''
-  const lastInitial = client.lastName?.trim()?.charAt(0) || ''
+  const words = client.fullName?.trim().split(/\s+/) ?? []
+
+  const firstInitial = words[0]?.charAt(0) ?? ''
+  const lastInitial =
+    words.length > 1 ? words[words.length - 1].charAt(0) : ''
+
   return `${firstInitial}${lastInitial}` || 'م'
 }
-
 function ClientEditorModal({ isOpen, client, onClose, onSubmit }: ClientEditorModalProps) {
   const [formData, setFormData] = useState<ClientFormData>(getEmptyClientForm())
 
@@ -164,6 +171,8 @@ function ClientEditorModal({ isOpen, client, onClose, onSubmit }: ClientEditorMo
         role: client.role || '',
         landlineNumber: client.landlineNumber || '',
         birthDate: client.birthDate || '',
+        personalPassword: client.personalPassword || '',
+         contractNumber: client.contractNumber || '', 
         isMinor: isUnderLegalAge(client.birthDate),
       } as ClientFormData)
     } else {
@@ -188,16 +197,19 @@ function ClientEditorModal({ isOpen, client, onClose, onSubmit }: ClientEditorMo
 
     const normalizedBirthDate = normalizeDigits((formData.birthDate || '').trim())
 
-    const payload = {
-      ...formData,
-      firstName: (formData.firstName || '').trim(),
-      lastName: (formData.lastName || '').trim(),
+const payload = {
+  ...formData,
+  fullName: (formData.fullName || '').trim(),
+  representative: (formData.representative || '').trim() || undefined,
+
       nationalId: (formData.nationalId || '').trim(),
       phoneNumber: (formData.phoneNumber || '').trim(),
       landlineNumber: (formData.landlineNumber || '').trim() || undefined,
       birthDate: normalizedBirthDate || undefined,
       role: (formData.role || '').trim() || undefined,
       address: (formData.address || '').trim() || undefined,
+      personalPassword: (formData.personalPassword || '').trim() || undefined, 
+       contractNumber: (formData.contractNumber || '').trim() || undefined,
       isMinor: isUnderLegalAge(normalizedBirthDate),
     } as ClientFormData
 
@@ -232,37 +244,47 @@ function ClientEditorModal({ isOpen, client, onClose, onSubmit }: ClientEditorMo
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 sm:p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-8 space-y-6 text-zinc-900 ">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-800 mb-2">
-                نام
-              </label>
-              <input
-                value={formData.firstName || ''}
-                onChange={(event) => updateField('firstName', event.target.value as ClientFormData['firstName'])}
-                type="text"
-                required
-                className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
-                placeholder="مثال: علی"
-              />
-            </div>
+  <label className="block text-sm font-medium text-zinc-800 mb-2">
+    نام و نام خانوادگی
+  </label>
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-800 mb-2">
-                نام خانوادگی
-              </label>
-              <input
-                value={formData.lastName || ''}
-                onChange={(event) => updateField('lastName', event.target.value as ClientFormData['lastName'])}
-                type="text"
-                required
-                className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
-                placeholder="مثال: رضایی"
-              />
-            </div>
+  <input
+    value={formData.fullName || ''}
+    onChange={(e) =>
+      updateField(
+        'fullName',
+        e.target.value as ClientFormData['fullName']
+      )
+    }
+    type="text"
+    required
+    className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white text-zinc-900"
+    placeholder="مثال: علی رضایی"
+  />
+</div>
 
-            <div>
+<div>
+  <label className="block text-sm font-medium text-zinc-800 mb-2">
+    نماینده
+  </label>
+
+  <input
+    value={formData.representative || ''}
+    onChange={(e) =>
+      updateField(
+        'representative',
+        e.target.value as ClientFormData['representative']
+      )
+    }
+    type="text"
+    className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white text-zinc-900"
+    placeholder="در صورت وجود"
+  />
+</div>
+            {/* <div>
               <label className="block text-sm font-medium text-zinc-800 mb-2">
                 سمت
               </label>
@@ -273,6 +295,41 @@ function ClientEditorModal({ isOpen, client, onClose, onSubmit }: ClientEditorMo
                 className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
                 placeholder="مثال: خواهان، خوانده، نماینده، ولی، قیم"
               />
+            </div> */}
+                        <div >
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label className="block text-sm font-medium text-zinc-800">
+                  سن
+                </label>
+
+                {minor && (
+                  <span className="text-xs font-bold text-red-600">
+                    زیر سن قانونی
+                  </span>
+                )}
+              </div>
+
+              <input
+                value={formData.birthDate || ''}
+                onChange={(event) => updateField('birthDate', normalizeDigits(event.target.value) as ClientFormData['birthDate'])}
+                type="text"
+                inputMode="numeric"
+                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 bg-white transition-colors ${minor
+                    ? 'border-red-500 text-red-700 bg-red-50 focus:ring-red-500'
+                    : 'border-zinc-300 focus:ring-zinc-900'
+                  }`}
+                placeholder="1384/09/09"
+                dir="ltr"
+              />
+
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+
+                {calculatedAge !== null && (
+                  <span className={minor ? 'text-red-600 font-bold' : 'text-green-700 font-medium'}>
+                    سن محاسبه‌شده: {calculatedAge} سال
+                  </span>
+                )}
+              </div>
             </div>
 
             <div>
@@ -289,6 +346,7 @@ function ClientEditorModal({ isOpen, client, onClose, onSubmit }: ClientEditorMo
                 dir="ltr"
               />
             </div>
+            
 
             <div>
               <label className="block text-sm font-medium text-zinc-800 mb-2">
@@ -320,43 +378,56 @@ function ClientEditorModal({ isOpen, client, onClose, onSubmit }: ClientEditorMo
                 dir="ltr"
               />
             </div>
-
-            <div className="sm:col-span-2">
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <label className="block text-sm font-medium text-zinc-800">
-                  سن   
-                </label>
-
-                {minor && (
-                  <span className="text-xs font-bold text-red-600">
-                    زیر سن قانونی
-                  </span>
-                )}
-              </div>
-
+                 <div>
+              <label className="block text-sm font-medium text-zinc-800 mb-2">
+                سمت
+              </label>
               <input
-                value={formData.birthDate || ''}
-                onChange={(event) => updateField('birthDate', normalizeDigits(event.target.value) as ClientFormData['birthDate'])}
+                value={formData.role || ''}
+                onChange={(event) => updateField('role', event.target.value as ClientFormData['role'])}
                 type="text"
-                inputMode="numeric"
-                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 bg-white transition-colors ${
-                  minor
-                    ? 'border-red-500 text-red-700 bg-red-50 focus:ring-red-500'
-                    : 'border-zinc-300 focus:ring-zinc-900'
-                }`}
-                placeholder="1384/09/09"
-                dir="ltr"
+                className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
+                placeholder="مثال: خواهان، خوانده، نماینده، ولی، قیم"
               />
-
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                
-                {calculatedAge !== null && (
-                  <span className={minor ? 'text-red-600 font-bold' : 'text-green-700 font-medium'}>
-                    سن محاسبه‌شده: {calculatedAge} سال
-                  </span>
-                )}
-              </div>
             </div>
+            <div>
+  <label className="block text-sm font-medium text-zinc-800 mb-2">
+    رمز شخصی
+  </label>
+  <input
+    value={formData.personalPassword || ''}
+    onChange={(event) =>
+      updateField(
+        'personalPassword',
+        event.target.value as ClientFormData['personalPassword']
+      )
+    }
+    type="password"
+    className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
+    placeholder="رمز شخصی موکل"
+    dir="ltr"
+  />
+</div>
+
+            <div>
+  <label className="block text-sm font-medium text-zinc-800 mb-2">
+    شماره قرارداد الکترونیک
+  </label>
+  <input
+    value={formData.contractNumber || ''}
+    onChange={(event) =>
+      updateField(
+        'contractNumber',
+        normalizeDigits(event.target.value) as ClientFormData['contractNumber']
+      )
+    }
+    type="text"
+    inputMode="numeric"
+    className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
+    placeholder="مثال: 140212345678"
+    dir="ltr"
+  />
+</div>
 
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-zinc-800 mb-2">
@@ -417,27 +488,25 @@ export default function CustomersPage() {
     )
   })
 
-  const handleSubmit = (payload: ClientFormData) => {
+const handleSubmit = async (payload: ClientFormData) => {
     const normalizedPayload = {
       ...payload,
       isMinor: isUnderLegalAge(payload.birthDate),
     } as CreateClientPayload & ClientExtraFields
 
-    // if (editingClient) {
-    //   updateClient({ ...normalizedPayload, id: editingClient.id } as Client)
-    // } else {
-    //   addClient(normalizedPayload as CreateClientPayload)
-    // }
-if (editingClient) {
-  updateClient(
-    editingClient.id,
-    normalizedPayload
-  )
-} else {
-  addClient(normalizedPayload)
-}
-    setIsModalOpen(false)
-    setEditingClient(undefined)
+    let result
+    if (editingClient) {
+      result = await updateClient(editingClient.id, normalizedPayload)
+    } else {
+      result = await addClient(normalizedPayload)
+    }
+
+    if (result) {
+      setIsModalOpen(false)
+      setEditingClient(undefined)
+    } else {
+      alert(useClientStore.getState().error || 'خطا در ذخیره‌سازی موکل')
+    }
   }
 
   const handleEdit = (client: ClientWithExtra) => {

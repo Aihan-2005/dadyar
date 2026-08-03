@@ -1,7 +1,6 @@
 export interface Client {
   id: string
-  firstName: string
-  lastName: string
+  fullName: string
   nationalId: string
   phoneNumber: string
 
@@ -22,8 +21,7 @@ export interface Client {
 }
 
 export interface CreateClientPayload {
-  firstName: string
-  lastName: string
+fullName: string
   nationalId: string
   phoneNumber: string
 
