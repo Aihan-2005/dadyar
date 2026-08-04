@@ -378,7 +378,7 @@ const payload = {
                 dir="ltr"
               />
             </div>
-                 <div>
+                 {/* <div>
               <label className="block text-sm font-medium text-zinc-800 mb-2">
                 سمت
               </label>
@@ -389,7 +389,7 @@ const payload = {
                 className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
                 placeholder="مثال: خواهان، خوانده، نماینده، ولی، قیم"
               />
-            </div>
+            </div> */}
             <div>
   <label className="block text-sm font-medium text-zinc-800 mb-2">
     رمز شخصی

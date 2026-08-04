@@ -8,6 +8,7 @@ import { useCasesStore } from '@/store/cases.store'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Plus, X, ChevronDown, Users, UserX } from 'lucide-react'
 import Link from 'next/link'
+import {  useClientStore,type Client,} from '@/store/client.store'
 
 type EditCasePageProps = {
   params: Promise<{ id: string }>
@@ -61,11 +62,13 @@ const lawyerSchema = z.object({
 })
 
 const clientSchema = z.object({
+  clientId: optionalTextSchema,
   name: optionalTextSchema,
   phone: optionalPhoneSchema,
   nationalId: optionalTextSchema,
   role: optionalTextSchema,
   representative: optionalTextSchema,
+  feeShareAmount: optionalNumberSchema,
 })
 
 const opposingPartySchema = z.object({
@@ -86,6 +89,8 @@ const otherPersonSchema = z.object({
 })
 
 const paymentSchema = z.object({
+  clientId: optionalTextSchema, 
+  clientName: optionalTextSchema, 
   amount: optionalNumberSchema,
   isPaid: z.boolean().optional(),
   paymentDate: optionalTextSchema,
@@ -126,11 +131,95 @@ const caseSchema = z.object({
   paymentType: z.enum(['cash', 'non-cash', 'both']).default('cash'),
   cashPayments: z.array(paymentSchema).optional(),
   nonCashDescription: optionalTextSchema,
-  contractAmount: optionalTextSchema,
-  remainingAmount: optionalTextSchema,
-  overdueAmount: optionalTextSchema,
+  contractAmount: optionalNumberSchema,
+  remainingAmount: optionalNumberSchema,
+  overdueAmount: optionalNumberSchema,
   expenses: z.array(expenseSchema).optional(),
   otherPersons: z.array(otherPersonSchema).optional(),
+}).superRefine((data, context) => {
+  const clients = (data.clients ?? [])
+    .map((client, index) => ({
+      ...client,
+      index,
+      identity: client.clientId?.trim() || client.name?.trim() || '',
+      share: toFiniteNumber(client.feeShareAmount),
+    }))
+    .filter((client) => Boolean(client.identity))
+
+  const contractAmount = toFiniteNumber(data.contractAmount)
+
+  if (clients.length > 1 && contractAmount > 0) {
+    clients.forEach((client) => {
+      if (client.share <= 0) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['clients', client.index, 'feeShareAmount'],
+          message: 'سهم حق‌الوکاله این موکل را وارد کنید',
+        })
+      }
+    })
+
+    const totalShares = clients.reduce((sum, client) => sum + client.share, 0)
+
+    if (totalShares !== contractAmount) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['contractAmount'],
+        message: 'مجموع سهم موکلین باید دقیقاً برابر مبلغ کل قرارداد باشد',
+      })
+    }
+  }
+
+  const requiresClientForPayment = clients.length > 1 && data.paymentType !== 'non-cash'
+
+  if (!requiresClientForPayment) {
+    return
+  }
+
+  const validClientKeys = new Set(clients.map((client) => client.identity))
+  const scheduledByClient = new Map<string, number>()
+
+  ;(data.cashPayments ?? []).forEach((payment, index) => {
+    const amount = toFiniteNumber(payment.amount)
+
+    if (amount <= 0) {
+      return
+    }
+
+    const paymentClientKey = payment.clientId?.trim() || payment.clientName?.trim() || ''
+
+    if (!paymentClientKey) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['cashPayments', index, 'clientId'],
+        message: 'موکل مرتبط با این پرداخت را مشخص کنید',
+      })
+      return
+    }
+
+    if (!validClientKeys.has(paymentClientKey)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['cashPayments', index, 'clientId'],
+        message: 'موکل انتخاب‌شده در پرونده وجود ندارد',
+      })
+      return
+    }
+
+    scheduledByClient.set(paymentClientKey, (scheduledByClient.get(paymentClientKey) ?? 0) + amount)
+  })
+
+  clients.forEach((client) => {
+    const scheduled = scheduledByClient.get(client.identity) ?? 0
+
+    if (scheduled > client.share) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['clients', client.index, 'feeShareAmount'],
+        message: 'مجموع اقساط این موکل از سهم حق‌الوکاله او بیشتر است',
+      })
+    }
+  })
 })
 
 
@@ -170,11 +259,19 @@ function cleanText(value: unknown): string {
   return ''
 }
 
+function toFiniteNumber(value: unknown): number {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : 0
+}
+
+
 function hasText(value: unknown): boolean {
   return cleanText(value).length > 0
 }
 
-
+const getSavedClientFullName = (client: Client): string => {
+  return client.fullName?.trim() || ''
+}
 
 
 
@@ -276,11 +373,13 @@ function createEmptyClient():
     CaseFormInput['clients']
   >[number] {
   return {
+    clientId: '',
     name: '',
     phone: '',
     nationalId: '',
     role: '',
     representative: '',
+    feeShareAmount: undefined,
   }
 }
 
@@ -291,6 +390,7 @@ function normalizeClients(
 > {
   return toRecordArray(value).map(
     (client) => ({
+      clientId: cleanText(client.clientId),
       name: cleanText(client.name),
       phone: cleanText(client.phone),
 
@@ -303,6 +403,10 @@ function normalizeClients(
       representative: cleanText(
         client.representative,
       ),
+          feeShareAmount:
+      typeof client.feeShareAmount === 'number'
+        ? client.feeShareAmount
+        : undefined,
     }),
   )
 }
@@ -389,6 +493,8 @@ function normalizePayments(
 > {
   return toRecordArray(value).map(
     (payment) => ({
+          clientId: cleanText(payment.clientId), 
+          clientName: cleanText(payment.clientName),   
       amount: normalizeNumberInput(
         payment.amount,
       ),
@@ -643,6 +749,7 @@ export default function EditCasePage({ params }: EditCasePageProps) {
   const router = useRouter()
   const getCaseById = useCasesStore((s) => s.getCaseById)
   const updateCase = useCasesStore((s) => s.updateCase)
+  const savedClients = useClientStore((state) => state.clients)
   useForm
 //   const caseItem = getCaseById(id)
 
@@ -802,19 +909,19 @@ const formDefaultValues:
     ),
 
   contractAmount:
-    cleanText(
+    toFiniteNumber(
       caseRecord.contractAmount,
-    ),
+    ) || undefined,
 
   remainingAmount:
-    cleanText(
+    toFiniteNumber(
       caseRecord.remainingAmount,
-    ),
+    ) || undefined,
 
   overdueAmount:
-    cleanText(
+    toFiniteNumber(
       caseRecord.overdueAmount,
-    ),
+    ) || undefined,
 
   expenses:
     normalizeExpenses(
@@ -933,7 +1040,52 @@ const {
   const watchCashPayments = watch('cashPayments') || []
   const watchBranchHistory = watch('branchHistory') || []
   const watchExpenses = watch('expenses') || []
+  const watchClients = watch('clients') || []
 
+const contractAmount = toFiniteNumber(watch('contractAmount'))
+
+const activeClients = watchClients
+  .map((client, index) => ({
+    index,
+    clientId: client.clientId?.trim() || undefined,
+    clientName: client.name?.trim() || '',
+    feeShareAmount: toFiniteNumber(client.feeShareAmount),
+  }))
+  .filter((client) => Boolean(client.clientId || client.clientName))
+
+const getClientOptionValue = (client: { clientId?: string; clientName: string }): string => {
+  if (client.clientId) {
+    return `id:${client.clientId}`
+  }
+  return `name:${client.clientName}`
+}
+
+const allocatedFeeTotal = activeClients.reduce<number>(
+  (total, client) => total + client.feeShareAmount,
+  0
+)
+
+const unallocatedFeeAmount = contractAmount - allocatedFeeTotal
+
+const splitFeeEqually = () => {
+  if (activeClients.length === 0 || contractAmount <= 0) {
+    return
+  }
+
+  const baseAmount = Math.floor(contractAmount / activeClients.length)
+  let assignedAmount = 0
+
+  activeClients.forEach((client, position) => {
+    const isLastClient = position === activeClients.length - 1
+    const clientShare = isLastClient ? contractAmount - assignedAmount : baseAmount
+    assignedAmount += clientShare
+
+    setValue(`clients.${client.index}.feeShareAmount`, clientShare, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+  })
+}
   const activeCourtLocationIndex = watchBranchHistory.findIndex((location) => location.isActive)
   const activeCourtLocation =
     activeCourtLocationIndex >= 0 ? watchBranchHistory[activeCourtLocationIndex] : undefined
@@ -946,7 +1098,7 @@ const {
     return sum + (Number(item.amount) || 0)
   }, 0)
 
-  const contractAmount = Number(watch('contractAmount')) || 0
+
 
   const jalaliToDate = (jalali: string) => {
     if (!jalali) return null
@@ -993,9 +1145,29 @@ const {
   useEffect(() => {
     const remaining = Math.max(contractAmount - totalPaid, 0)
 
-    setValue('remainingAmount', remaining.toString())
-    setValue('overdueAmount', overdueTotal.toString())
+    setValue('remainingAmount', remaining)
+    setValue('overdueAmount', overdueTotal)
   }, [contractAmount, totalPaid, overdueTotal, setValue])
+
+  const singleClientIndex = activeClients.length === 1 ? activeClients[0].index : null
+
+const singleClientCurrentShare =
+  activeClients.length === 1 ? activeClients[0].feeShareAmount : null
+
+useEffect(() => {
+  if (singleClientIndex === null) {
+    return
+  }
+
+  if (singleClientCurrentShare === contractAmount) {
+    return
+  }
+
+  setValue(`clients.${singleClientIndex}.feeShareAmount`, contractAmount, {
+    shouldDirty: false,
+    shouldValidate: false,
+  })
+}, [contractAmount, setValue, singleClientCurrentShare, singleClientIndex])
 
   const setOptionalNumberValue = (value: string) => {
     if (!value) return undefined
@@ -1003,6 +1175,28 @@ const {
     const numberValue = Number(value)
     return Number.isNaN(numberValue) ? undefined : numberValue
   }
+
+  const fillClientFromSavedList = (index: number, savedClientId: string) => {
+  setValue(`clients.${index}.clientId`, savedClientId, { shouldDirty: true })
+
+  if (!savedClientId) {
+    setValue(`clients.${index}.name`, '')
+    setValue(`clients.${index}.phone`, '')
+    setValue(`clients.${index}.nationalId`, '')
+    setValue(`clients.${index}.role`, '')
+    setValue(`clients.${index}.representative`, '')
+    return
+  }
+
+  const selectedClient = savedClients.find((client) => client.id === savedClientId)
+  if (!selectedClient) return
+
+  setValue(`clients.${index}.name`, getSavedClientFullName(selectedClient), { shouldDirty: true })
+  setValue(`clients.${index}.phone`, selectedClient.phoneNumber || selectedClient.phone || '', { shouldDirty: true })
+  setValue(`clients.${index}.nationalId`, selectedClient.nationalId || '', { shouldDirty: true })
+  setValue(`clients.${index}.role`, selectedClient.role || '', { shouldDirty: true })
+  setValue(`clients.${index}.representative`, selectedClient.representative || '', { shouldDirty: true })
+}
 
   const normalizePersianDigits = (value: string) => {
     return value
@@ -1149,6 +1343,7 @@ const {
   const onSubmit = async (data: CaseFormData) => {
     const cleanedClients = (data.clients || [])
       .map((client) => ({
+        clientId: cleanText(client.clientId) || undefined,
         name: cleanText(client.name),
         phone: cleanText(client.phone),
         nationalId: cleanText(client.nationalId),
@@ -1206,6 +1401,8 @@ const {
 
     const formattedCashPayments = (data.cashPayments || [])
       .map((payment) => ({
+        clientId: cleanText(payment.clientId) || undefined,
+        clientName: cleanText(payment.clientName) || undefined,
         amount: Number(payment.amount) || 0,
         isPaid: Boolean(payment.isPaid),
         paymentDate: cleanText(payment.paymentDate) || undefined,
@@ -1525,7 +1722,31 @@ const {
                     </button>
                   )}
                 </div>
+                  <div className="mb-4">
+  <label className="text-xs text-blue-700 font-medium block mb-1">
+    انتخاب از موکلین ثبت‌شده
+  </label>
 
+  <select
+    value={(watch(`clients.${index}.clientId` as any) as string) || ''}
+    onChange={(e) => fillClientFromSavedList(index, e.target.value)}
+    className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+  >
+    <option value="">ورود دستی اطلاعات موکل</option>
+
+    {savedClients.map((client: any) => (
+      <option key={client.id} value={client.id}>
+        {getSavedClientFullName(client)}
+        {client.nationalId ? ` - ${client.nationalId}` : ''}
+        {client.phoneNumber ? ` - ${client.phoneNumber}` : ''}
+      </option>
+    ))}
+  </select>
+
+  <p className="mt-1 text-xs text-blue-500">
+    می‌توانید موکل ثبت‌شده را انتخاب کنید یا اطلاعات را دستی وارد کنید.
+  </p>
+</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
                   <div>
                     <label className="text-xs text-blue-700 font-medium block mb-1">نام شخص حقیقی/حقوقی</label>
@@ -2008,13 +2229,21 @@ const {
               <div>
                 <label className="block text-sm font-medium text-emerald-800 mb-2">مبلغ نقدی قرارداد (ریال)</label>
                 <input
-                  {...register('contractAmount')}
+                  {...register('contractAmount', {
+                    setValueAs: setOptionalNumberValue,
+                  })}
                   type="text"
                   inputMode="numeric"
                   className="w-full px-4 py-3 border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                   placeholder="مثال: 50000000"
                   dir="ltr"
                 />
+
+                {errors.contractAmount && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {errors.contractAmount.message}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-emerald-800 mb-2">مبلغ مانده قرارداد (ریال)</label>
@@ -2036,7 +2265,98 @@ const {
               </div>
             </div>
           </div>
+            {activeClients.length > 1 && (
+  <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-5">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h3 className="font-bold text-violet-900">تقسیم حق‌الوکاله بین موکلین</h3>
+        <p className="mt-1 text-sm leading-6 text-violet-700">
+          سهم هر موکل را مشخص کنید. مجموع سهم‌ها باید دقیقاً برابر مبلغ کل قرارداد باشد.
+        </p>
+      </div>
 
+      <button
+        type="button"
+        onClick={splitFeeEqually}
+        disabled={contractAmount <= 0}
+        className="shrink-0 rounded-lg border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        تقسیم مساوی
+      </button>
+    </div>
+
+    <div className="mt-5 grid gap-3">
+      {activeClients.map((client) => (
+        <div
+          key={client.clientId ?? `${client.clientName}-${client.index}`}
+          className="grid grid-cols-1 items-center gap-3 rounded-xl border border-violet-200 bg-white p-4 sm:grid-cols-[minmax(0,1fr)_minmax(180px,260px)]"
+        >
+          <div className="min-w-0">
+            <p className="truncate font-bold text-zinc-900">
+              {client.clientName || `موکل ${client.index + 1}`}
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">سهم این موکل از مبلغ کل قرارداد</p>
+          </div>
+
+          <div>
+            <div className="relative">
+              <input
+                {...register(`clients.${client.index}.feeShareAmount`, {
+                  setValueAs: setOptionalNumberValue,
+                })}
+                type="text"
+                inputMode="numeric"
+                placeholder="0"
+                dir="ltr"
+                className="w-full rounded-lg border border-violet-200 bg-white px-3 py-2 pl-14 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+              />
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">
+                ریال
+              </span>
+            </div>
+
+            {errors.clients?.[client.index]?.feeShareAmount && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.clients[client.index]?.feeShareAmount?.message}
+              </p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="rounded-lg bg-white p-3 ring-1 ring-violet-100">
+        <p className="text-xs text-zinc-500">مبلغ کل قرارداد</p>
+        <p className="mt-1 font-black text-zinc-900">
+          {contractAmount.toLocaleString('fa-IR')} ریال
+        </p>
+      </div>
+
+      <div className="rounded-lg bg-white p-3 ring-1 ring-violet-100">
+        <p className="text-xs text-zinc-500">مجموع سهم‌های ثبت‌شده</p>
+        <p className="mt-1 font-black text-violet-700">
+          {allocatedFeeTotal.toLocaleString('fa-IR')} ریال
+        </p>
+      </div>
+
+      <div
+        className={`rounded-lg p-3 ring-1 ${
+          unallocatedFeeAmount === 0 ? 'bg-emerald-50 ring-emerald-200' : 'bg-red-50 ring-red-200'
+        }`}
+      >
+        <p className="text-xs text-zinc-500">اختلاف با مبلغ قرارداد</p>
+        <p
+          className={`mt-1 font-black ${
+            unallocatedFeeAmount === 0 ? 'text-emerald-700' : 'text-red-700'
+          }`}
+        >
+          {Math.abs(unallocatedFeeAmount).toLocaleString('fa-IR')} ریال
+        </p>
+      </div>
+    </div>
+  </div>
+)}
           <div className="space-y-3">
             <label className="block text-sm font-medium text-zinc-900">نوع قرارداد</label>
 
@@ -2104,7 +2424,15 @@ const {
                 <h3 className="font-medium text-green-800 text-lg">پرداخت‌های نقدی</h3>
                 <button
                   type="button"
-                  onClick={() => appendCashPayment({ amount: undefined, isPaid: false, paymentDate: '' })}
+                 onClick={() =>
+                    appendCashPayment({
+                      clientId: '',
+                      clientName: '',
+                      amount: undefined,
+                      isPaid: false,
+                      paymentDate: '',
+                    })
+                  }
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
                 >
                   <Plus size={16} /> افزودن پرداخت
@@ -2128,7 +2456,52 @@ const {
                         <X size={16} />
                       </button>
                     </div>
+                            {activeClients.length > 1 && (
+                      <div className="mb-3">
+                        <label className="mb-1 block text-xs font-medium text-green-700">
+                          موکل مرتبط
+                        </label>
 
+                        <select
+                          value={
+                            watch(`cashPayments.${index}.clientId`)
+                              ? `id:${watch(`cashPayments.${index}.clientId`)}`
+                              : watch(`cashPayments.${index}.clientName`)
+                                ? `name:${watch(`cashPayments.${index}.clientName`)}`
+                                : ''
+                          }
+                          onChange={(event) => {
+                            const selectedValue = event.target.value
+
+                            const selectedClient = activeClients.find(
+                              (client) => getClientOptionValue(client) === selectedValue
+                            )
+
+                            setValue(`cashPayments.${index}.clientId`, selectedClient?.clientId ?? '', {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+
+                            setValue(`cashPayments.${index}.clientName`, selectedClient?.clientName ?? '', {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            })
+                          }}
+                          className="w-full rounded-lg border border-green-200 bg-white px-3 py-2 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500"
+                        >
+                          <option value="">انتخاب موکل</option>
+
+                          {activeClients.map((client) => (
+                            <option
+                              key={client.clientId ?? `${client.clientName}-${client.index}`}
+                              value={getClientOptionValue(client)}
+                            >
+                              {client.clientName || `موکل ${client.index + 1}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
                         <label className="text-xs text-green-700 font-medium block mb-1">مبلغ (ریال)</label>

@@ -644,8 +644,7 @@ const getSavedClientFullName = (
   client: Client
 ): string => {
   const fullName = [
-    client.firstName,
-    client.lastName,
+  client.fullName,
   ]
     .filter(Boolean)
     .join(' ')
@@ -653,7 +652,7 @@ const getSavedClientFullName = (
 
   return (
     fullName ||
-    client.name ||
+    client.fullName ||
     ''
   )
 }
