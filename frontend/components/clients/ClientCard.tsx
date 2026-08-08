@@ -19,7 +19,7 @@ export function ClientCard({ client, onEdit, onDelete }: Props) {
       <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="text-lg font-bold text-zinc-900">
-            {client.firstName} {client.lastName}
+            {client.fullName}
           </h3>
           <p className="text-sm text-zinc-500 mt-1">کد ملی: {client.nationalId}</p>
         </div>

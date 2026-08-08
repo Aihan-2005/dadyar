@@ -607,7 +607,7 @@ interface DateTimeInput {
       const map = new Map()
 
       storeClients.forEach((c) => {
-        const fullName = `${c.firstName} ${c.lastName}`.trim()
+        const fullName = `${c.fullName} `.trim()
 
         map.set(c.id, {
           id: c.id,

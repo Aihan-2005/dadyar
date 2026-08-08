@@ -212,29 +212,17 @@ export function ClientForm({ client, onSuccess, onCancel }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* ردیف نام و نام خانوادگی */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className={labelCls}>نام *</label>
-          <input
-            type="text"
-            className={inputCls}
-            value={form.firstName}
-            onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
-            required
-          />
-        </div>
-        <div>
-          <label className={labelCls}>نام خانوادگی *</label>
-          <input
-            type="text"
-            className={inputCls}
-            value={form.lastName}
-            onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
-            required
-          />
-        </div>
-      </div>
+{/* نام و نام خانوادگی */}
+<div>
+  <label className={labelCls}>نام و نام خانوادگی *</label>
+  <input
+    type="text"
+    className={inputCls}
+    value={form.fullName}
+    onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
+    required
+  />
+</div>
 
       {/* کد ملی و شماره تماس */}
       <div className="grid grid-cols-2 gap-4">
