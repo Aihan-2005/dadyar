@@ -33,3 +33,11 @@ export type {
   FinanceRiskClient,
   MonthlyCashflowPoint,
 } from '@/features/finance/domain/period-analytics'
+
+export type {
+  FinanceCaseExportRow,
+  FinanceClientCaseExportRow,
+  FinanceClientExportRow,
+  FinanceExportMode,
+  FinanceExportReport,
+} from '@/features/finance/export/types'

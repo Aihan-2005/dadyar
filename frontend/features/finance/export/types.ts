@@ -1,36 +1,28 @@
 import type {
   FinancePaymentStatus,
+  FinancialStats,
 } from '../domain/types'
 
-export type FinanceExportScope =
-  | 'all-cases'
-  | 'all-clients'
-  | 'selected-clients'
+import type {
+  FinanceAgingBucket,
+  FinanceDecisionInsight,
+  MonthlyCashflowPoint,
+} from '../domain/period-analytics'
 
-export type FinanceExportFormat =
-  | 'xlsx'
-  | 'pdf'
+export type FinanceExportMode =
+  | 'management'
+  | 'cases'
+  | 'clients'
 
-export interface FinanceExportSelection {
-  scope: FinanceExportScope
-  clientKeys: string[]
-}
-
-export interface FinanceExportRow {
-  rowKind:
-    | 'case'
-    | 'client-share'
-
+export interface FinanceCaseExportRow {
   caseId: string
+
   caseNumber: string
   caseTitle: string
 
-  clientName: string
+  clientNames: string
 
-  
   contractAmount: number
-
-  clientShareAmount?: number
 
   paidAmount: number
   remainingAmount: number
@@ -43,36 +35,83 @@ export interface FinanceExportRow {
 
   dueDate?: string
   lastPaymentDate?: string
-
-  allocationEstimated: boolean
 }
 
-export interface FinanceExportSummary {
+export interface FinanceClientExportRow {
+  clientId?: string
+
+  clientName: string
+
+  caseCount: number
+
   totalFee: number
   totalPaid: number
   totalRemaining: number
   totalOverdue: number
   totalExpenses: number
 
-  netCollected: number
   collectionRate: number
 
-  caseCount: number
-  clientCount: number
+  estimatedAllocationCases: number
+}
+
+export interface FinanceClientCaseExportRow {
+  caseId: string
+
+  caseNumber: string
+  caseTitle: string
+
+  clientId?: string
+  clientName: string
+
+  caseContractAmount: number
+
+  clientShareAmount: number
+
+  paidAmount: number
+  remainingAmount: number
+  overdueAmount: number
+  expensesAmount: number
+
+  collectionRate: number
+
+  status: FinancePaymentStatus
+
+  allocationEstimated: boolean
+
+  dueDate?: string
+  lastPaymentDate?: string
 }
 
 export interface FinanceExportReport {
+  mode: FinanceExportMode
+
   title: string
-  scopeLabel: string
-  amountLabel: string
 
   generatedAt: string
 
   fileBaseName: string
 
-  summary: FinanceExportSummary
+  sourceCaseCount: number
+  filteredCaseCount: number
 
-  rows: FinanceExportRow[]
+  filterLabels: string[]
 
-  selectedClientNames: string[]
+  stats: FinancialStats
+
+  caseRows: FinanceCaseExportRow[]
+
+  clientRows: FinanceClientExportRow[]
+
+  clientCaseRows:
+    FinanceClientCaseExportRow[]
+
+  cashflow:
+    MonthlyCashflowPoint[]
+
+  aging:
+    FinanceAgingBucket[]
+
+  insights:
+    FinanceDecisionInsight[]
 }

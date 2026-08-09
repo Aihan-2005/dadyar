@@ -1,6 +1,7 @@
+
+
 import type {
   FinanceExportReport,
-  FinanceExportRow,
 } from './types'
 
 import {
@@ -10,579 +11,117 @@ import {
 const PAGE_WIDTH_PX =
   1120
 
-const FIRST_PAGE_ROWS =
-  8
+interface TableColumn<T> {
+  title: string
 
-const NEXT_PAGE_ROWS =
-  14
-
-function formatNumber(
-  value: number
-): string {
-  return value.toLocaleString(
-    'fa-IR'
-  )
+  value: (
+    row: T
+  ) => string
 }
 
-function formatMoney(
+function money(
   value: number
-): string {
-  return `${formatNumber(
-    value
+) {
+  return `${value.toLocaleString(
+    'fa-IR'
   )} ریال`
 }
 
-function formatDate(
+function date(
   value?: string
-): string {
+) {
   if (!value) {
     return '—'
   }
 
-  const date =
+  const parsed =
     new Date(value)
 
   if (
     Number.isNaN(
-      date.getTime()
+      parsed.getTime()
     )
   ) {
     return '—'
   }
 
-  return date.toLocaleDateString(
+  return parsed.toLocaleDateString(
     'fa-IR'
   )
 }
 
-function setStyles(
-  element: HTMLElement,
-  styles:
-    Partial<CSSStyleDeclaration>
-): void {
-  Object.assign(
-    element.style,
-    styles
-  )
+function percentage(
+  value: number
+) {
+  return `${value.toLocaleString(
+    'fa-IR',
+    {
+      maximumFractionDigits:
+        1,
+    }
+  )}٪`
 }
 
-function createText(
+function createElement(
   tag:
-    | 'div'
-    | 'span'
-    | 'p'
-    | 'h1'
-    | 'h2'
-    | 'th'
-    | 'td',
+    keyof HTMLElementTagNameMap,
 
-  value: string
-): HTMLElement {
+  text?: string
+) {
   const element =
     document.createElement(
       tag
     )
 
-  element.textContent =
-    value
+  if (
+    text !== undefined
+  ) {
+    element.textContent =
+      text
+  }
 
   return element
 }
 
-function createSummaryCard(
-  title: string,
-  value: string
-): HTMLElement {
-  const card =
-    document.createElement(
-      'div'
-    )
+function styles(
+  element:
+    HTMLElement,
 
-  setStyles(card, {
-    border:
-      '1px solid #e4e4e7',
-
-    borderRadius:
-      '12px',
-
-    padding:
-      '14px',
-
-    background:
-      '#fafafa',
-  })
-
-  const label =
-    createText(
-      'div',
-      title
-    )
-
-  setStyles(label, {
-    fontSize:
-      '11px',
-
-    color:
-      '#71717a',
-
-    marginBottom:
-      '6px',
-  })
-
-  const amount =
-    createText(
-      'div',
-      value
-    )
-
-  setStyles(amount, {
-    fontSize:
-      '15px',
-
-    fontWeight:
-      '800',
-
-    color:
-      '#18181b',
-  })
-
-  card.append(
-    label,
-    amount
+  values:
+    Partial<CSSStyleDeclaration>
+) {
+  Object.assign(
+    element.style,
+    values
   )
-
-  return card
 }
 
-function createSummary(
-  report: FinanceExportReport
-): HTMLElement {
-  const wrapper =
-    document.createElement(
-      'div'
-    )
-
-  setStyles(wrapper, {
-    display:
-      'grid',
-
-    gridTemplateColumns:
-      'repeat(4, minmax(0, 1fr))',
-
-    gap:
-      '10px',
-
-    marginBottom:
-      '20px',
-  })
-
-  wrapper.append(
-    createSummaryCard(
-      report.amountLabel,
-      formatMoney(
-        report.summary.totalFee
-      )
-    ),
-
-    createSummaryCard(
-      'پرداخت‌شده',
-      formatMoney(
-        report.summary.totalPaid
-      )
-    ),
-
-    createSummaryCard(
-      'مانده مطالبات',
-      formatMoney(
-        report.summary
-          .totalRemaining
-      )
-    ),
-
-    createSummaryCard(
-      'مطالبات معوق',
-      formatMoney(
-        report.summary
-          .totalOverdue
-      )
-    ),
-
-    createSummaryCard(
-      'هزینه‌ها',
-      formatMoney(
-        report.summary
-          .totalExpenses
-      )
-    ),
-
-    createSummaryCard(
-      'خالص دریافتی',
-      formatMoney(
-        report.summary
-          .netCollected
-      )
-    ),
-
-    createSummaryCard(
-      'نرخ وصول',
-      `${report.summary.collectionRate.toLocaleString(
-        'fa-IR',
-        {
-          maximumFractionDigits:
-            1,
-        }
-      )}٪`
-    ),
-
-    createSummaryCard(
-      'پرونده / موکل',
-      `${report.summary.caseCount.toLocaleString(
-        'fa-IR'
-      )} پرونده - ${report.summary.clientCount.toLocaleString(
-        'fa-IR'
-      )} موکل`
-    )
-  )
-
-  return wrapper
-}
-
-interface PdfColumn {
-  title: string
-  width: string
-
-  value:
-    (
-      row: FinanceExportRow
-    ) => string
-}
-
-const PDF_COLUMNS:
-  PdfColumn[] = [
-    {
-      title:
-        'موکل',
-
-      width:
-        '12%',
-
-      value:
-        (row) =>
-          row.clientName,
-    },
-
-    {
-      title:
-        'پرونده',
-
-      width:
-        '9%',
-
-      value:
-        (row) =>
-          row.caseNumber,
-    },
-
-    {
-      title:
-        'موضوع',
-
-      width:
-        '18%',
-
-      value:
-        (row) =>
-          row.caseTitle,
-    },
-
-    {
-      title:
-        'مبلغ کل',
-
-      width:
-        '11%',
-
-      value:
-        (row) =>
-          formatNumber(
-            row.contractAmount
-          ),
-    },
-
-    {
-      title:
-        'سهم موکل',
-
-      width:
-        '10%',
-
-      value:
-        (row) =>
-          row.clientShareAmount ===
-          undefined
-            ? '—'
-            : formatNumber(
-                row.clientShareAmount
-              ),
-    },
-
-    {
-      title:
-        'پرداخت',
-
-      width:
-        '10%',
-
-      value:
-        (row) =>
-          formatNumber(
-            row.paidAmount
-          ),
-    },
-
-    {
-      title:
-        'مانده',
-
-      width:
-        '10%',
-
-      value:
-        (row) =>
-          formatNumber(
-            row.remainingAmount
-          ),
-    },
-
-    {
-      title:
-        'معوق',
-
-      width:
-        '9%',
-
-      value:
-        (row) =>
-          formatNumber(
-            row.overdueAmount
-          ),
-    },
-
-    {
-      title:
-        'وصول',
-
-      width:
-        '6%',
-
-      value:
-        (row) =>
-          `${row.collectionRate.toLocaleString(
-            'fa-IR',
-            {
-              maximumFractionDigits:
-                0,
-            }
-          )}٪`,
-    },
-
-    {
-      title:
-        'وضعیت',
-
-      width:
-        '8%',
-
-      value:
-        (row) =>
-          getFinanceStatusLabel(
-            row.status
-          ),
-    },
-
-    {
-      title:
-        'سررسید',
-
-      width:
-        '9%',
-
-      value:
-        (row) =>
-          formatDate(
-            row.dueDate
-          ),
-    },
-  ]
-
-function createTable(
-  rows: FinanceExportRow[]
-): HTMLElement {
-  const table =
-    document.createElement(
-      'table'
-    )
-
-  setStyles(table, {
-    width:
-      '100%',
-
-    borderCollapse:
-      'collapse',
-
-    tableLayout:
-      'fixed',
-
-    fontSize:
-      '9.5px',
-  })
-
-  const thead =
-    document.createElement(
-      'thead'
-    )
-
-  const headerRow =
-    document.createElement(
-      'tr'
-    )
-
-  for (
-    const column of
-    PDF_COLUMNS
-  ) {
-    const th =
-      createText(
-        'th',
-        column.title
-      ) as HTMLTableCellElement
-
-    setStyles(th, {
-      width:
-        column.width,
-
-      padding:
-        '9px 5px',
-
-      background:
-        '#f4f4f5',
-
-      color:
-        '#3f3f46',
-
-      border:
-        '1px solid #e4e4e7',
-
-      textAlign:
-        'center',
-
-      fontWeight:
-        '700',
-
-      wordBreak:
-        'break-word',
-    })
-
-    headerRow.appendChild(
-      th
-    )
-  }
-
-  thead.appendChild(
-    headerRow
-  )
-
-  table.appendChild(
-    thead
-  )
-
-  const tbody =
-    document.createElement(
-      'tbody'
-    )
-
-  for (
-    const row of rows
-  ) {
-    const tr =
-      document.createElement(
-        'tr'
-      )
-
-    for (
-      const column of
-      PDF_COLUMNS
-    ) {
-      const td =
-        createText(
-          'td',
-          column.value(row)
-        ) as HTMLTableCellElement
-
-      setStyles(td, {
-        padding:
-          '8px 5px',
-
-        border:
-          '1px solid #e4e4e7',
-
-        textAlign:
-          'center',
-
-        verticalAlign:
-          'middle',
-
-        color:
-          '#27272a',
-
-        lineHeight:
-          '1.7',
-
-        wordBreak:
-          'break-word',
-      })
-
-      tr.appendChild(td)
-    }
-
-    tbody.appendChild(
-      tr
-    )
-  }
-
-  table.appendChild(
-    tbody
-  )
-
-  return table
-}
-
-function createPdfPage(
-  report: FinanceExportReport,
-  rows: FinanceExportRow[],
-  pageNumber: number,
-  totalPages: number,
-  showSummary: boolean
-): HTMLElement {
+function createBasePage(
+  report:
+    FinanceExportReport,
+
+  pageNumber: number
+) {
   const page =
-    document.createElement(
+    createElement(
       'section'
     )
 
-  page.dir = 'rtl'
+  page.dir =
+    'rtl'
 
-  setStyles(page, {
+  styles(page, {
     width:
       `${PAGE_WIDTH_PX}px`,
 
     minHeight:
       '720px',
 
-    padding:
-      '34px',
-
     boxSizing:
       'border-box',
+
+    padding:
+      '34px',
 
     background:
       '#ffffff',
@@ -590,25 +129,19 @@ function createPdfPage(
     color:
       '#18181b',
 
-    fontFamily:
-      'Vazirmatn, Arial, sans-serif',
-
     direction:
       'rtl',
+
+    fontFamily:
+      'Vazirmatn, Arial, sans-serif',
   })
 
-  /*
-  |--------------------------------------------------------------------------
-  | Header
-  |--------------------------------------------------------------------------
-  */
-
   const header =
-    document.createElement(
-      'div'
+    createElement(
+      'header'
     )
 
-  setStyles(header, {
+  styles(header, {
     display:
       'flex',
 
@@ -625,62 +158,78 @@ function createPdfPage(
       '16px',
 
     marginBottom:
-      '18px',
+      '20px',
 
     borderBottom:
       '2px solid #4f46e5',
   })
 
-  const titleWrapper =
-    document.createElement(
+  const titleBox =
+    createElement(
       'div'
     )
 
   const title =
-    createText(
+    createElement(
       'h1',
       report.title
     )
 
-  setStyles(title, {
-    margin:
-      '0',
+  styles(title, {
+    margin: '0',
 
     fontSize:
       '22px',
 
     fontWeight:
       '900',
-
-    color:
-      '#18181b',
   })
 
   const subtitle =
-    createText(
+    createElement(
       'p',
-      `دادیار - ${report.scopeLabel}`
+      'دادیار — سامانه مدیریت حقوقی'
     )
 
-  setStyles(subtitle, {
+  styles(subtitle, {
     margin:
-      '5px 0 0',
+      '6px 0 0',
 
     fontSize:
-      '12px',
+      '11px',
 
     color:
       '#71717a',
   })
 
-  titleWrapper.append(
+  titleBox.append(
     title,
     subtitle
   )
 
-  const date =
-    createText(
+  const meta =
+    createElement(
+      'div'
+    )
+
+  styles(meta, {
+    textAlign:
+      'left',
+
+    fontSize:
+      '10px',
+
+    lineHeight:
+      '1.9',
+
+    color:
+      '#71717a',
+  })
+
+  const generated =
+    createElement(
       'div',
+
       `تاریخ گزارش: ${new Date(
         report.generatedAt
       ).toLocaleString(
@@ -688,164 +237,1079 @@ function createPdfPage(
       )}`
     )
 
-  setStyles(date, {
-    fontSize:
-      '11px',
-
-    color:
-      '#71717a',
-
-    textAlign:
-      'left',
-  })
-
-  header.append(
-    titleWrapper,
-    date
-  )
-
-  page.appendChild(
-    header
-  )
-
-  if (showSummary) {
-    page.appendChild(
-      createSummary(report)
-    )
-
-    if (
-      report.selectedClientNames
-        .length > 0
-    ) {
-      const clients =
-        createText(
-          'div',
-          `موکلین: ${report.selectedClientNames.join(
-            '، '
-          )}`
-        )
-
-      setStyles(clients, {
-        marginBottom:
-          '14px',
-
-        padding:
-          '10px 12px',
-
-        border:
-          '1px solid #e0e7ff',
-
-        borderRadius:
-          '9px',
-
-        background:
-          '#eef2ff',
-
-        fontSize:
-          '11px',
-
-        color:
-          '#4338ca',
-      })
-
-      page.appendChild(
-        clients
-      )
-    }
-  }
-
-  page.appendChild(
-    createTable(rows)
-  )
-
-  /*
-  |--------------------------------------------------------------------------
-  | Footer
-  |--------------------------------------------------------------------------
-  */
-
-  const footer =
-    createText(
+  const pageText =
+    createElement(
       'div',
+
       `صفحه ${pageNumber.toLocaleString(
-        'fa-IR'
-      )} از ${totalPages.toLocaleString(
         'fa-IR'
       )}`
     )
 
-  setStyles(footer, {
-    marginTop:
-      '14px',
+  meta.append(
+    generated,
+    pageText
+  )
 
-    paddingTop:
-      '10px',
+  header.append(
+    titleBox,
+    meta
+  )
 
-    borderTop:
-      '1px solid #e4e4e7',
-
-    fontSize:
-      '10px',
-
-    color:
-      '#a1a1aa',
-
-    textAlign:
-      'center',
-  })
-
-  page.appendChild(
-    footer
+  page.append(
+    header
   )
 
   return page
 }
 
-function createPageChunks(
-  rows: FinanceExportRow[]
-): FinanceExportRow[][] {
-  if (rows.length === 0) {
-    return [[]]
-  }
-
-  const result:
-    FinanceExportRow[][] = []
-
-  result.push(
-    rows.slice(
-      0,
-      FIRST_PAGE_ROWS
+function createFilterBox(
+  report:
+    FinanceExportReport
+) {
+  const box =
+    createElement(
+      'div'
     )
-  )
 
-  let cursor =
-    FIRST_PAGE_ROWS
+  styles(box, {
+    padding:
+      '12px',
 
-  while (
-    cursor <
-    rows.length
-  ) {
-    result.push(
-      rows.slice(
-        cursor,
-        cursor +
-          NEXT_PAGE_ROWS
+    marginBottom:
+      '18px',
+
+    border:
+      '1px solid #e0e7ff',
+
+    borderRadius:
+      '10px',
+
+    background:
+      '#eef2ff',
+  })
+
+  const title =
+    createElement(
+      'div',
+      'فیلترهای اعمال‌شده'
+    )
+
+  styles(title, {
+    marginBottom:
+      '7px',
+
+    fontSize:
+      '11px',
+
+    fontWeight:
+      '800',
+
+    color:
+      '#4338ca',
+  })
+
+  const text =
+    createElement(
+      'div',
+
+      report.filterLabels.join(
+        ' • '
       )
     )
 
-    cursor +=
-      NEXT_PAGE_ROWS
+  styles(text, {
+    fontSize:
+      '10px',
+
+    lineHeight:
+      '1.8',
+
+    color:
+      '#4f46e5',
+  })
+
+  box.append(
+    title,
+    text
+  )
+
+  return box
+}
+
+function createSummary(
+  report:
+    FinanceExportReport
+) {
+  const grid =
+    createElement(
+      'div'
+    )
+
+  styles(grid, {
+    display:
+      'grid',
+
+    gridTemplateColumns:
+      'repeat(4, 1fr)',
+
+    gap:
+      '10px',
+
+    marginBottom:
+      '20px',
+  })
+
+  const items:
+    Array<
+      [string, string]
+    > = [
+      [
+        'ارزش قراردادها',
+        money(
+          report.stats.totalRevenue
+        ),
+      ],
+
+      [
+        'دریافتی',
+        money(
+          report.stats.totalReceived
+        ),
+      ],
+
+      [
+        'مانده',
+        money(
+          report.stats.totalRemaining
+        ),
+      ],
+
+      [
+        'معوق',
+        money(
+          report.stats.totalOverdue
+        ),
+      ],
+
+      [
+        'هزینه',
+        money(
+          report.stats.totalExpenses
+        ),
+      ],
+
+      [
+        'خالص دریافتی',
+        money(
+          report.stats.netCollected
+        ),
+      ],
+
+      [
+        'نرخ وصول',
+        percentage(
+          report.stats.collectionRate
+        ),
+      ],
+
+      [
+        'پرونده / موکل',
+        `${report.filteredCaseCount.toLocaleString(
+          'fa-IR'
+        )} پرونده · ${report.stats.clientCount.toLocaleString(
+          'fa-IR'
+        )} موکل`,
+      ],
+    ]
+
+  items.forEach(
+    (
+      [
+        label,
+        value,
+      ]
+    ) => {
+      const card =
+        createElement(
+          'div'
+        )
+
+      styles(card, {
+        border:
+          '1px solid #e4e4e7',
+
+        borderRadius:
+          '10px',
+
+        padding:
+          '12px',
+
+        background:
+          '#fafafa',
+      })
+
+      const labelElement =
+        createElement(
+          'div',
+          label
+        )
+
+      styles(
+        labelElement,
+        {
+          fontSize:
+            '10px',
+
+          color:
+            '#71717a',
+        }
+      )
+
+      const valueElement =
+        createElement(
+          'div',
+          value
+        )
+
+      styles(
+        valueElement,
+        {
+          marginTop:
+            '6px',
+
+          fontSize:
+            '14px',
+
+          fontWeight:
+            '900',
+        }
+      )
+
+      card.append(
+        labelElement,
+        valueElement
+      )
+
+      grid.append(
+        card
+      )
+    }
+  )
+
+  return grid
+}
+
+function createTable<T>(
+  rows: T[],
+
+  columns:
+    Array<
+      TableColumn<T>
+    >
+) {
+  const table =
+    createElement(
+      'table'
+    ) as HTMLTableElement
+
+  styles(table, {
+    width:
+      '100%',
+
+    borderCollapse:
+      'collapse',
+
+    tableLayout:
+      'fixed',
+
+    fontSize:
+      '9px',
+  })
+
+  const thead =
+    createElement(
+      'thead'
+    )
+
+  const tr =
+    createElement(
+      'tr'
+    )
+
+  columns.forEach(
+    (column) => {
+      const th =
+        createElement(
+          'th',
+          column.title
+        )
+
+      styles(th, {
+        padding:
+          '8px 5px',
+
+        border:
+          '1px solid #e4e4e7',
+
+        background:
+          '#f4f4f5',
+
+        fontWeight:
+          '800',
+
+        textAlign:
+          'center',
+
+        color:
+          '#52525b',
+      })
+
+      tr.append(
+        th
+      )
+    }
+  )
+
+  thead.append(
+    tr
+  )
+
+  table.append(
+    thead
+  )
+
+  const tbody =
+    createElement(
+      'tbody'
+    )
+
+  rows.forEach(
+    (row) => {
+      const tr =
+        createElement(
+          'tr'
+        )
+
+      columns.forEach(
+        (column) => {
+          const td =
+            createElement(
+              'td',
+              column.value(
+                row
+              )
+            )
+
+          styles(td, {
+            padding:
+              '7px 5px',
+
+            border:
+              '1px solid #e4e4e7',
+
+            textAlign:
+              'center',
+
+            verticalAlign:
+              'middle',
+
+            lineHeight:
+              '1.7',
+
+            wordBreak:
+              'break-word',
+          })
+
+          tr.append(
+            td
+          )
+        }
+      )
+
+      tbody.append(
+        tr
+      )
+    }
+  )
+
+  table.append(
+    tbody
+  )
+
+  return table
+}
+
+function sectionTitle(
+  value: string
+) {
+  const title =
+    createElement(
+      'h2',
+      value
+    )
+
+  styles(title, {
+    margin:
+      '0 0 12px',
+
+    fontSize:
+      '15px',
+
+    fontWeight:
+      '900',
+  })
+
+  return title
+}
+
+function chunk<T>(
+  values: T[],
+  size: number
+): T[][] {
+  const result: T[][] =
+    []
+
+  for (
+    let index = 0;
+    index <
+    values.length;
+    index += size
+  ) {
+    result.push(
+      values.slice(
+        index,
+        index +
+          size
+      )
+    )
   }
 
-  return result
+  return result.length >
+    0
+    ? result
+    : [[]]
+}
+
+function buildPages(
+  report:
+    FinanceExportReport
+) {
+  const pages:
+    HTMLElement[] = []
+
+  let pageNumber = 1
+
+
+  const firstPage =
+    createBasePage(
+      report,
+      pageNumber++
+    )
+
+  firstPage.append(
+    createFilterBox(
+      report
+    ),
+
+    createSummary(
+      report
+    )
+  )
+
+  if (
+    report.mode ===
+    'management'
+  ) {
+    firstPage.append(
+      sectionTitle(
+        'پیشنهاد اقدامات'
+      )
+    )
+
+    report.insights
+      .slice(
+        0,
+        5
+      )
+      .forEach(
+        (item) => {
+          const insight =
+            createElement(
+              'div'
+            )
+
+          styles(
+            insight,
+            {
+              padding:
+                '9px 11px',
+
+              marginBottom:
+                '7px',
+
+              border:
+                '1px solid #e4e4e7',
+
+              borderRadius:
+                '8px',
+
+              fontSize:
+                '10px',
+
+              lineHeight:
+                '1.7',
+            }
+          )
+
+          const title =
+            createElement(
+              'strong',
+              item.title
+            )
+
+          const desc =
+            createElement(
+              'span',
+              ` — ${item.description}`
+            )
+
+          insight.append(
+            title,
+            desc
+          )
+
+          firstPage.append(
+            insight
+          )
+        }
+      )
+  }
+
+  pages.push(
+    firstPage
+  )
+
+
+
+  if (
+    report.mode ===
+      'cases' ||
+    report.mode ===
+      'management'
+  ) {
+    const columns:
+      Array<
+        TableColumn<
+          FinanceExportReport['caseRows'][number]
+        >
+      > = [
+        {
+          title:
+            'پرونده',
+
+          value:
+            (row) =>
+              row.caseNumber,
+        },
+
+        {
+          title:
+            'عنوان',
+
+          value:
+            (row) =>
+              row.caseTitle,
+        },
+
+        {
+          title:
+            'موکلین',
+
+          value:
+            (row) =>
+              row.clientNames,
+        },
+
+        {
+          title:
+            'قرارداد',
+
+          value:
+            (row) =>
+              money(
+                row.contractAmount
+              ),
+        },
+
+        {
+          title:
+            'دریافتی',
+
+          value:
+            (row) =>
+              money(
+                row.paidAmount
+              ),
+        },
+
+        {
+          title:
+            'مانده',
+
+          value:
+            (row) =>
+              money(
+                row.remainingAmount
+              ),
+        },
+
+        {
+          title:
+            'معوق',
+
+          value:
+            (row) =>
+              money(
+                row.overdueAmount
+              ),
+        },
+
+        {
+          title:
+            'وضعیت',
+
+          value:
+            (row) =>
+              getFinanceStatusLabel(
+                row.status
+              ),
+        },
+
+        {
+          title:
+            'سررسید',
+
+          value:
+            (row) =>
+              date(
+                row.dueDate
+              ),
+        },
+      ]
+
+    for (
+      const rows of
+      chunk(
+        report.caseRows,
+        11
+      )
+    ) {
+      const page =
+        createBasePage(
+          report,
+          pageNumber++
+        )
+
+      page.append(
+        sectionTitle(
+          'جزئیات پرونده‌ها'
+        ),
+
+        createTable(
+          rows,
+          columns
+        )
+      )
+
+      pages.push(
+        page
+      )
+    }
+  }
+
+
+
+  if (
+    report.mode ===
+      'clients' ||
+    report.mode ===
+      'management'
+  ) {
+    const columns:
+      Array<
+        TableColumn<
+          FinanceExportReport['clientRows'][number]
+        >
+      > = [
+        {
+          title:
+            'موکل',
+
+          value:
+            (row) =>
+              row.clientName,
+        },
+
+        {
+          title:
+            'پرونده',
+
+          value:
+            (row) =>
+              row.caseCount.toLocaleString(
+                'fa-IR'
+              ),
+        },
+
+        {
+          title:
+            'سهم قرارداد',
+
+          value:
+            (row) =>
+              money(
+                row.totalFee
+              ),
+        },
+
+        {
+          title:
+            'دریافتی',
+
+          value:
+            (row) =>
+              money(
+                row.totalPaid
+              ),
+        },
+
+        {
+          title:
+            'مانده',
+
+          value:
+            (row) =>
+              money(
+                row.totalRemaining
+              ),
+        },
+
+        {
+          title:
+            'معوق',
+
+          value:
+            (row) =>
+              money(
+                row.totalOverdue
+              ),
+        },
+
+        {
+          title:
+            'وصول',
+
+          value:
+            (row) =>
+              percentage(
+                row.collectionRate
+              ),
+        },
+      ]
+
+    for (
+      const rows of
+      chunk(
+        report.clientRows,
+        13
+      )
+    ) {
+      const page =
+        createBasePage(
+          report,
+          pageNumber++
+        )
+
+      page.append(
+        sectionTitle(
+          'خلاصه مالی موکلین'
+        ),
+
+        createTable(
+          rows,
+          columns
+        )
+      )
+
+      pages.push(
+        page
+      )
+    }
+
+    const allocationColumns:
+      Array<
+        TableColumn<
+          FinanceExportReport['clientCaseRows'][number]
+        >
+      > = [
+        {
+          title:
+            'موکل',
+
+          value:
+            (row) =>
+              row.clientName,
+        },
+
+        {
+          title:
+            'پرونده',
+
+          value:
+            (row) =>
+              row.caseNumber,
+        },
+
+        {
+          title:
+            'مبلغ پرونده',
+
+          value:
+            (row) =>
+              money(
+                row.caseContractAmount
+              ),
+        },
+
+        {
+          title:
+            'سهم موکل',
+
+          value:
+            (row) =>
+              money(
+                row.clientShareAmount
+              ),
+        },
+
+        {
+          title:
+            'پرداخت',
+
+          value:
+            (row) =>
+              money(
+                row.paidAmount
+              ),
+        },
+
+        {
+          title:
+            'مانده',
+
+          value:
+            (row) =>
+              money(
+                row.remainingAmount
+              ),
+        },
+
+        {
+          title:
+            'معوق',
+
+          value:
+            (row) =>
+              money(
+                row.overdueAmount
+              ),
+        },
+
+        {
+          title:
+            'نوع سهم',
+
+          value:
+            (row) =>
+              row.allocationEstimated
+                ? 'تخمینی'
+                : 'ثبت‌شده',
+        },
+      ]
+
+    for (
+      const rows of
+      chunk(
+        report.clientCaseRows,
+        12
+      )
+    ) {
+      const page =
+        createBasePage(
+          report,
+          pageNumber++
+        )
+
+      page.append(
+        sectionTitle(
+          'سهم موکلین در پرونده‌ها'
+        ),
+
+        createTable(
+          rows,
+          allocationColumns
+        )
+      )
+
+      pages.push(
+        page
+      )
+    }
+  }
+
+ 
+
+  if (
+    report.mode ===
+    'management'
+  ) {
+    const page =
+      createBasePage(
+        report,
+        pageNumber++
+      )
+
+    page.append(
+      sectionTitle(
+        'جریان نقدی'
+      ),
+
+      createTable(
+        report.cashflow,
+        [
+          {
+            title:
+              'ماه',
+
+            value:
+              (row) =>
+                row.label,
+          },
+
+          {
+            title:
+              'دریافتی',
+
+            value:
+              (row) =>
+                money(
+                  row.received
+                ),
+          },
+
+          {
+            title:
+              'هزینه',
+
+            value:
+              (row) =>
+                money(
+                  row.expenses
+                ),
+          },
+
+          {
+            title:
+              'خالص',
+
+            value:
+              (row) =>
+                money(
+                  row.net
+                ),
+          },
+
+          {
+            title:
+              'پرداخت',
+
+            value:
+              (row) =>
+                row.paymentCount.toLocaleString(
+                  'fa-IR'
+                ),
+          },
+        ]
+      ),
+
+      sectionTitle(
+        'سن مطالبات'
+      ),
+
+      createTable(
+        report.aging,
+        [
+          {
+            title:
+              'دسته',
+
+            value:
+              (row) =>
+                row.label,
+          },
+
+          {
+            title:
+              'مبلغ',
+
+            value:
+              (row) =>
+                money(
+                  row.amount
+                ),
+          },
+
+          {
+            title:
+              'پرونده',
+
+            value:
+              (row) =>
+                row.caseCount.toLocaleString(
+                  'fa-IR'
+                ),
+          },
+
+          {
+            title:
+              'درصد',
+
+            value:
+              (row) =>
+                percentage(
+                  row.percentage
+                ),
+          },
+        ]
+      )
+    )
+
+    pages.push(
+      page
+    )
+  }
+
+  return pages
 }
 
 export async function downloadFinancePdf(
-  report: FinanceExportReport
+  report:
+    FinanceExportReport
 ): Promise<void> {
   if (
     typeof window ===
-      'undefined'
+    'undefined'
   ) {
     throw new Error(
       'ساخت PDF فقط در مرورگر امکان‌پذیر است.'
@@ -870,18 +1334,18 @@ export async function downloadFinancePdf(
 
   const {
     jsPDF,
-  } = jsPdfModule
+  } =
+    jsPdfModule
 
   if (
-    document.fonts?.ready
+    document.fonts
+      ?.ready
   ) {
     await document.fonts.ready
   }
 
-  const chunks =
-    createPageChunks(
-      report.rows
-    )
+  const pages =
+    buildPages(report)
 
   const pdf =
     new jsPDF({
@@ -899,23 +1363,20 @@ export async function downloadFinancePdf(
     })
 
   const pageWidth =
-    pdf.internal.pageSize
-      .getWidth()
+    pdf.internal.pageSize.getWidth()
 
   const pageHeight =
-    pdf.internal.pageSize
-      .getHeight()
-
-  const margin =
-    6
+    pdf.internal.pageSize.getHeight()
 
   for (
     let index = 0;
     index <
-    chunks.length;
+    pages.length;
     index += 1
   ) {
-    if (index > 0) {
+    if (
+      index > 0
+    ) {
       pdf.addPage(
         'a4',
         'landscape'
@@ -923,15 +1384,9 @@ export async function downloadFinancePdf(
     }
 
     const page =
-      createPdfPage(
-        report,
-        chunks[index],
-        index + 1,
-        chunks.length,
-        index === 0
-      )
+      pages[index]
 
-    setStyles(page, {
+    styles(page, {
       position:
         'fixed',
 
@@ -942,10 +1397,10 @@ export async function downloadFinancePdf(
         '0',
 
       zIndex:
-        '-1',
+        '-100',
     })
 
-    document.body.appendChild(
+    document.body.append(
       page
     )
 
@@ -977,6 +1432,9 @@ export async function downloadFinancePdf(
           0.94
         )
 
+      const margin =
+        6
+
       const availableWidth =
         pageWidth -
         margin * 2
@@ -1002,28 +1460,28 @@ export async function downloadFinancePdf(
         canvas.height *
         scale
 
-      const x =
+      pdf.addImage(
+        image,
+        'JPEG',
+
         (
           pageWidth -
           imageWidth
         ) /
-        2
+          2,
 
-      const y =
         (
           pageHeight -
           imageHeight
         ) /
-        2
+          2,
 
-      pdf.addImage(
-        image,
-        'JPEG',
-        x,
-        y,
         imageWidth,
+
         imageHeight,
+
         undefined,
+
         'FAST'
       )
     } finally {

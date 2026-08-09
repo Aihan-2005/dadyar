@@ -1,52 +1,214 @@
-import {
-  buildCaseFinance,
-} from '../domain/selectors'
-
-import {
-  safePercentage,
-} from '../utils/number'
-
 import type {
-  ClientFinanceSummary,
   FinanceCaseSource,
+  FinanceOverview,
   FinancePaymentStatus,
 } from '../domain/types'
 
 import type {
+  FinancePeriodAnalytics,
+} from '../domain/period-analytics'
+
+import type {
+  FinanceReportFilters,
+} from '../domain/filters'
+
+import {
+  buildCaseFinance,
+} from '../domain/selectors'
+
+import type {
+  FinanceCaseExportRow,
+  FinanceClientCaseExportRow,
+  FinanceClientExportRow,
+  FinanceExportMode,
   FinanceExportReport,
-  FinanceExportRow,
-  FinanceExportSelection,
-  FinanceExportSummary,
 } from './types'
 
 interface BuildFinanceExportReportInput {
-  caseItems: FinanceCaseSource[]
-  clients: ClientFinanceSummary[]
-  selection: FinanceExportSelection
+  mode: FinanceExportMode
+
+  sourceCaseCount: number
+
+  caseItems:
+    FinanceCaseSource[]
+
+  overview:
+    FinanceOverview
+
+  analytics:
+    FinancePeriodAnalytics
+
+  filters:
+    FinanceReportFilters
 }
 
-const UNKNOWN_CLIENT =
-  'موکل نامشخص'
+const PERIOD_LABELS:
+  Record<
+    FinanceReportFilters['periodPreset'],
+    string
+  > = {
+    all:
+      'همه زمان‌ها',
 
-export function getFinanceClientKey(
-  client: Pick<
-    ClientFinanceSummary,
-    'clientId' | 'clientName'
-  >
-): string {
-  if (client.clientId?.trim()) {
-    return `id:${client.clientId.trim()}`
+    'this-month':
+      'این ماه',
+
+    'last-month':
+      'ماه قبل',
+
+    'last-90-days':
+      '۹۰ روز اخیر',
+
+    'this-year':
+      'سال جاری',
+
+    custom:
+      'بازه سفارشی',
   }
 
-  return `name:${client.clientName
-    .trim()
-    .toLocaleLowerCase('fa-IR')}`
+const STATUS_LABELS:
+  Record<
+    FinanceReportFilters['paymentStatus'],
+    string
+  > = {
+    all:
+      'همه وضعیت‌ها',
+
+    paid:
+      'تسویه‌شده',
+
+    partial:
+      'پرداخت جزئی',
+
+    unpaid:
+      'بدون پرداخت',
+
+    overdue:
+      'معوق',
+  }
+
+export function getFinanceStatusLabel(
+  status:
+    FinancePaymentStatus
+): string {
+  switch (status) {
+    case 'paid':
+      return 'تسویه‌شده'
+
+    case 'partial':
+      return 'پرداخت جزئی'
+
+    case 'overdue':
+      return 'معوق'
+
+    case 'unpaid':
+    default:
+      return 'بدون پرداخت'
+  }
+}
+
+function buildFilterLabels(
+  filters:
+    FinanceReportFilters
+): string[] {
+  const result: string[] =
+    []
+
+  if (
+    filters.query.trim()
+  ) {
+    result.push(
+      `جست‌وجو: ${filters.query.trim()}`
+    )
+  }
+
+  if (
+    filters.periodPreset !==
+    'all'
+  ) {
+    if (
+      filters.periodPreset ===
+      'custom'
+    ) {
+      const from =
+        filters.fromDate?.trim()
+
+      const to =
+        filters.toDate?.trim()
+
+      if (
+        from ||
+        to
+      ) {
+        result.push(
+          `بازه: ${from || 'ابتدا'} تا ${to || 'امروز'}`
+        )
+      } else {
+        result.push(
+          PERIOD_LABELS.custom
+        )
+      }
+    } else {
+      result.push(
+        PERIOD_LABELS[
+          filters.periodPreset
+        ]
+      )
+    }
+  }
+
+  if (
+    filters.paymentStatus !==
+    'all'
+  ) {
+    result.push(
+      `وضعیت: ${
+        STATUS_LABELS[
+          filters.paymentStatus
+        ]
+      }`
+    )
+  }
+
+  if (
+    filters.selectedCaseIds
+      .length > 0
+  ) {
+    result.push(
+      `${filters.selectedCaseIds.length.toLocaleString(
+        'fa-IR'
+      )} پرونده انتخاب‌شده`
+    )
+  }
+
+  if (
+    filters.selectedClientKeys
+      .length > 0
+  ) {
+    result.push(
+      `${filters.selectedClientKeys.length.toLocaleString(
+        'fa-IR'
+      )} موکل انتخاب‌شده`
+    )
+  }
+
+  if (
+    result.length === 0
+  ) {
+    result.push(
+      'بدون فیلتر — تمام اطلاعات'
+    )
+  }
+
+  return result
 }
 
 function getCaseClientNames(
-  caseItem: FinanceCaseSource
-): string[] {
-  const names = new Set<string>()
+  caseItem:
+    FinanceCaseSource
+): string {
+  const names =
+    new Set<string>()
 
   for (
     const client of
@@ -69,24 +231,29 @@ function getCaseClientNames(
     )
   }
 
-  if (names.size === 0) {
-    names.add(UNKNOWN_CLIENT)
+  if (
+    names.size === 0
+  ) {
+    return 'موکل نامشخص'
   }
 
-  return [...names]
+  return [
+    ...names,
+  ].join('، ')
 }
 
-function createAllCaseRows(
-  caseItems: FinanceCaseSource[]
-): FinanceExportRow[] {
+function buildCaseRows(
+  caseItems:
+    FinanceCaseSource[]
+): FinanceCaseExportRow[] {
   return caseItems.map(
     (caseItem) => {
       const finance =
-        buildCaseFinance(caseItem)
+        buildCaseFinance(
+          caseItem
+        )
 
       return {
-        rowKind: 'case',
-
         caseId:
           finance.caseId,
 
@@ -96,16 +263,13 @@ function createAllCaseRows(
         caseTitle:
           finance.caseTitle,
 
-        clientName:
+        clientNames:
           getCaseClientNames(
             caseItem
-          ).join('، '),
+          ),
 
         contractAmount:
           finance.totalFee,
-
-        clientShareAmount:
-          undefined,
 
         paidAmount:
           finance.paidAmount,
@@ -130,24 +294,60 @@ function createAllCaseRows(
 
         lastPaymentDate:
           finance.lastPaymentDate,
-
-        allocationEstimated:
-          false,
       }
     }
   )
 }
 
-function createClientRows(
-  clients: ClientFinanceSummary[]
-): FinanceExportRow[] {
-  return clients.flatMap(
+function buildClientRows(
+  overview:
+    FinanceOverview
+): FinanceClientExportRow[] {
+  return overview.clients.map(
+    (client) => ({
+      clientId:
+        client.clientId,
+
+      clientName:
+        client.clientName,
+
+      caseCount:
+        client.totalContracts,
+
+      totalFee:
+        client.totalFee,
+
+      totalPaid:
+        client.totalPaid,
+
+      totalRemaining:
+        client.totalRemaining,
+
+      totalOverdue:
+        client.totalOverdue,
+
+      totalExpenses:
+        client.totalExpenses,
+
+      collectionRate:
+        client.collectionRate,
+
+      estimatedAllocationCases:
+        client.estimatedAllocationCases,
+    })
+  )
+}
+
+function buildClientCaseRows(
+  overview:
+    FinanceOverview
+): FinanceClientCaseExportRow[] {
+  return overview.clients.flatMap(
     (client) =>
       client.cases.map(
-        (caseFinance) => ({
-          rowKind:
-            'client-share' as const,
-
+        (
+          caseFinance
+        ): FinanceClientCaseExportRow => ({
           caseId:
             caseFinance.caseId,
 
@@ -157,10 +357,13 @@ function createClientRows(
           caseTitle:
             caseFinance.caseTitle,
 
+          clientId:
+            client.clientId,
+
           clientName:
             client.clientName,
 
-          contractAmount:
+          caseContractAmount:
             caseFinance
               .caseContractAmount ??
             caseFinance.totalFee,
@@ -186,277 +389,121 @@ function createClientRows(
           status:
             caseFinance.status,
 
-          dueDate:
-            caseFinance.dueDate,
-
-          lastPaymentDate:
-            caseFinance.lastPaymentDate,
-
           allocationEstimated:
             Boolean(
               caseFinance
                 .allocationEstimated
             ),
+
+          dueDate:
+            caseFinance.dueDate,
+
+          lastPaymentDate:
+            caseFinance
+              .lastPaymentDate,
         })
       )
   )
 }
 
-function buildSummary(
-  rows: FinanceExportRow[],
-  clientCount: number
-): FinanceExportSummary {
-  const totals =
-    rows.reduce(
-      (result, row) => {
-        const reportAmount =
-          row.rowKind ===
-          'client-share'
-            ? row.clientShareAmount ??
-              0
-            : row.contractAmount
+function getTitle(
+  mode:
+    FinanceExportMode
+): string {
+  switch (mode) {
+    case 'management':
+      return 'گزارش مدیریتی مالی'
 
-        result.totalFee +=
-          reportAmount
+    case 'clients':
+      return 'گزارش مالی موکلین'
 
-        result.totalPaid +=
-          row.paidAmount
-
-        result.totalRemaining +=
-          row.remainingAmount
-
-        result.totalOverdue +=
-          row.overdueAmount
-
-        result.totalExpenses +=
-          row.expensesAmount
-
-        return result
-      },
-      {
-        totalFee: 0,
-        totalPaid: 0,
-        totalRemaining: 0,
-        totalOverdue: 0,
-        totalExpenses: 0,
-      }
-    )
-
-  const uniqueCases =
-    new Set(
-      rows.map(
-        (row) =>
-          row.caseId
-      )
-    )
-
-  return {
-    ...totals,
-
-    netCollected:
-      totals.totalPaid -
-      totals.totalExpenses,
-
-    collectionRate:
-      safePercentage(
-        totals.totalPaid,
-        totals.totalFee
-      ),
-
-    caseCount:
-      uniqueCases.size,
-
-    clientCount,
+    case 'cases':
+    default:
+      return 'گزارش مالی پرونده‌ها'
   }
 }
 
-function countUniqueCaseClients(
-  caseItems: FinanceCaseSource[]
-): number {
-  const keys =
-    new Set<string>()
+function getFileMode(
+  mode:
+    FinanceExportMode
+): string {
+  switch (mode) {
+    case 'management':
+      return 'management'
 
-  for (
-    const caseItem of
-    caseItems
-  ) {
-    for (
-      const client of
-      caseItem.clients ?? []
-    ) {
-      if (client.clientId?.trim()) {
-        keys.add(
-          `id:${client.clientId.trim()}`
-        )
+    case 'clients':
+      return 'clients'
 
-        continue
-      }
-
-      if (client.name?.trim()) {
-        keys.add(
-          `name:${client.name
-            .trim()
-            .toLocaleLowerCase(
-              'fa-IR'
-            )}`
-        )
-      }
-    }
-
-    if (
-      !caseItem.clients?.length &&
-      caseItem.clientName?.trim()
-    ) {
-      keys.add(
-        `legacy:${caseItem.clientName
-          .trim()
-          .toLocaleLowerCase(
-            'fa-IR'
-          )}`
-      )
-    }
+    default:
+      return 'cases'
   }
-
-  return keys.size
-}
-
-function getDateSuffix(): string {
-  return new Date()
-    .toISOString()
-    .slice(0, 10)
 }
 
 export function buildFinanceExportReport({
+  mode,
+  sourceCaseCount,
   caseItems,
-  clients,
-  selection,
+  overview,
+  analytics,
+  filters,
 }: BuildFinanceExportReportInput): FinanceExportReport {
-  if (
-    selection.scope ===
-    'all-cases'
-  ) {
-    const rows =
-      createAllCaseRows(
-        caseItems
-      )
+  const generatedAt =
+    new Date().toISOString()
 
-    return {
-      title:
-        'گزارش مالی کل پرونده‌ها',
-
-      scopeLabel:
-        'تمام پرونده‌ها',
-
-      amountLabel:
-        'ارزش کل قراردادها',
-
-      generatedAt:
-        new Date().toISOString(),
-
-      fileBaseName:
-        `dadyar-finance-all-cases-${getDateSuffix()}`,
-
-      summary:
-        buildSummary(
-          rows,
-          countUniqueCaseClients(
-            caseItems
-          )
-        ),
-
-      rows,
-
-      selectedClientNames: [],
-    }
-  }
-
-  const selectedClients =
-    selection.scope ===
-    'all-clients'
-      ? clients
-      : clients.filter(
-          (client) =>
-            selection.clientKeys.includes(
-              getFinanceClientKey(
-                client
-              )
-            )
-        )
-
-  if (
-    selection.scope ===
-      'selected-clients' &&
-    selectedClients.length === 0
-  ) {
-    throw new Error(
-      'حداقل یک موکل را برای گزارش انتخاب کنید.'
+  const dateSuffix =
+    generatedAt.slice(
+      0,
+      10
     )
-  }
-
-  const rows =
-    createClientRows(
-      selectedClients
-    )
-
-  const isAllClients =
-    selection.scope ===
-    'all-clients'
 
   return {
+    mode,
+
     title:
-      isAllClients
-        ? 'گزارش مالی تمام موکلین'
-        : 'گزارش مالی موکلین انتخاب‌شده',
+      getTitle(mode),
 
-    scopeLabel:
-      isAllClients
-        ? 'تمام موکلین'
-        : `${selectedClients.length.toLocaleString(
-            'fa-IR'
-          )} موکل انتخاب‌شده`,
-
-    amountLabel:
-      'مجموع سهم حق‌الوکاله',
-
-    generatedAt:
-      new Date().toISOString(),
+    generatedAt,
 
     fileBaseName:
-      isAllClients
-        ? `dadyar-finance-all-clients-${getDateSuffix()}`
-        : `dadyar-finance-selected-clients-${getDateSuffix()}`,
+      `dadyar-finance-${getFileMode(
+        mode
+      )}-${dateSuffix}`,
 
-    summary:
-      buildSummary(
-        rows,
-        selectedClients.length
+    sourceCaseCount,
+
+    filteredCaseCount:
+      caseItems.length,
+
+    filterLabels:
+      buildFilterLabels(
+        filters
       ),
 
-    rows,
+    stats:
+      overview.stats,
 
-    selectedClientNames:
-      selectedClients.map(
-        (client) =>
-          client.clientName
+    caseRows:
+      buildCaseRows(
+        caseItems
       ),
-  }
-}
 
-export function getFinanceStatusLabel(
-  status: FinancePaymentStatus
-): string {
-  switch (status) {
-    case 'paid':
-      return 'تسویه‌شده'
+    clientRows:
+      buildClientRows(
+        overview
+      ),
 
-    case 'partial':
-      return 'پرداخت جزئی'
+    clientCaseRows:
+      buildClientCaseRows(
+        overview
+      ),
 
-    case 'overdue':
-      return 'معوق'
+    cashflow:
+      analytics.monthlyCashflow,
 
-    case 'unpaid':
-    default:
-      return 'پرداخت‌نشده'
+    aging:
+      analytics.aging,
+
+    insights:
+      analytics.insights,
   }
 }

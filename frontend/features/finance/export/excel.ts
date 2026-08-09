@@ -30,7 +30,8 @@ function formatDate(
 }
 
 export async function downloadFinanceExcel(
-  report: FinanceExportReport
+  report:
+    FinanceExportReport
 ): Promise<void> {
   const XLSX =
     await import('xlsx')
@@ -38,7 +39,19 @@ export async function downloadFinanceExcel(
   const workbook =
     XLSX.utils.book_new()
 
-  
+  workbook.Workbook = {
+    Views: [
+      {
+        RTL: true,
+      },
+    ],
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Summary
+  |--------------------------------------------------------------------------
+  */
 
   const summaryRows:
     Array<
@@ -51,11 +64,11 @@ export async function downloadFinanceExcel(
 
       [
         'نوع گزارش',
-        report.scopeLabel,
+        report.title,
       ],
 
       [
-        'تاریخ تهیه گزارش',
+        'تاریخ ایجاد',
         new Date(
           report.generatedAt
         ).toLocaleString(
@@ -64,71 +77,63 @@ export async function downloadFinanceExcel(
       ],
 
       [
-        'تعداد پرونده',
-        report.summary
-          .caseCount,
+        'تعداد کل پرونده‌های منبع',
+        report.sourceCaseCount,
+      ],
+
+      [
+        'تعداد پرونده در گزارش',
+        report.filteredCaseCount,
       ],
 
       [
         'تعداد موکل',
-        report.summary
-          .clientCount,
+        report.stats.clientCount,
       ],
 
       [
-        report.amountLabel,
-        report.summary
-          .totalFee,
+        'ارزش قراردادها',
+        report.stats.totalRevenue,
       ],
 
       [
-        'مجموع پرداخت‌شده',
-        report.summary
-          .totalPaid,
+        'دریافتی',
+        report.stats.totalReceived,
       ],
 
       [
-        'مانده مطالبات',
-        report.summary
-          .totalRemaining,
+        'مانده',
+        report.stats.totalRemaining,
       ],
 
       [
-        'مطالبات معوق',
-        report.summary
-          .totalOverdue,
+        'معوق',
+        report.stats.totalOverdue,
       ],
 
       [
         'هزینه‌ها',
-        report.summary
-          .totalExpenses,
+        report.stats.totalExpenses,
       ],
 
       [
         'خالص دریافتی',
-        report.summary
-          .netCollected,
+        report.stats.netCollected,
       ],
 
       [
         'نرخ وصول',
-        report.summary
-          .collectionRate /
+        report.stats.collectionRate /
           100,
       ],
-    ]
 
-  if (
-    report.selectedClientNames
-      .length > 0
-  ) {
-    summaryRows.push([
-      'موکلین گزارش',
-      report.selectedClientNames
-        .join('، '),
-    ])
-  }
+      [
+        'فیلترهای گزارش',
+        report.filterLabels.join(
+          ' | '
+        ),
+      ],
+    ]
 
   const summarySheet =
     XLSX.utils.aoa_to_sheet(
@@ -151,40 +156,43 @@ export async function downloadFinanceExcel(
 
   summarySheet['!cols'] = [
     {
-      wch: 25,
+      wch: 28,
     },
     {
-      wch: 60,
+      wch: 70,
     },
   ]
 
-  
   for (
-    let row = 5;
-    row <= 10;
-    row += 1
+    let rowIndex = 6;
+    rowIndex <= 11;
+    rowIndex += 1
   ) {
     const address =
       XLSX.utils.encode_cell({
-        r: row,
+        r: rowIndex,
         c: 1,
       })
 
-    const cell =
+    if (
       summarySheet[
         address
       ]
-
-    if (cell) {
-      cell.z = '#,##0'
+    ) {
+      summarySheet[
+        address
+      ].z = '#,##0'
     }
   }
 
-  const rateCell =
-    summarySheet['B12']
+  const collectionRateCell =
+    summarySheet['B13']
 
-  if (rateCell) {
-    rateCell.z = '0.0%'
+  if (
+    collectionRateCell
+  ) {
+    collectionRateCell.z =
+      '0.0%'
   }
 
   XLSX.utils.book_append_sheet(
@@ -193,167 +201,571 @@ export async function downloadFinanceExcel(
     'خلاصه'
   )
 
-  
-  const headers = [
-    'ردیف',
-    'موکل',
-    'شماره پرونده',
-    'عنوان پرونده',
-    'مبلغ کل پرونده',
-    'سهم موکل',
-    'پرداخت‌شده',
-    'مانده',
-    'معوق',
-    'هزینه',
-    'نرخ وصول',
-    'وضعیت',
-    'سررسید',
-    'آخرین پرداخت',
-    'نوع سهم',
-  ]
+  /*
+  |--------------------------------------------------------------------------
+  | Management Report
+  |--------------------------------------------------------------------------
+  */
 
-  const detailRows =
-    report.rows.map(
-      (row, index) => [
-        index + 1,
+  if (
+    report.mode ===
+    'management'
+  ) {
+    const cashflowSheet =
+      XLSX.utils.aoa_to_sheet([
+        [
+          'ماه',
+          'دریافتی',
+          'هزینه',
+          'خالص',
+          'تعداد پرداخت',
+          'تعداد هزینه',
+        ],
 
-        row.clientName,
-
-        row.caseNumber,
-
-        row.caseTitle,
-
-        row.contractAmount,
-
-        row.clientShareAmount ??
-          '',
-
-        row.paidAmount,
-
-        row.remainingAmount,
-
-        row.overdueAmount,
-
-        row.expensesAmount,
-
-        row.collectionRate /
-          100,
-
-        getFinanceStatusLabel(
-          row.status
+        ...report.cashflow.map(
+          (item) => [
+            item.label,
+            item.received,
+            item.expenses,
+            item.net,
+            item.paymentCount,
+            item.expenseCount,
+          ]
         ),
+      ])
 
-        formatDate(
-          row.dueDate
-        ),
+    cashflowSheet['!cols'] = [
+      {
+        wch: 20,
+      },
+      {
+        wch: 20,
+      },
+      {
+        wch: 20,
+      },
+      {
+        wch: 20,
+      },
+      {
+        wch: 18,
+      },
+      {
+        wch: 18,
+      },
+    ]
 
-        formatDate(
-          row.lastPaymentDate
-        ),
-
-        row.allocationEstimated
-          ? 'تخمینی'
-          : 'ثبت‌شده',
+    applyMoneyColumns(
+      XLSX,
+      cashflowSheet,
+      report.cashflow.length,
+      [
+        1,
+        2,
+        3,
       ]
     )
 
-  const detailsSheet =
-    XLSX.utils.aoa_to_sheet([
-      headers,
-      ...detailRows,
-    ])
+    XLSX.utils.book_append_sheet(
+      workbook,
+      cashflowSheet,
+      'جریان نقدی'
+    )
 
-  detailsSheet['!cols'] = [
-    {
-      wch: 8,
-    },
-    {
-      wch: 24,
-    },
-    {
-      wch: 18,
-    },
-    {
-      wch: 34,
-    },
-    {
-      wch: 20,
-    },
-    {
-      wch: 20,
-    },
-    {
-      wch: 20,
-    },
-    {
-      wch: 20,
-    },
-    {
-      wch: 20,
-    },
-    {
-      wch: 20,
-    },
-    {
-      wch: 14,
-    },
-    {
-      wch: 18,
-    },
-    {
-      wch: 18,
-    },
-    {
-      wch: 18,
-    },
-    {
-      wch: 14,
-    },
-  ]
-
-  if (
-    detailsSheet['!ref']
-  ) {
-    detailsSheet[
-      '!autofilter'
-    ] = {
-      ref:
-        detailsSheet[
-          '!ref'
+    const agingSheet =
+      XLSX.utils.aoa_to_sheet([
+        [
+          'سن مطالبات',
+          'مبلغ',
+          'تعداد پرونده',
+          'درصد',
         ],
-    }
+
+        ...report.aging.map(
+          (item) => [
+            item.label,
+            item.amount,
+            item.caseCount,
+            item.percentage /
+              100,
+          ]
+        ),
+      ])
+
+    agingSheet['!cols'] = [
+      {
+        wch: 26,
+      },
+      {
+        wch: 22,
+      },
+      {
+        wch: 18,
+      },
+      {
+        wch: 14,
+      },
+    ]
+
+    applyMoneyColumns(
+      XLSX,
+      agingSheet,
+      report.aging.length,
+      [1]
+    )
+
+    applyPercentColumn(
+      XLSX,
+      agingSheet,
+      report.aging.length,
+      3
+    )
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      agingSheet,
+      'سن مطالبات'
+    )
+
+    const insightsSheet =
+      XLSX.utils.aoa_to_sheet([
+        [
+          'اولویت',
+          'عنوان',
+          'توضیح',
+          'مبلغ',
+          'تعداد',
+        ],
+
+        ...report.insights.map(
+          (item) => [
+            severityLabel(
+              item.severity
+            ),
+
+            item.title,
+
+            item.description,
+
+            item.amount ?? '',
+
+            item.count ?? '',
+          ]
+        ),
+      ])
+
+    insightsSheet['!cols'] = [
+      {
+        wch: 18,
+      },
+      {
+        wch: 30,
+      },
+      {
+        wch: 80,
+      },
+      {
+        wch: 22,
+      },
+      {
+        wch: 12,
+      },
+    ]
+
+    applyMoneyColumns(
+      XLSX,
+      insightsSheet,
+      report.insights.length,
+      [3]
+    )
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      insightsSheet,
+      'پیشنهاد اقدامات'
+    )
   }
 
-  
-  const numberColumns = [
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-  ]
+  /*
+  |--------------------------------------------------------------------------
+  | Cases
+  |--------------------------------------------------------------------------
+  */
 
+  if (
+    report.mode ===
+      'cases' ||
+    report.mode ===
+      'management'
+  ) {
+    const caseHeaders = [
+      'ردیف',
+      'شماره پرونده',
+      'عنوان پرونده',
+      'موکلین',
+      'مبلغ قرارداد',
+      'دریافتی',
+      'مانده',
+      'معوق',
+      'هزینه',
+      'نرخ وصول',
+      'وضعیت',
+      'سررسید',
+      'آخرین پرداخت',
+    ]
+
+    const caseRows =
+      report.caseRows.map(
+        (row, index) => [
+          index + 1,
+
+          row.caseNumber,
+
+          row.caseTitle,
+
+          row.clientNames,
+
+          row.contractAmount,
+
+          row.paidAmount,
+
+          row.remainingAmount,
+
+          row.overdueAmount,
+
+          row.expensesAmount,
+
+          row.collectionRate /
+            100,
+
+          getFinanceStatusLabel(
+            row.status
+          ),
+
+          formatDate(
+            row.dueDate
+          ),
+
+          formatDate(
+            row.lastPaymentDate
+          ),
+        ]
+      )
+
+    const caseSheet =
+      XLSX.utils.aoa_to_sheet([
+        caseHeaders,
+        ...caseRows,
+      ])
+
+    caseSheet['!cols'] = [
+      { wch: 8 },
+      { wch: 20 },
+      { wch: 36 },
+      { wch: 32 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+    ]
+
+    applyMoneyColumns(
+      XLSX,
+      caseSheet,
+      caseRows.length,
+      [
+        4,
+        5,
+        6,
+        7,
+        8,
+      ]
+    )
+
+    applyPercentColumn(
+      XLSX,
+      caseSheet,
+      caseRows.length,
+      9
+    )
+
+    addAutoFilter(
+      caseSheet
+    )
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      caseSheet,
+      'پرونده‌ها'
+    )
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Clients
+  |--------------------------------------------------------------------------
+  */
+
+  if (
+    report.mode ===
+      'clients' ||
+    report.mode ===
+      'management'
+  ) {
+    const clientRows =
+      report.clientRows.map(
+        (row, index) => [
+          index + 1,
+
+          row.clientName,
+
+          row.caseCount,
+
+          row.totalFee,
+
+          row.totalPaid,
+
+          row.totalRemaining,
+
+          row.totalOverdue,
+
+          row.totalExpenses,
+
+          row.collectionRate /
+            100,
+
+          row.estimatedAllocationCases,
+        ]
+      )
+
+    const clientSheet =
+      XLSX.utils.aoa_to_sheet([
+        [
+          'ردیف',
+          'موکل',
+          'تعداد پرونده',
+          'سهم قرارداد',
+          'دریافتی',
+          'مانده',
+          'معوق',
+          'هزینه',
+          'نرخ وصول',
+          'سهم تخمینی',
+        ],
+
+        ...clientRows,
+      ])
+
+    clientSheet['!cols'] = [
+      { wch: 8 },
+      { wch: 28 },
+      { wch: 16 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 14 },
+      { wch: 16 },
+    ]
+
+    applyMoneyColumns(
+      XLSX,
+      clientSheet,
+      clientRows.length,
+      [
+        3,
+        4,
+        5,
+        6,
+        7,
+      ]
+    )
+
+    applyPercentColumn(
+      XLSX,
+      clientSheet,
+      clientRows.length,
+      8
+    )
+
+    addAutoFilter(
+      clientSheet
+    )
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      clientSheet,
+      'موکلین'
+    )
+
+    /*
+    |--------------------------------------------------------------------------
+    | Client / Case allocations
+    |--------------------------------------------------------------------------
+    */
+
+    const allocationRows =
+      report.clientCaseRows.map(
+        (row, index) => [
+          index + 1,
+
+          row.clientName,
+
+          row.caseNumber,
+
+          row.caseTitle,
+
+          row.caseContractAmount,
+
+          row.clientShareAmount,
+
+          row.paidAmount,
+
+          row.remainingAmount,
+
+          row.overdueAmount,
+
+          row.expensesAmount,
+
+          row.collectionRate /
+            100,
+
+          getFinanceStatusLabel(
+            row.status
+          ),
+
+          row.allocationEstimated
+            ? 'تخمینی'
+            : 'ثبت‌شده',
+
+          formatDate(
+            row.dueDate
+          ),
+
+          formatDate(
+            row.lastPaymentDate
+          ),
+        ]
+      )
+
+    const allocationSheet =
+      XLSX.utils.aoa_to_sheet([
+        [
+          'ردیف',
+          'موکل',
+          'شماره پرونده',
+          'عنوان پرونده',
+          'مبلغ کل پرونده',
+          'سهم موکل',
+          'پرداختی',
+          'مانده',
+          'معوق',
+          'هزینه',
+          'نرخ وصول',
+          'وضعیت',
+          'نوع سهم',
+          'سررسید',
+          'آخرین پرداخت',
+        ],
+
+        ...allocationRows,
+      ])
+
+    allocationSheet['!cols'] = [
+      { wch: 8 },
+      { wch: 26 },
+      { wch: 20 },
+      { wch: 34 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 18 },
+    ]
+
+    applyMoneyColumns(
+      XLSX,
+      allocationSheet,
+      allocationRows.length,
+      [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+      ]
+    )
+
+    applyPercentColumn(
+      XLSX,
+      allocationSheet,
+      allocationRows.length,
+      10
+    )
+
+    addAutoFilter(
+      allocationSheet
+    )
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      allocationSheet,
+      'سهم موکل در پرونده'
+    )
+  }
+
+  XLSX.writeFileXLSX(
+    workbook,
+    `${report.fileBaseName}.xlsx`,
+    {
+      compression: true,
+    }
+  )
+}
+
+function applyMoneyColumns(
+  XLSX:
+    typeof import('xlsx'),
+
+  sheet:
+    import('xlsx').WorkSheet,
+
+  rowCount:
+    number,
+
+  columns:
+    number[]
+) {
   for (
-    let rowIndex = 1;
-    rowIndex <=
-    detailRows.length;
-    rowIndex += 1
+    let row = 1;
+    row <= rowCount;
+    row += 1
   ) {
     for (
-      const columnIndex of
-      numberColumns
+      const column of
+      columns
     ) {
       const address =
         XLSX.utils.encode_cell({
-          r: rowIndex,
-          c: columnIndex,
+          r: row,
+          c: column,
         })
 
       const cell =
-        detailsSheet[
-          address
-        ]
+        sheet[address]
 
       if (
         cell &&
@@ -364,44 +776,75 @@ export async function downloadFinanceExcel(
           '#,##0'
       }
     }
+  }
+}
 
-    const rateAddress =
+function applyPercentColumn(
+  XLSX:
+    typeof import('xlsx'),
+
+  sheet:
+    import('xlsx').WorkSheet,
+
+  rowCount:
+    number,
+
+  column:
+    number
+) {
+  for (
+    let row = 1;
+    row <= rowCount;
+    row += 1
+  ) {
+    const address =
       XLSX.utils.encode_cell({
-        r: rowIndex,
-        c: 10,
+        r: row,
+        c: column,
       })
 
-    const rateCell =
-      detailsSheet[
-        rateAddress
-      ]
+    const cell =
+      sheet[address]
 
-    if (rateCell) {
-      rateCell.z =
+    if (cell) {
+      cell.z =
         '0.0%'
     }
   }
+}
 
-  XLSX.utils.book_append_sheet(
-    workbook,
-    detailsSheet,
-    'جزئیات'
-  )
-
-  
-  workbook.Workbook = {
-    Views: [
-      {
-        RTL: true,
-      },
-    ],
-  }
-
-  XLSX.writeFileXLSX(
-    workbook,
-    `${report.fileBaseName}.xlsx`,
-    {
-      compression: true,
+function addAutoFilter(
+  sheet:
+    import('xlsx').WorkSheet
+) {
+  if (
+    sheet['!ref']
+  ) {
+    sheet['!autofilter'] = {
+      ref:
+        sheet['!ref'],
     }
-  )
+  }
+}
+
+function severityLabel(
+  value:
+    'success'
+    | 'info'
+    | 'warning'
+    | 'critical'
+) {
+  switch (value) {
+    case 'critical':
+      return 'بحرانی'
+
+    case 'warning':
+      return 'هشدار'
+
+    case 'info':
+      return 'اطلاع'
+
+    default:
+      return 'مناسب'
+  }
 }

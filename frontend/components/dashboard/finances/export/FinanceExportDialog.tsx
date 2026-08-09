@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import {
@@ -10,91 +9,121 @@ import {
 
 import {
   AlertCircle,
+  BriefcaseBusiness,
   Check,
   FileSpreadsheet,
   FileText,
-  Files,
-  Search,
+  Gauge,
   Users,
   X,
 } from 'lucide-react'
 
 import type {
-  ClientFinanceSummary,
   FinanceCaseSource,
+  FinanceOverview,
 } from '@/features/finance/domain/types'
+
+import type {
+  FinancePeriodAnalytics,
+} from '@/features/finance/domain/period-analytics'
+
+import type {
+  FinanceReportFilters,
+} from '@/features/finance/domain/filters'
 
 import {
   buildFinanceExportReport,
-  getFinanceClientKey,
 } from '@/features/finance/export/report-data'
 
 import type {
-  FinanceExportFormat,
-  FinanceExportScope,
+  FinanceExportMode,
 } from '@/features/finance/export/types'
 
-interface FinanceExportDialogProps {
+import {
+  formatMoney,
+} from '@/features/finance/utils/money'
+
+interface Props {
   open: boolean
 
   onClose: () => void
 
-  cases: FinanceCaseSource[]
+  sourceCaseCount: number
 
-  clients: ClientFinanceSummary[]
-}
+  caseItems:
+    FinanceCaseSource[]
 
-function normalizeSearch(
-  value: string
-): string {
-  return value
-    .trim()
-    .toLocaleLowerCase(
-      'fa-IR'
-    )
+  overview:
+    FinanceOverview
+
+  analytics:
+    FinancePeriodAnalytics
+
+  filters:
+    FinanceReportFilters
 }
 
 export function FinanceExportDialog({
   open,
   onClose,
-  cases,
-  clients,
-}: FinanceExportDialogProps) {
+  sourceCaseCount,
+  caseItems,
+  overview,
+  analytics,
+  filters,
+}: Props) {
   const [
-    scope,
-    setScope,
-  ] = useState<FinanceExportScope>(
-    'all-cases'
-  )
-
-  const [
-    search,
-    setSearch,
-  ] = useState('')
-
-  const [
-    selectedKeys,
-    setSelectedKeys,
-  ] = useState<
-    Set<string>
-  >(
-    () =>
-      new Set()
-  )
+    mode,
+    setMode,
+  ] =
+    useState<FinanceExportMode>(
+      'management'
+    )
 
   const [
     exporting,
     setExporting,
-  ] = useState<
-    FinanceExportFormat | null
-  >(null)
+  ] =
+    useState<
+      'pdf' |
+      'xlsx' |
+      null
+    >(null)
 
   const [
     error,
     setError,
-  ] = useState<
-    string | null
-  >(null)
+  ] =
+    useState<string | null>(
+      null
+    )
+
+  const report =
+    useMemo(
+      () =>
+        buildFinanceExportReport({
+          mode,
+
+          sourceCaseCount,
+
+          caseItems,
+
+          overview,
+
+          analytics,
+
+          filters,
+        }),
+
+      [
+        mode,
+        sourceCaseCount,
+        caseItems,
+        overview,
+        analytics,
+        filters,
+      ]
+    )
 
   useEffect(() => {
     if (!open) {
@@ -102,12 +131,6 @@ export function FinanceExportDialog({
     }
 
     setError(null)
-  }, [open])
-
-  useEffect(() => {
-    if (!open) {
-      return
-    }
 
     const handleKeyDown =
       (
@@ -135,155 +158,17 @@ export function FinanceExportDialog({
       )
     }
   }, [
+    open,
     exporting,
     onClose,
-    open,
   ])
-
-  const normalizedSearch =
-    normalizeSearch(
-      search
-    )
-
-  const visibleClients =
-    useMemo(() => {
-      if (
-        !normalizedSearch
-      ) {
-        return clients
-      }
-
-      return clients.filter(
-        (client) =>
-          normalizeSearch(
-            client.clientName
-          ).includes(
-            normalizedSearch
-          )
-      )
-    }, [
-      clients,
-      normalizedSearch,
-    ])
-
-  const selectedCount =
-    selectedKeys.size
-
-  const canExport =
-    scope !==
-      'selected-clients' ||
-    selectedCount > 0
-
-  const setExportScope =
-    (
-      value:
-        FinanceExportScope
-    ) => {
-      setScope(value)
-      setError(null)
-    }
-
-  const toggleClient =
-    (
-      client:
-        ClientFinanceSummary
-    ) => {
-      const key =
-        getFinanceClientKey(
-          client
-        )
-
-      setSelectedKeys(
-        (current) => {
-          const next =
-            new Set(
-              current
-            )
-
-          if (
-            next.has(key)
-          ) {
-            next.delete(
-              key
-            )
-          } else {
-            next.add(
-              key
-            )
-          }
-
-          return next
-        }
-      )
-
-      setError(null)
-    }
-
-  const allVisibleSelected =
-    visibleClients.length >
-      0 &&
-    visibleClients.every(
-      (client) =>
-        selectedKeys.has(
-          getFinanceClientKey(
-            client
-          )
-        )
-    )
-
-  const toggleVisibleClients =
-    () => {
-      setSelectedKeys(
-        (current) => {
-          const next =
-            new Set(
-              current
-            )
-
-          if (
-            allVisibleSelected
-          ) {
-            for (
-              const client of
-              visibleClients
-            ) {
-              next.delete(
-                getFinanceClientKey(
-                  client
-                )
-              )
-            }
-          } else {
-            for (
-              const client of
-              visibleClients
-            ) {
-              next.add(
-                getFinanceClientKey(
-                  client
-                )
-              )
-            }
-          }
-
-          return next
-        }
-      )
-    }
 
   const handleExport =
     async (
       format:
-        FinanceExportFormat
+        'pdf' |
+        'xlsx'
     ) => {
-      if (!canExport) {
-        setError(
-          'حداقل یک موکل را انتخاب کنید.'
-        )
-
-        return
-      }
-
       setError(null)
 
       setExporting(
@@ -291,22 +176,6 @@ export function FinanceExportDialog({
       )
 
       try {
-        const report =
-          buildFinanceExportReport({
-            caseItems:
-              cases,
-
-            clients,
-
-            selection: {
-              scope,
-
-              clientKeys: [
-                ...selectedKeys,
-              ],
-            },
-          })
-
         if (
           format ===
           'xlsx'
@@ -353,26 +222,26 @@ export function FinanceExportDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="finance-export-title"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
     >
       <button
         type="button"
-        aria-label="بستن پنجره"
+        aria-label="بستن"
+        onClick={
+          onClose
+        }
         disabled={
           Boolean(
             exporting
           )
         }
-        onClick={
-          onClose
-        }
-        className="absolute inset-0 bg-zinc-950/45 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-zinc-950/50 backdrop-blur-[2px]"
       />
 
-      <div className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl">
+      <div className="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl">
         <header className="flex items-start justify-between gap-4 border-b border-zinc-100 px-5 py-5 sm:px-6">
           <div>
             <h2
@@ -383,7 +252,7 @@ export function FinanceExportDialog({
             </h2>
 
             <p className="mt-1 text-sm leading-6 text-zinc-500">
-              محدوده گزارش را انتخاب کنید و سپس فایل Excel یا PDF بسازید.
+              خروجی دقیقاً براساس فیلترهای فعال صفحه ساخته می‌شود.
             </p>
           </div>
 
@@ -397,7 +266,7 @@ export function FinanceExportDialog({
                 exporting
               )
             }
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-50"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-800"
           >
             <X
               size={19}
@@ -407,203 +276,132 @@ export function FinanceExportDialog({
 
         <div className="overflow-y-auto p-5 sm:p-6">
           <div className="grid gap-3 md:grid-cols-3">
-            <ScopeCard
+            <ModeCard
               active={
-                scope ===
-                'all-cases'
+                mode ===
+                'management'
               }
               icon={
-                Files
+                Gauge
               }
-              title="تمام پرونده‌ها"
-              description={`${cases.length.toLocaleString(
-                'fa-IR'
-              )} پرونده، بدون دوبارشماری`}
+              title="گزارش مدیریتی"
+              description="KPI، جریان نقدی، Aging، پیشنهاد اقدام و جزئیات"
               onClick={() =>
-                setExportScope(
-                  'all-cases'
+                setMode(
+                  'management'
                 )
               }
             />
 
-            <ScopeCard
+            <ModeCard
               active={
-                scope ===
-                'all-clients'
+                mode ===
+                'cases'
+              }
+              icon={
+                BriefcaseBusiness
+              }
+              title="پرونده‌محور"
+              description="یک ردیف برای هر پرونده بدون دوبارشماری"
+              onClick={() =>
+                setMode(
+                  'cases'
+                )
+              }
+            />
+
+            <ModeCard
+              active={
+                mode ===
+                'clients'
               }
               icon={
                 Users
               }
-              title="تمام موکلین"
-              description={`${clients.length.toLocaleString(
-                'fa-IR'
-              )} حساب مالی مستقل`}
+              title="موکل‌محور"
+              description="سهم مالی مستقل هر موکل حتی در پرونده مشترک"
               onClick={() =>
-                setExportScope(
-                  'all-clients'
-                )
-              }
-            />
-
-            <ScopeCard
-              active={
-                scope ===
-                'selected-clients'
-              }
-              icon={
-                Check
-              }
-              title="انتخاب موکل"
-              description="یک یا چند موکل مشخص"
-              onClick={() =>
-                setExportScope(
-                  'selected-clients'
+                setMode(
+                  'clients'
                 )
               }
             />
           </div>
 
-          {scope ===
-            'selected-clients' && (
-            <section className="mt-6 overflow-hidden rounded-2xl border border-zinc-200">
-              <div className="border-b border-zinc-100 bg-zinc-50 p-4">
-                <div className="relative">
-                  <Search
-                    size={
-                      17
-                    }
-                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"
-                  />
+          <section className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
+            <p className="text-xs font-black text-indigo-900">
+              محدوده خروجی
+            </p>
 
-                  <input
-                    value={
-                      search
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setSearch(
-                        event
-                          .target
-                          .value
-                      )
-                    }
-                    placeholder="جست‌وجوی نام موکل..."
-                    className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-4 pr-10 text-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
-                  />
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs text-zinc-500">
-                    {selectedCount.toLocaleString(
-                      'fa-IR'
-                    )}{' '}
-                    موکل انتخاب شده
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={
-                      toggleVisibleClients
-                    }
-                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+            <div className="mt-3 flex flex-wrap gap-2">
+              {report.filterLabels.map(
+                (
+                  label,
+                  index
+                ) => (
+                  <span
+                    key={`${label}-${index}`}
+                    className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-indigo-700 ring-1 ring-indigo-100"
                   >
-                    {allVisibleSelected
-                      ? 'لغو انتخاب نتایج'
-                      : 'انتخاب همه نتایج'}
-                  </button>
-                </div>
-              </div>
+                    {label}
+                  </span>
+                )
+              )}
+            </div>
+          </section>
 
-              <div className="max-h-72 divide-y divide-zinc-100 overflow-y-auto">
-                {visibleClients.length ===
-                0 ? (
-                  <div className="p-8 text-center text-sm text-zinc-400">
-                    موکلی پیدا نشد.
-                  </div>
-                ) : (
-                  visibleClients.map(
-                    (
-                      client
-                    ) => {
-                      const key =
-                        getFinanceClientKey(
-                          client
-                        )
+          <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <PreviewMetric
+              title="پرونده"
+              value={
+                report.filteredCaseCount.toLocaleString(
+                  'fa-IR'
+                )
+              }
+            />
 
-                      const selected =
-                        selectedKeys.has(
-                          key
-                        )
+            <PreviewMetric
+              title="موکل"
+              value={
+                report.stats.clientCount.toLocaleString(
+                  'fa-IR'
+                )
+              }
+            />
 
-                      return (
-                        <button
-                          key={
-                            key
-                          }
-                          type="button"
-                          onClick={() =>
-                            toggleClient(
-                              client
-                            )
-                          }
-                          className="flex w-full items-center justify-between gap-4 px-4 py-3 text-right transition hover:bg-indigo-50/50"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate font-bold text-zinc-800">
-                              {
-                                client.clientName
-                              }
-                            </p>
+            <PreviewMetric
+              title="دریافتی"
+              value={
+                formatMoney(
+                  report.stats.totalReceived
+                )
+              }
+            />
 
-                            <p className="mt-1 text-xs text-zinc-400">
-                              {client.totalContracts.toLocaleString(
-                                'fa-IR'
-                              )}{' '}
-                              پرونده · مانده{' '}
-                              {client.totalRemaining.toLocaleString(
-                                'fa-IR'
-                              )}{' '}
-                              ریال
-                            </p>
-                          </div>
+            <PreviewMetric
+              title="مانده"
+              value={
+                formatMoney(
+                  report.stats.totalRemaining
+                )
+              }
+            />
+          </div>
 
-                          <span
-                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition ${
-                              selected
-                                ? 'border-indigo-600 bg-indigo-600 text-white'
-                                : 'border-zinc-300 bg-white text-transparent'
-                            }`}
-                          >
-                            <Check
-                              size={
-                                15
-                              }
-                            />
-                          </span>
-                        </button>
-                      )
-                    }
-                  )
-                )}
-              </div>
-            </section>
-          )}
+          <ReportPreview
+            report={
+              report
+            }
+          />
 
           {error && (
-            <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
               <AlertCircle
-                size={
-                  18
-                }
+                size={18}
                 className="mt-0.5 shrink-0"
               />
 
-              <p>
-                {
-                  error
-                }
-              </p>
+              {error}
             </div>
           )}
         </div>
@@ -612,7 +410,6 @@ export function FinanceExportDialog({
           <button
             type="button"
             disabled={
-              !canExport ||
               Boolean(
                 exporting
               )
@@ -622,12 +419,10 @@ export function FinanceExportDialog({
                 'xlsx'
               )
             }
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <FileSpreadsheet
-              size={
-                18
-              }
+              size={18}
             />
 
             {exporting ===
@@ -639,7 +434,6 @@ export function FinanceExportDialog({
           <button
             type="button"
             disabled={
-              !canExport ||
               Boolean(
                 exporting
               )
@@ -649,12 +443,10 @@ export function FinanceExportDialog({
                 'pdf'
               )
             }
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <FileText
-              size={
-                18
-              }
+              size={18}
             />
 
             {exporting ===
@@ -668,25 +460,147 @@ export function FinanceExportDialog({
   )
 }
 
-interface ScopeCardProps {
-  active: boolean
+function ReportPreview({
+  report,
+}: {
+  report:
+    ReturnType<
+      typeof buildFinanceExportReport
+    >
+}) {
+  if (
+    report.mode ===
+    'clients'
+  ) {
+    return (
+      <PreviewBox
+        title="پیش‌نمایش موکلین"
+      >
+        {report.clientRows
+          .slice(
+            0,
+            5
+          )
+          .map(
+            (row) => (
+              <PreviewRow
+                key={
+                  row.clientId ??
+                  row.clientName
+                }
+                title={
+                  row.clientName
+                }
+                description={`${row.caseCount.toLocaleString(
+                  'fa-IR'
+                )} پرونده`}
+                value={
+                  formatMoney(
+                    row.totalRemaining
+                  )
+                }
+              />
+            )
+          )}
+      </PreviewBox>
+    )
+  }
 
-  icon:
-    typeof Files
+  if (
+    report.mode ===
+    'cases'
+  ) {
+    return (
+      <PreviewBox
+        title="پیش‌نمایش پرونده‌ها"
+      >
+        {report.caseRows
+          .slice(
+            0,
+            5
+          )
+          .map(
+            (row) => (
+              <PreviewRow
+                key={
+                  row.caseId
+                }
+                title={
+                  row.caseTitle
+                }
+                description={
+                  row.clientNames
+                }
+                value={
+                  formatMoney(
+                    row.remainingAmount
+                  )
+                }
+              />
+            )
+          )}
+      </PreviewBox>
+    )
+  }
 
-  title: string
-  description: string
-
-  onClick: () => void
+  return (
+    <PreviewBox
+      title="پیشنهادهای مدیریتی"
+    >
+      {report.insights
+        .slice(
+          0,
+          5
+        )
+        .map(
+          (insight) => (
+            <PreviewRow
+              key={
+                insight.id
+              }
+              title={
+                insight.title
+              }
+              description={
+                insight.description
+              }
+              value={
+                insight.amount !==
+                undefined
+                  ? formatMoney(
+                      insight.amount
+                    )
+                  : undefined
+              }
+            />
+          )
+        )}
+    </PreviewBox>
+  )
 }
 
-function ScopeCard({
+function ModeCard({
   active,
   icon: Icon,
   title,
   description,
   onClick,
-}: ScopeCardProps) {
+}: {
+  active:
+    boolean
+
+  icon:
+    typeof Gauge
+
+  title:
+    string
+
+  description:
+    string
+
+  onClick:
+    () => void
+}) {
   return (
     <button
       type="button"
@@ -696,7 +610,7 @@ function ScopeCard({
       className={`rounded-2xl border p-4 text-right transition ${
         active
           ? 'border-indigo-400 bg-indigo-50 ring-4 ring-indigo-50'
-          : 'border-zinc-200 bg-white hover:border-indigo-200 hover:bg-zinc-50'
+          : 'border-zinc-200 hover:border-indigo-200 hover:bg-zinc-50'
       }`}
     >
       <div
@@ -706,11 +620,15 @@ function ScopeCard({
             : 'bg-zinc-100 text-zinc-500'
         }`}
       >
-        <Icon
-          size={
-            19
-          }
-        />
+        {active ? (
+          <Check
+            size={18}
+          />
+        ) : (
+          <Icon
+            size={18}
+          />
+        )}
       </div>
 
       <p className="mt-4 font-black text-zinc-900">
@@ -721,5 +639,88 @@ function ScopeCard({
         {description}
       </p>
     </button>
+  )
+}
+
+function PreviewMetric({
+  title,
+  value,
+}: {
+  title:
+    string
+
+  value:
+    string
+}) {
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+      <p className="text-[11px] text-zinc-500">
+        {title}
+      </p>
+
+      <p className="mt-1 break-words text-sm font-black text-zinc-900">
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function PreviewBox({
+  title,
+  children,
+}: {
+  title:
+    string
+
+  children:
+    React.ReactNode
+}) {
+  return (
+    <section className="mt-5 overflow-hidden rounded-2xl border border-zinc-200">
+      <div className="border-b border-zinc-100 bg-zinc-50 px-4 py-3">
+        <h3 className="text-sm font-black text-zinc-800">
+          {title}
+        </h3>
+      </div>
+
+      <div className="divide-y divide-zinc-100">
+        {children}
+      </div>
+    </section>
+  )
+}
+
+function PreviewRow({
+  title,
+  description,
+  value,
+}: {
+  title:
+    string
+
+  description:
+    string
+
+  value?:
+    string
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-3">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-bold text-zinc-800">
+          {title}
+        </p>
+
+        <p className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-400">
+          {description}
+        </p>
+      </div>
+
+      {value && (
+        <p className="shrink-0 text-xs font-black text-zinc-700">
+          {value}
+        </p>
+      )}
+    </div>
   )
 }
