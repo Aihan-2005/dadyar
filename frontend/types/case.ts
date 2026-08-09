@@ -12,8 +12,13 @@ export type PaymentType =
   | 'non-cash'
   | 'both'
 
-export type DateValue = Date | string
-export type MoneyValue = number | string
+export type DateValue =
+  | Date
+  | string
+
+export type MoneyValue =
+  | number
+  | string
 
 export interface Payment {
   id?: string
@@ -47,7 +52,7 @@ export interface CaseClient {
   role?: string
   representative?: string
 
-
+  
   feeShareAmount?: MoneyValue
 }
 
@@ -71,14 +76,16 @@ export interface Lawyer {
 export interface CashPayment {
   id?: string
 
-  
+  /**
+   * موکلی که پرداخت یا قسط متعلق به او است.
+   */
   clientId?: string
   clientName?: string
 
   amount?: number
   isPaid?: boolean
 
-  
+ 
   paymentDate?: string
 
   dueDate?: DateValue
@@ -94,11 +101,11 @@ export interface NonCashPayment {
   title?: string
   description?: string
 
-  
   amount?: number
 
   dueDate?: DateValue
   deliveredDate?: DateValue
+
   isDelivered?: boolean
 }
 
@@ -205,6 +212,7 @@ export interface Case {
 
   installments?: Payment[]
   contracts?: ContractStage[]
+
   expenses?: Expense[]
 
   nonCashDescription?: string
@@ -213,12 +221,19 @@ export interface Case {
 
 export type CreateCasePayload = Omit<
   Case,
-  'id' | 'createdAt' | 'updatedAt' | 'status'
+  | 'id'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'status'
 > & {
   title: string
   status?: CaseStatus
 }
 
-export type UpdateCasePayload = Partial<
-  Omit<Case, 'id' | 'createdAt'>
->
+export type UpdateCasePayload =
+  Partial<
+    Omit<
+      Case,
+      'id' | 'createdAt'
+    >
+  >

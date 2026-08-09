@@ -25,20 +25,15 @@ export type NumericValue =
 export interface FinanceClientSource {
   clientId?: string
   name?: string
-
-  
   feeShareAmount?: NumericValue
 }
 
 export interface FinancePaymentSource {
   id?: string
-
   clientId?: string
   clientName?: string
-
   amount?: NumericValue
   isPaid?: boolean
-
   paymentDate?: DateValue
   dueDate?: DateValue
   paidDate?: DateValue
@@ -46,15 +41,11 @@ export interface FinancePaymentSource {
 
 export interface FinanceNonCashPaymentSource {
   id?: string
-
   clientId?: string
   clientName?: string
-
   title?: string
   description?: string
-
   amount?: NumericValue
-
   dueDate?: DateValue
   deliveredDate?: DateValue
   isDelivered?: boolean
@@ -71,10 +62,13 @@ export interface FinanceExpenseSource {
 
 export interface FinanceCaseSource {
   id: string
-
   title?: string
   caseNumber?: string
   status?: string
+
+  createdAt?: DateValue
+  updatedAt?: DateValue
+  closedAt?: DateValue
 
   clientId?: string
   clientName?: string
@@ -83,7 +77,6 @@ export interface FinanceCaseSource {
   totalFee?: NumericValue
   contractAmount?: NumericValue
   totalAmount?: NumericValue
-
   paidAmount?: NumericValue
   remainingAmount?: NumericValue
   overdueAmount?: NumericValue
@@ -94,20 +87,14 @@ export interface FinanceCaseSource {
   cashPayments?: FinancePaymentSource[]
   installments?: FinancePaymentSource[]
   nonCashPayments?: FinanceNonCashPaymentSource[]
-
   expenses?: FinanceExpenseSource[]
 }
 
 export interface ResolvedClientAllocation {
   clientId?: string
   clientName: string
-
-  
   feeAmount: number
-
   ratio: number
-
-  
   isEstimated: boolean
 }
 
@@ -119,9 +106,7 @@ export interface CaseFinance {
   clientId?: string
   clientName: string
 
-  
   totalFee: number
-
   paidAmount: number
   remainingDebt: number
   overdueAmount: number
@@ -134,8 +119,6 @@ export interface CaseFinance {
   collectionRate: number
 
   caseContractAmount?: number
-
-  
   allocationEstimated?: boolean
 }
 
@@ -153,16 +136,13 @@ export interface ClientFinanceSummary {
 
   collectionRate: number
 
-  
   estimatedAllocationCases: number
 
   cases: CaseFinance[]
 }
 
 export interface FinancialStats {
-  
   totalRevenue: number
-
   totalReceived: number
   totalRemaining: number
   totalOverdue: number

@@ -15,3 +15,21 @@ export type {
   NumericValue,
   ResolvedClientAllocation,
 } from '@/features/finance/domain/types'
+
+export type {
+  FinanceCasePaymentFilter,
+  FinancePeriodPreset,
+  FinanceReportFilters,
+  FinanceResolvedDateRange,
+} from '@/features/finance/domain/filters'
+
+export type {
+  FinanceAgingBucket,
+  FinanceAgingBucketKey,
+  FinanceDecisionInsight,
+  FinanceHealthLevel,
+  FinanceMonthSnapshot,
+  FinancePeriodAnalytics,
+  FinanceRiskClient,
+  MonthlyCashflowPoint,
+} from '@/features/finance/domain/period-analytics'
