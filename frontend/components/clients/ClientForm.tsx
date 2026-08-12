@@ -1,288 +1,746 @@
-// 'use client'
 
-// import { useState, useEffect } from 'react'
-// import type { Client, CreateClientPayload } from '@/types/client'
 
-// // Mock data برای وکلا - بعداً از API یا store واقعی می‌گیری
-// const mockLawyers = [
-//   { id: 'l1', name: 'دکتر احمد رضایی' },
-//   { id: 'l2', name: 'خانم مریم احمدی' },
-//   { id: 'l3', name: 'آقای علی محمدی' },
-// ]
-
-// interface Props {
-//   client?: Client
-//   onSubmit: (payload: CreateClientPayload) => void
-//   onCancel: () => void
-// }
-
-// export function ClientForm({ client, onSubmit, onCancel }: Props) {
-//   const [form, setForm] = useState<CreateClientPayload>({
-//     firstName: '',
-//     lastName: '',
-//     nationalId: '',
-//     phoneNumber: '',
-//     email: '',
-//     address: '',
-//     lawyerId: '',
-//   })
-
-//   useEffect(() => {
-//     if (client) {
-//       setForm({
-//         firstName: client.firstName,
-//         lastName: client.lastName,
-//         nationalId: client.nationalId,
-//         phoneNumber: client.phoneNumber,
-//         email: client.email || '',
-//         address: client.address || '',
-//         lawyerId: client.lawyerId || '',
-//       })
-//     }
-//   }, [client])
-
-//   const handleSubmit = (e: React.FormEvent) => {
-//     e.preventDefault()
-//     onSubmit(form)
-//   }
-
-//   const inputCls =
-//     'w-full px-4 py-2.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white text-right'
-//   const labelCls = 'block text-sm font-medium text-zinc-700 mb-2 text-right'
-
-//   return (
-//     <form onSubmit={handleSubmit} className="space-y-4">
-//       <div className="grid grid-cols-2 gap-4 text-gray-600">
-//         <div>
-//           <label className={labelCls}>نام *</label>
-//           <input
-//             type="text"
-//             className={inputCls}
-//             value={form.firstName}
-//             onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
-//             placeholder="نام موکل"
-//             required
-//           />
-//         </div>
-//         <div>
-//           <label className={labelCls}>نام خانوادگی *</label>
-//           <input
-//             type="text"
-//             className={inputCls}
-//             value={form.lastName}
-//             onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
-//             placeholder="نام خانوادگی"
-//             required
-//           />
-//         </div>
-//       </div>
-
-//       <div className='text-gray-600'>
-//         <label className={labelCls}>کد ملی *</label>
-//         <input
-//           type="text"
-//           className={inputCls}
-//           value={form.nationalId}
-//           onChange={(e) => setForm((f) => ({ ...f, nationalId: e.target.value }))}
-//           placeholder="کد ملی ۱۰ رقمی"
-//           pattern="[0-9]{10}"
-//           maxLength={10}
-//           required
-//         />
-//       </div>
-
-//       <div className='text-gray-600'>
-//         <label className={labelCls}>شماره تماس *</label>
-//         <input
-//           type="tel"
-//           className={inputCls}
-//           value={form.phoneNumber}
-//           onChange={(e) => setForm((f) => ({ ...f, phoneNumber: e.target.value }))}
-//           placeholder="09123456789"
-//           pattern="09[0-9]{9}"
-//           maxLength={11}
-//           required
-//         />
-//       </div>
-//          <div className='text-gray-600'>
-//         <label className={labelCls}>رمز شخصی</label>
-//         <input
-//           type="email"
-//           className={inputCls}
-//           value={form.email}
-//           onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-//           placeholder="353245"
-//         />
-//       </div>
-
-//       <div className='text-gray-600'>
-//         <label className={labelCls}>ایمیل</label>
-//         <input
-//           type="email"
-//           className={inputCls}
-//           value={form.email}
-//           onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-//           placeholder="example@email.com"
-//         />
-//       </div>
-
- 
-
-//       <div className='text-gray-600'>
-//         <label className={labelCls}>آدرس</label>
-//         <textarea
-//           className={inputCls}
-//           rows={3}
-//           value={form.address}
-//           onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-//           placeholder="آدرس کامل موکل"
-//         />
-//       </div>
-
-//       <div className="flex gap-3 pt-2">
-//         <button
-//           type="submit"
-//           className="flex-1 bg-zinc-900 text-white py-2.5 rounded-lg hover:bg-zinc-700 transition-colors font-medium"
-//         >
-//           {client ? 'ویرایش موکل' : 'افزودن موکل'}
-//         </button>
-//         <button
-//           type="button"
-//           onClick={onCancel}
-//           className="px-6 py-2.5 border border-zinc-200 rounded-lg text-zinc-600 hover:bg-zinc-50 transition-colors"
-//         >
-//           انصراف
-//         </button>
-//       </div>
-//     </form>
-//   )
-// }
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Client, CreateClientPayload } from '@/types/client'
-import { useClientStore } from '@/store/client.store'
+import {
+  useEffect,
+  useState,
+} from 'react'
+
+import {
+  AlertCircle,
+  Loader2,
+} from 'lucide-react'
+
+import type {
+  Client,
+  CreateClientPayload,
+} from '@/types/client'
+
+import {
+  useClientStore,
+} from '@/store/client.store'
+
+import {
+  normalizeDigits,
+} from '@/features/finance/utils/number'
+
+
 
 interface Props {
   client?: Client
+
   onSuccess?: () => void
+
   onCancel: () => void
 }
 
-export function ClientForm({ client, onSuccess, onCancel }: Props) {
-  const { addClient, updateClient, isLoading } = useClientStore()
-  
-  const [form, setForm] = useState<CreateClientPayload>({
-    fullName:'',
-    nationalId: '',
+
+const EMPTY_FORM:
+  CreateClientPayload = {
+    fullName: '',
+
     phoneNumber: '',
-    email: '',
+
+    nationalId: '',
+
+    landlineNumber: '',
+
+    birthDate: '',
+
+    representative: '',
+
     address: '',
-    role: 'client', // مقدار پیش‌فرض
-  })
-
-  useEffect(() => {
-    if (client) {
-      setForm({
-        fullName: client.fullName || '',
-        
-        nationalId: client.nationalId || '',
-        phoneNumber: client.phoneNumber || '',
-        email: client.email || '',
-        address: client.address || '',
-        role: client.role || 'client',
-      })
-    }
-  }, [client])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (client) {
-      await updateClient(client.id, form)
-    } else {
-      await addClient(form)
-    }
-    
-    if (onSuccess) onSuccess()
   }
 
-  const inputCls = 'bg-white text-zinc-900 dark:bg-zinc-800 dark:text-white w-full px-4 py-2.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900  text-right'
-  const labelCls = 'block text-sm font-medium text-zinc-700 mb-2 text-right'
+
+
+export function ClientForm({
+  client,
+  onSuccess,
+  onCancel,
+}: Props) {
+
+
+  const addClient =
+    useClientStore(
+      (state) =>
+        state.addClient
+    )
+
+  const updateClient =
+    useClientStore(
+      (state) =>
+        state.updateClient
+    )
+
+  const isSaving =
+    useClientStore(
+      (state) =>
+        state.isSaving
+    )
+
+  const error =
+    useClientStore(
+      (state) =>
+        state.error
+    )
+
+  const clearError =
+    useClientStore(
+      (state) =>
+        state.clearError
+    )
+
+ 
+
+  const [
+    form,
+    setForm,
+  ] =
+    useState<CreateClientPayload>({
+      ...EMPTY_FORM,
+    })
+
+  const [
+    validationError,
+    setValidationError,
+  ] =
+    useState<string | null>(
+      null
+    )
+
+
+
+  useEffect(() => {
+    clearError()
+
+    setValidationError(
+      null
+    )
+
+    if (!client) {
+      setForm({
+        ...EMPTY_FORM,
+      })
+
+      return
+    }
+
+    setForm({
+      fullName:
+        client.fullName ??
+        '',
+
+      phoneNumber:
+        client.phoneNumber ??
+        client.phone ??
+        '',
+
+      nationalId:
+        client.nationalId ??
+        '',
+
+      landlineNumber:
+        client.landlineNumber ??
+        '',
+
+      birthDate:
+        client.birthDate ??
+        '',
+
+      representative:
+        client.representative ??
+        '',
+
+      address:
+        client.address ??
+        '',
+    })
+  }, [
+    client,
+    clearError,
+  ])
+
+ 
+
+  const updateField = <
+    K extends keyof CreateClientPayload,
+  >(
+    key: K,
+    value:
+      CreateClientPayload[K]
+  ) => {
+    setForm(
+      (
+        current
+      ) => ({
+        ...current,
+
+        [key]:
+          value,
+      })
+    )
+
+    if (
+      validationError
+    ) {
+      setValidationError(
+        null
+      )
+    }
+
+    if (error) {
+      clearError()
+    }
+  }
+
+
+  const validateForm =
+    (): CreateClientPayload | null => {
+      const fullName =
+        form.fullName.trim()
+
+      const phoneNumber =
+        normalizeDigits(
+          form.phoneNumber
+        ).trim()
+
+      const nationalId =
+        normalizeDigits(
+          form.nationalId ??
+          ''
+        ).trim()
+
+      const landlineNumber =
+        normalizeDigits(
+          form.landlineNumber ??
+          ''
+        ).trim()
+
+      const birthDate =
+        normalizeDigits(
+          form.birthDate ??
+          ''
+        ).trim()
+
+      const representative =
+        form.representative
+          ?.trim() ??
+        ''
+
+      const address =
+        form.address
+          ?.trim() ??
+        ''
+
+      if (!fullName) {
+        setValidationError(
+          'نام و نام خانوادگی موکل الزامی است.'
+        )
+
+        return null
+      }
+
+     
+      if (
+        !/^09\d{9}$/.test(
+          phoneNumber
+        )
+      ) {
+        setValidationError(
+          'شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود.'
+        )
+
+        return null
+      }
+
+      if (
+        nationalId &&
+        !/^\d{10}$/.test(
+          nationalId
+        )
+      ) {
+        setValidationError(
+          'کد ملی باید دقیقاً ۱۰ رقم باشد.'
+        )
+
+        return null
+      }
+
+      return {
+        fullName,
+
+        phoneNumber,
+
+        nationalId:
+          nationalId ||
+          undefined,
+
+        landlineNumber:
+          landlineNumber ||
+          undefined,
+
+        birthDate:
+          birthDate ||
+          undefined,
+
+        representative:
+          representative ||
+          undefined,
+
+        address:
+          address ||
+          undefined,
+      }
+    }
+
+
+  const handleSubmit =
+    async (
+      event:
+        React.FormEvent<HTMLFormElement>
+    ) => {
+      event.preventDefault()
+
+      if (isSaving) {
+        return
+      }
+
+      clearError()
+
+      setValidationError(
+        null
+      )
+
+      const payload =
+        validateForm()
+
+      if (!payload) {
+        return
+      }
+
+    
+      if (client) {
+        const updatedClient =
+          await updateClient(
+            client.id,
+            payload
+          )
+
+        if (!updatedClient) {
+          return
+        }
+
+        onSuccess?.()
+
+        return
+      }
+
+     
+      const createdClient =
+        await addClient(
+          payload
+        )
+
+      if (!createdClient) {
+        return
+      }
+
+      onSuccess?.()
+    }
+
+ 
+  const handleCancel =
+    () => {
+      if (isSaving) {
+        return
+      }
+
+      clearError()
+
+      setValidationError(
+        null
+      )
+
+      onCancel()
+    }
+
+  
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-{/* نام و نام خانوادگی */}
-<div>
-  <label className={labelCls}>نام و نام خانوادگی *</label>
-  <input
-    type="text"
-    className={inputCls}
-    value={form.fullName}
-    onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
-    required
-  />
-</div>
+    <form
+      onSubmit={
+        handleSubmit
+      }
+      className="space-y-5"
+      noValidate
+    >
+      {(validationError ||
+        error) && (
+        <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertCircle
+            size={18}
+            className="mt-0.5 shrink-0"
+          />
 
-      {/* کد ملی و شماره تماس */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className={labelCls}>کد ملی *</label>
-          <input
-            type="text"
-            className={inputCls}
-            value={form.nationalId}
-            onChange={(e) => setForm((f) => ({ ...f, nationalId: e.target.value }))}
-            maxLength={10}
-            required
-          />
+          <p className="leading-6">
+            {validationError ??
+              error}
+          </p>
         </div>
-        <div>
-          <label className={labelCls}>شماره تماس *</label>
-          <input
-            type="tel"
-            className={inputCls}
-            value={form.phoneNumber}
-            onChange={(e) => setForm((f) => ({ ...f, phoneNumber: e.target.value }))}
-            placeholder="09123456789"
-            required
-          />
-        </div>
-      </div>
+      )}
 
       <div>
-        <label className={labelCls}>ایمیل</label>
+        <label
+          htmlFor="client-full-name"
+          className={
+            labelClass
+          }
+        >
+          نام و نام خانوادگی
+
+          <RequiredMark />
+        </label>
+
         <input
-          type="email"
-          className={inputCls}
-          value={form.email}
-          onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-          placeholder="example@email.com"
+          id="client-full-name"
+          type="text"
+          value={
+            form.fullName
+          }
+          disabled={
+            isSaving
+          }
+          onChange={(
+            event
+          ) =>
+            updateField(
+              'fullName',
+              event.target
+                .value
+            )
+          }
+          placeholder="مثال: علی رضایی"
+          autoComplete="name"
+          className={
+            inputClass
+          }
         />
       </div>
+
+    
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label
+            htmlFor="client-phone"
+            className={
+              labelClass
+            }
+          >
+            شماره موبایل
+
+            <RequiredMark />
+          </label>
+
+          <input
+            id="client-phone"
+            type="tel"
+            inputMode="numeric"
+            dir="ltr"
+            value={
+              form.phoneNumber
+            }
+            disabled={
+              isSaving
+            }
+            onChange={(
+              event
+            ) => {
+              const value =
+                normalizeDigits(
+                  event.target
+                    .value
+                )
+                  .replace(
+                    /\D/g,
+                    ''
+                  )
+                  .slice(
+                    0,
+                    11
+                  )
+
+              updateField(
+                'phoneNumber',
+                value
+              )
+            }}
+            placeholder="09123456789"
+            autoComplete="tel"
+            className={`${inputClass} text-left`}
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="client-national-id"
+            className={
+              labelClass
+            }
+          >
+            کد ملی
+          </label>
+
+          <input
+            id="client-national-id"
+            type="text"
+            inputMode="numeric"
+            dir="ltr"
+            value={
+              form.nationalId ??
+              ''
+            }
+            disabled={
+              isSaving
+            }
+            onChange={(
+              event
+            ) => {
+              const value =
+                normalizeDigits(
+                  event.target
+                    .value
+                )
+                  .replace(
+                    /\D/g,
+                    ''
+                  )
+                  .slice(
+                    0,
+                    10
+                  )
+
+              updateField(
+                'nationalId',
+                value
+              )
+            }}
+            placeholder="1234567890"
+            className={`${inputClass} text-left`}
+          />
+        </div>
+      </div>
+
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label
+            htmlFor="client-landline"
+            className={
+              labelClass
+            }
+          >
+            تلفن ثابت
+          </label>
+
+          <input
+            id="client-landline"
+            type="tel"
+            inputMode="numeric"
+            dir="ltr"
+            value={
+              form.landlineNumber ??
+              ''
+            }
+            disabled={
+              isSaving
+            }
+            onChange={(
+              event
+            ) => {
+              const value =
+                normalizeDigits(
+                  event.target
+                    .value
+                ).replace(
+                  /[^\d]/g,
+                  ''
+                )
+
+              updateField(
+                'landlineNumber',
+                value
+              )
+            }}
+            placeholder="02112345678"
+            className={`${inputClass} text-left`}
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="client-birth-date"
+            className={
+              labelClass
+            }
+          >
+            تاریخ تولد
+          </label>
+
+          <input
+            id="client-birth-date"
+            type="text"
+            inputMode="numeric"
+            dir="ltr"
+            value={
+              form.birthDate ??
+              ''
+            }
+            disabled={
+              isSaving
+            }
+            onChange={(
+              event
+            ) => {
+              const value =
+                normalizeDigits(
+                  event.target
+                    .value
+                )
+                  .replace(
+                    /[^\d/]/g,
+                    ''
+                  )
+                  .slice(
+                    0,
+                    10
+                  )
+
+              updateField(
+                'birthDate',
+                value
+              )
+            }}
+            placeholder="1380/05/21"
+            className={`${inputClass} text-left`}
+          />
+
+          <p className="mt-1.5 text-[11px] text-zinc-400">
+            تاریخ را به صورت شمسی وارد کنید.
+          </p>
+        </div>
+      </div>
+
+     
+      <div>
+        <label
+          htmlFor="client-representative"
+          className={
+            labelClass
+          }
+        >
+          نماینده
+        </label>
+
+        <input
+          id="client-representative"
+          type="text"
+          value={
+            form.representative ??
+            ''
+          }
+          disabled={
+            isSaving
+          }
+          onChange={(
+            event
+          ) =>
+            updateField(
+              'representative',
+              event.target
+                .value
+            )
+          }
+          placeholder="نام نماینده در صورت وجود"
+          className={
+            inputClass
+          }
+        />
+      </div>
+
 
       <div>
-        <label className={labelCls}>آدرس</label>
+        <label
+          htmlFor="client-address"
+          className={
+            labelClass
+          }
+        >
+          آدرس
+        </label>
+
         <textarea
-          className={inputCls}
-          rows={3}
-          value={form.address}
-          onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+          id="client-address"
+          rows={4}
+          value={
+            form.address ??
+            ''
+          }
+          disabled={
+            isSaving
+          }
+          onChange={(
+            event
+          ) =>
+            updateField(
+              'address',
+              event.target
+                .value
+            )
+          }
+          placeholder="آدرس کامل موکل"
+          className={`${inputClass} resize-none`}
         />
       </div>
 
-      <div className="flex gap-3 pt-4">
+
+      <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs leading-6 text-blue-700">
+        سمت موکل در پرونده، شماره قرارداد و اطلاعات مرتبط با هر پرونده در بخش پرونده ثبت می‌شوند و جزو پروفایل ثابت موکل نیستند.
+      </div>
+
+      <div className="flex flex-col gap-3 border-t border-zinc-100 pt-5 sm:flex-row">
         <button
           type="submit"
-          disabled={isLoading}
-          className="flex-1 bg-zinc-900 text-white py-2.5 rounded-lg hover:bg-zinc-700 transition-colors font-medium disabled:opacity-50"
+          disabled={
+            isSaving
+          }
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-zinc-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isLoading ? 'در حال ارسال...' : (client ? 'ویرایش موکل' : 'افزودن موکل')}
+          {isSaving && (
+            <Loader2
+              size={17}
+              className="animate-spin"
+            />
+          )}
+
+          {isSaving
+            ? 'در حال ذخیره...'
+            : client
+              ? 'ذخیره تغییرات'
+              : 'ثبت موکل'}
         </button>
+
         <button
           type="button"
-          onClick={onCancel}
-          className="px-6 py-2.5 border border-zinc-200 rounded-lg text-zinc-600 hover:bg-zinc-50"
+          disabled={
+            isSaving
+          }
+          onClick={
+            handleCancel
+          }
+          className="rounded-xl border border-zinc-200 bg-white px-6 py-3 text-sm font-bold text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           انصراف
         </button>
@@ -290,3 +748,18 @@ export function ClientForm({ client, onSuccess, onCancel }: Props) {
     </form>
   )
 }
+
+
+function RequiredMark() {
+  return (
+    <span className="mr-1 text-red-500">
+      *
+    </span>
+  )
+}
+
+const labelClass =
+  'mb-2 block text-right text-sm font-medium text-zinc-700'
+
+const inputClass =
+  'w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-right text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10 disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500'
