@@ -400,14 +400,14 @@ export default function CustomersPage() {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl font-black text-zinc-900 sm:text-2xl">
-                  موکلان
+                  موکلین
                 </h1>
 
               
               </div>
 
               <p className="mt-1 text-xs text-zinc-500 sm:text-sm">
-                مدیریت اطلاعات موکلان ذخیره‌شده در دیتابیس
+                مدیریت اطلاعات موکلین ذخیره‌شده در دیتابیس
               </p>
             </div>
           </div>
@@ -534,7 +534,7 @@ export default function CustomersPage() {
 
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard
-            label="کل موکلان"
+            label="کل موکلین"
             value={
               pagination.total
             }
