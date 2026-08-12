@@ -12,6 +12,7 @@ import type {
 
 import {
   createClientApi,
+  fetchAllClientsApi,
   fetchClientByIdApi,
   fetchClientsApi,
   getClientApiErrorMessage,
@@ -32,6 +33,8 @@ export type {
   UpdateClientPayload,
 } from '@/types/client'
 
+
+
 const DEFAULT_PAGINATION:
   ClientPagination = {
     page: 1,
@@ -43,8 +46,11 @@ const DEFAULT_PAGINATION:
     totalPages: 0,
   }
 
+
+
 interface ClientStore {
-  clients: Client[]
+  clients:
+    Client[]
 
   selectedClient:
     Client | null
@@ -52,9 +58,11 @@ interface ClientStore {
   pagination:
     ClientPagination
 
-  isLoading: boolean
+  isLoading:
+    boolean
 
-  isSaving: boolean
+  isSaving:
+    boolean
 
   error:
     string | null
@@ -65,32 +73,57 @@ interface ClientStore {
   migrationReport:
     LegacyClientMigrationReport | null
 
+  
   fetchClients: (
     options?:
       ClientListOptions
   ) => Promise<void>
 
+
+  fetchAllClients:
+    () => Promise<void>
+
   fetchClientById: (
-    clientId: string
-  ) => Promise<Client | null>
+    clientId:
+      string
+  ) => Promise<
+    Client | null
+  >
 
   lookupByPhone: (
-    phone: string
-  ) => Promise<Client | null>
+    phone:
+      string
+  ) => Promise<
+    Client | null
+  >
+
+  
 
   addClient: (
     payload:
       CreateClientPayload
-  ) => Promise<Client | null>
+  ) => Promise<
+    Client | null
+  >
 
   updateClient: (
-    clientId: string,
+    clientId:
+      string,
+
     payload:
       UpdateClientPayload
-  ) => Promise<Client | null>
+  ) => Promise<
+    Client | null
+  >
+
+  
 
   migrateLegacyClients:
-    () => Promise<LegacyClientMigrationReport>
+    () => Promise<
+      LegacyClientMigrationReport
+    >
+
+  
 
   setSelectedClient: (
     client:
@@ -98,7 +131,8 @@ interface ClientStore {
   ) => void
 
   getClientById: (
-    clientId: string
+    clientId:
+      string
   ) =>
     Client | undefined
 
@@ -112,38 +146,52 @@ interface ClientStore {
     () => void
 }
 
+
+
+const initialState = {
+  clients:
+    [] as Client[],
+
+  selectedClient:
+    null as
+      | Client
+      | null,
+
+  pagination: {
+    ...DEFAULT_PAGINATION,
+  },
+
+  isLoading:
+    false,
+
+  isSaving:
+    false,
+
+  error:
+    null as
+      | string
+      | null,
+
+  hasLoaded:
+    false,
+
+  migrationReport:
+    null as
+      | LegacyClientMigrationReport
+      | null,
+}
+
+
+
 export const useClientStore =
   create<ClientStore>()(
     (
       set,
       get
     ) => ({
-      clients: [],
+      ...initialState,
 
-      selectedClient:
-        null,
-
-      pagination: {
-        ...DEFAULT_PAGINATION,
-      },
-
-      isLoading:
-        false,
-
-      isSaving:
-        false,
-
-      error:
-        null,
-
-      hasLoaded:
-        false,
-
-      migrationReport:
-        null,
-
-     
-
+   
       fetchClients:
         async (
           options = {}
@@ -200,6 +248,53 @@ export const useClientStore =
 
       
 
+      fetchAllClients:
+        async () => {
+          set({
+            isLoading:
+              true,
+
+            error:
+              null,
+          })
+
+          try {
+            const clients =
+              await fetchAllClientsApi()
+
+            set({
+              clients,
+
+              isLoading:
+                false,
+
+              hasLoaded:
+                true,
+
+              error:
+                null,
+            })
+          } catch (
+            error
+          ) {
+            set({
+              isLoading:
+                false,
+
+              hasLoaded:
+                true,
+
+              error:
+                getClientApiErrorMessage(
+                  error,
+
+                  'دریافت فهرست کامل موکلین ناموفق بود.'
+                ),
+            })
+          }
+        },
+
+
       fetchClientById:
         async (
           clientId
@@ -232,7 +327,9 @@ export const useClientStore =
                       client.id
                   )
                     ? state.clients.map(
-                        (item) =>
+                        (
+                          item
+                        ) =>
                           item.id ===
                           client.id
                             ? client
@@ -245,6 +342,9 @@ export const useClientStore =
 
                 isLoading:
                   false,
+
+                error:
+                  null,
               })
             )
 
@@ -268,7 +368,7 @@ export const useClientStore =
           }
         },
 
-    
+      
 
       lookupByPhone:
         async (
@@ -294,7 +394,6 @@ export const useClientStore =
           }
         },
 
-     
 
       addClient:
         async (
@@ -350,6 +449,7 @@ export const useClientStore =
                             1
                           )
                       ),
+
                       1
                     ),
                 },
@@ -381,8 +481,6 @@ export const useClientStore =
             return null
           }
         },
-
-     
 
       updateClient:
         async (
@@ -454,7 +552,7 @@ export const useClientStore =
           }
         },
 
-    
+     
       migrateLegacyClients:
         async () => {
           const report =
@@ -468,7 +566,7 @@ export const useClientStore =
           return report
         },
 
-    
+     
 
       setSelectedClient:
         (
@@ -479,17 +577,22 @@ export const useClientStore =
               client,
           }),
 
+     
+
       getClientById:
         (
           clientId
         ) =>
           get()
             .clients.find(
-              (client) =>
+              (
+                client
+              ) =>
                 client.id ===
                 clientId
             ),
 
+     
       clearError:
         () =>
           set({
@@ -504,32 +607,16 @@ export const useClientStore =
               null,
           }),
 
+      
+
       reset:
         () =>
           set({
-            clients: [],
-
-            selectedClient:
-              null,
+            ...initialState,
 
             pagination: {
               ...DEFAULT_PAGINATION,
             },
-
-            isLoading:
-              false,
-
-            isSaving:
-              false,
-
-            error:
-              null,
-
-            hasLoaded:
-              false,
-
-            migrationReport:
-              null,
           }),
     })
   )

@@ -8,8 +8,14 @@ import { useCasesStore } from '@/store/cases.store'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Plus, X, ChevronDown, Users, UserX } from 'lucide-react'
 import Link from 'next/link'
-import {  useClientStore,type Client,} from '@/store/client.store'
+import {
+  useClientStore,
+  type Client,
+} from '@/store/client.store'
 
+import type {
+  UpdateCasePayload,
+} from '@/types/case'
 type EditCasePageProps = {
   params: Promise<{ id: string }>
 }
@@ -89,11 +95,26 @@ const otherPersonSchema = z.object({
 })
 
 const paymentSchema = z.object({
-  clientId: optionalTextSchema, 
-  clientName: optionalTextSchema, 
-  amount: optionalNumberSchema,
-  isPaid: z.boolean().optional(),
-  paymentDate: optionalTextSchema,
+
+  paymentId:
+    optionalTextSchema,
+
+  clientId:
+    optionalTextSchema,
+
+  clientName:
+    optionalTextSchema,
+
+  amount:
+    optionalNumberSchema,
+
+  isPaid:
+    z
+      .boolean()
+      .optional(),
+
+  paymentDate:
+    optionalTextSchema,
 })
 
 const branchHistorySchema = z.object({
@@ -106,11 +127,26 @@ const branchHistorySchema = z.object({
 })
 
 const expenseSchema = z.object({
-  title: optionalTextSchema,
-  amount: optionalNumberSchema,
-  date: optionalTextSchema,
-  description: optionalTextSchema,
-  isPaid: z.boolean().optional(),
+
+  expenseId:
+    optionalTextSchema,
+
+  title:
+    optionalTextSchema,
+
+  amount:
+    optionalNumberSchema,
+
+  date:
+    optionalTextSchema,
+
+  description:
+    optionalTextSchema,
+
+  isPaid:
+    z
+      .boolean()
+      .optional(),
 })
 
 const caseSchema = z.object({
@@ -118,8 +154,13 @@ const caseSchema = z.object({
   status: z.enum(['pending', 'in-progress', 'completed', 'archived']),
   clients: z.array(clientSchema).optional(),
   opposingParties: z.array(opposingPartySchema).optional(),
-  caseNumber: optionalTextSchema,
-  archiveNumberBranch: optionalTextSchema,
+  caseNumber: z
+    .string()
+    .trim()
+    .min(
+      1,
+      'شماره پرونده الزامی است'
+    ), archiveNumberBranch: optionalTextSchema,
   province: optionalTextSchema,
   city: optionalTextSchema,
   courtType: optionalTextSchema,
@@ -179,35 +220,35 @@ const caseSchema = z.object({
   const validClientKeys = new Set(clients.map((client) => client.identity))
   const scheduledByClient = new Map<string, number>()
 
-  ;(data.cashPayments ?? []).forEach((payment, index) => {
-    const amount = toFiniteNumber(payment.amount)
+    ; (data.cashPayments ?? []).forEach((payment, index) => {
+      const amount = toFiniteNumber(payment.amount)
 
-    if (amount <= 0) {
-      return
-    }
+      if (amount <= 0) {
+        return
+      }
 
-    const paymentClientKey = payment.clientId?.trim() || payment.clientName?.trim() || ''
+      const paymentClientKey = payment.clientId?.trim() || payment.clientName?.trim() || ''
 
-    if (!paymentClientKey) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['cashPayments', index, 'clientId'],
-        message: 'موکل مرتبط با این پرداخت را مشخص کنید',
-      })
-      return
-    }
+      if (!paymentClientKey) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['cashPayments', index, 'clientId'],
+          message: 'موکل مرتبط با این پرداخت را مشخص کنید',
+        })
+        return
+      }
 
-    if (!validClientKeys.has(paymentClientKey)) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['cashPayments', index, 'clientId'],
-        message: 'موکل انتخاب‌شده در پرونده وجود ندارد',
-      })
-      return
-    }
+      if (!validClientKeys.has(paymentClientKey)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['cashPayments', index, 'clientId'],
+          message: 'موکل انتخاب‌شده در پرونده وجود ندارد',
+        })
+        return
+      }
 
-    scheduledByClient.set(paymentClientKey, (scheduledByClient.get(paymentClientKey) ?? 0) + amount)
-  })
+      scheduledByClient.set(paymentClientKey, (scheduledByClient.get(paymentClientKey) ?? 0) + amount)
+    })
 
   clients.forEach((client) => {
     const scheduled = scheduledByClient.get(client.identity) ?? 0
@@ -280,9 +321,9 @@ const hasCourtLocationValue = (location?: Partial<BranchHistoryItem>) => {
 
   return Boolean(
     hasText(location.province) ||
-      hasText(location.city) ||
-      hasText(location.branchNumber) ||
-      hasText(location.archiveNumberBranch)
+    hasText(location.city) ||
+    hasText(location.branchNumber) ||
+    hasText(location.archiveNumberBranch)
   )
 }
 
@@ -403,10 +444,10 @@ function normalizeClients(
       representative: cleanText(
         client.representative,
       ),
-          feeShareAmount:
-      typeof client.feeShareAmount === 'number'
-        ? client.feeShareAmount
-        : undefined,
+      feeShareAmount:
+        typeof client.feeShareAmount === 'number'
+          ? client.feeShareAmount
+          : undefined,
     }),
   )
 }
@@ -487,54 +528,102 @@ function normalizeOtherPersons(
 }
 
 function normalizePayments(
-  value: unknown,
+  value:
+    unknown
 ): NonNullable<
   CaseFormInput['cashPayments']
 > {
-  return toRecordArray(value).map(
-    (payment) => ({
-          clientId: cleanText(payment.clientId), 
-          clientName: cleanText(payment.clientName),   
-      amount: normalizeNumberInput(
-        payment.amount,
-      ),
+  return toRecordArray(
+    value
+  ).map(
+    (
+      payment
+    ) => ({
+
+      paymentId:
+        cleanText(
+          payment.id ??
+          payment.paymentId
+        ),
+
+      clientId:
+        cleanText(
+          payment.clientId
+        ),
+
+      clientName:
+        cleanText(
+          payment.clientName
+        ),
+
+      amount:
+        normalizeNumberInput(
+          payment.amount
+        ),
 
       isPaid:
-        payment.isPaid === true,
+        payment.isPaid ===
+        true,
 
-      paymentDate: cleanText(
-        payment.paymentDate,
-      ),
-    }),
+      paymentDate:
+        cleanText(
+          payment.paymentDate
+        ),
+    })
   )
 }
 
+
+
+
 function normalizeExpenses(
-  value: unknown,
+  value:
+    unknown
 ): NonNullable<
   CaseFormInput['expenses']
 > {
-  return toRecordArray(value).map(
-    (expense) => ({
-      title: cleanText(
-        expense.title,
-      ),
+  return toRecordArray(
+    value
+  ).map(
+    (
+      expense
+    ) => ({
 
-      amount: normalizeNumberInput(
-        expense.amount,
-      ),
+      expenseId:
+        cleanText(
+          expense.id ??
+          expense.expenseId
+        ),
 
-      date: cleanText(expense.date),
+      title:
+        cleanText(
+          expense.title
+        ),
 
-      description: cleanText(
-        expense.description,
-      ),
+      amount:
+        normalizeNumberInput(
+          expense.amount
+        ),
+
+      date:
+        cleanText(
+          expense.date
+        ),
+
+      description:
+        cleanText(
+          expense.description
+        ),
 
       isPaid:
-        expense.isPaid === true,
-    }),
+        expense.isPaid ===
+        true,
+    })
   )
 }
+
+
+
 
 
 
@@ -639,11 +728,11 @@ function normalizeBranchHistory(
               item.archiveNumberBranch,
               isFirstItem
                 ? courtBranch
-                    ?.archiveNumberBranch
+                  ?.archiveNumberBranch
                 : undefined,
               isFirstItem
                 ? caseRecord
-                    .archiveNumberBranch
+                  .archiveNumberBranch
                 : undefined,
             ),
 
@@ -666,11 +755,7 @@ function normalizeBranchHistory(
       },
     )
 
-  /*
-   * اگر هیچ سابقه معتبری وجود ندارد،
-   * اطلاعات فعلی پرونده را به‌عنوان اولین شعبه
-   * و محل فعال برمی‌گردانیم.
-   */
+
   if (cleanedHistory.length === 0) {
     const rawCourtBranch =
       caseRecord.courtBranch
@@ -722,10 +807,7 @@ function normalizeBranchHistory(
       },
     )
 
-  /*
-   * اگر هیچ شعبه فعالی مشخص نشده بود،
-   * آخرین شعبه ثبت‌شده را فعال می‌کنیم.
-   */
+
   if (!hasActiveLocation) {
     const lastIndex =
       cleanedHistory.length - 1
@@ -745,38 +827,100 @@ function normalizeBranchHistory(
 }
 
 export default function EditCasePage({ params }: EditCasePageProps) {
-  const { id } = use(params)
-  const router = useRouter()
-  const getCaseById = useCasesStore((s) => s.getCaseById)
-  const updateCase = useCasesStore((s) => s.updateCase)
-  const savedClients = useClientStore((state) => state.clients)
+  const {
+    id,
+  } =
+    use(
+      params
+    )
+
+  const router =
+    useRouter()
+
+
+
+  const getCaseById =
+    useCasesStore(
+      (state) =>
+        state.getCaseById
+    )
+
+  const updateCase =
+    useCasesStore(
+      (state) =>
+        state.updateCase
+    )
+
+  const isCaseSaving =
+    useCasesStore(
+      (state) =>
+        state.isSaving
+    )
+
+  const caseError =
+    useCasesStore(
+      (state) =>
+        state.error
+    )
+
+  const clearCaseError =
+    useCasesStore(
+      (state) =>
+        state.clearError
+    )
+
+
+
+  const savedClients =
+    useClientStore(
+      (state) =>
+        state.clients
+    )
+
+  const fetchAllClients =
+    useClientStore(
+      (state) =>
+        state.fetchAllClients
+    )
+
+  const isClientsLoading =
+    useClientStore(
+      (state) =>
+        state.isLoading
+    )
+
+  const clientsError =
+    useClientStore(
+      (state) =>
+        state.error
+    )
   useForm
-//   const caseItem = getCaseById(id)
+  //   const caseItem = getCaseById(id)
 
-// const courtBranchData =
-//   getCourtBranchObject(caseItem)
+  // const courtBranchData =
+  //   getCourtBranchObject(caseItem)
 
-// const initialBranchHistory =
-//   normalizeBranchHistory(caseItem)
+  // const initialBranchHistory =
+  //   normalizeBranchHistory(caseItem)
 
-// const activeInitialCourtLocation =
-//   initialBranchHistory.find(
-//     (
-//       location: BranchHistoryItem,
-//     ): boolean =>
-//       location.isActive === true,
-//   ) ?? initialBranchHistory[0]
+  // const activeInitialCourtLocation =
+  //   initialBranchHistory.find(
+  //     (
+  //       location: BranchHistoryItem,
+  //     ): boolean =>
+  //       location.isActive === true,
+  //   ) ?? initialBranchHistory[0]
 
-// const initialPaymentType =
-//   normalizePaymentType(
-//     caseItem?.paymentType,
-//   )
+  // const initialPaymentType =
+  //   normalizePaymentType(
+  //     caseItem?.paymentType,
+  //   )
 
-// const initialCourtType =
-//   getFirstTextValue(
-//     courtBranchData?.courtType,
-//     caseItem?.courtType,
-//   )
+  // const initialCourtType =
+  //   getFirstTextValue(
+  //     courtBranchData?.courtType,
+  //     caseItem?.courtType,
+  //   )
 
 
 
@@ -786,214 +930,215 @@ export default function EditCasePage({ params }: EditCasePageProps) {
   // const [filteredCourtTypes, setFilteredCourtTypes] = useState(COURT_TYPES)
   // const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false)
 
+
+  useEffect(() => {
+    void fetchAllClients()
+  }, [
+    fetchAllClients,
+  ])
   const caseItem =
-  getCaseById(id)
+    getCaseById(id)
 
-/**
- * ممکن است در اولین render پرونده وجود نداشته باشد.
- * به‌جای استفاده مستقیم و ناامن، یک Record خالی
- * به‌عنوان fallback قرار می‌دهیم.
- */
-const caseRecord: UnknownRecord =
-  isRecord(caseItem)
-    ? caseItem
-    : {}
+  const caseRecord: UnknownRecord =
+    isRecord(caseItem)
+      ? caseItem
+      : {}
 
-const courtBranchData =
-  getCourtBranchObject(caseItem)
+  const courtBranchData =
+    getCourtBranchObject(caseItem)
 
-const initialBranchHistory =
-  normalizeBranchHistory(caseItem)
+  const initialBranchHistory =
+    normalizeBranchHistory(caseItem)
 
-const activeInitialCourtLocation =
-  initialBranchHistory.find(
-    (
-      location: BranchHistoryItem,
-    ): boolean =>
-      location.isActive === true,
-  ) ?? initialBranchHistory[0]
+  const activeInitialCourtLocation =
+    initialBranchHistory.find(
+      (
+        location: BranchHistoryItem,
+      ): boolean =>
+        location.isActive === true,
+    ) ?? initialBranchHistory[0]
 
-const initialPaymentType =
-  normalizePaymentType(
-    caseRecord.paymentType,
-  )
+  const initialPaymentType =
+    normalizePaymentType(
+      caseRecord.paymentType,
+    )
 
-const initialCourtType =
-  getFirstTextValue(
-    courtBranchData?.courtType,
-    caseRecord.courtType,
-  )
-
-const normalizedClients =
-  normalizeClients(
-    caseRecord.clients,
-  )
-
-/**
- * تمام مقدارهای اولیه فرم را قبل از ارسال به
- * React Hook Form نرمال می‌کنیم.
- */
-const formDefaultValues:
-  CaseFormInput = {
-  title: cleanText(
-    caseRecord.title,
-  ),
-
-  status: normalizeCaseStatus(
-    caseRecord.status,
-  ),
-
-  paymentType:
-    initialPaymentType,
-
-  caseNumber: cleanText(
-    caseRecord.caseNumber,
-  ),
-
-  cashPayments:
-    normalizePayments(
-      caseRecord.cashPayments,
-    ),
-
-  clients:
-    normalizedClients.length > 0
-      ? normalizedClients
-      : [createEmptyClient()],
-
-  opposingParties:
-    normalizeOpposingParties(
-      caseRecord.opposingParties,
-    ),
-
-  coLawyers:
-    normalizeLawyers(
-      caseRecord.coLawyers,
-    ),
-
-  opposingLawyers:
-    normalizeLawyers(
-      caseRecord.opposingLawyers,
-    ),
-
-  branchHistory:
-    initialBranchHistory,
-
-  province:
-    activeInitialCourtLocation
-      ?.province ?? '',
-
-  city:
-    activeInitialCourtLocation
-      ?.city ?? '',
-
-  courtType:
-    initialCourtType,
-
-  courtBranch:
-    activeInitialCourtLocation
-      ?.branchNumber ?? '',
-
-  archiveNumberBranch:
-    activeInitialCourtLocation
-      ?.archiveNumberBranch ??
-    '',
-
-  nonCashDescription:
+  const initialCourtType =
     getFirstTextValue(
-      caseRecord.nonCashDescription,
+      courtBranchData?.courtType,
+      caseRecord.courtType,
+    )
 
-      /**
-       * پشتیبانی موقت از نام قدیمی این فیلد.
-       */
-      caseRecord.installmentDescription,
+  const normalizedClients =
+    normalizeClients(
+      caseRecord.clients,
+    )
+
+  /**
+   * تمام مقدارهای اولیه فرم را قبل از ارسال به
+   * React Hook Form نرمال می‌کنیم.
+   */
+  const formDefaultValues:
+    CaseFormInput = {
+    title: cleanText(
+      caseRecord.title,
     ),
 
-  contractAmount:
-    toFiniteNumber(
-      caseRecord.contractAmount,
-    ) || undefined,
-
-  remainingAmount:
-    toFiniteNumber(
-      caseRecord.remainingAmount,
-    ) || undefined,
-
-  overdueAmount:
-    toFiniteNumber(
-      caseRecord.overdueAmount,
-    ) || undefined,
-
-  expenses:
-    normalizeExpenses(
-      caseRecord.expenses,
+    status: normalizeCaseStatus(
+      caseRecord.status,
     ),
 
-  otherPersons:
-    normalizeOtherPersons(
-      caseRecord.otherPersons,
+    paymentType:
+      initialPaymentType,
+
+    caseNumber: cleanText(
+      caseRecord.caseNumber,
     ),
 
-  description:
-    cleanText(
-      caseRecord.description,
-    ),
-}
+    cashPayments:
+      normalizePayments(
+        caseRecord.cashPayments,
+      ),
 
-const [
-  paymentType,
-  setPaymentType,
-] = useState<
-  CaseFormData['paymentType']
->(initialPaymentType)
+    clients:
+      normalizedClients.length > 0
+        ? normalizedClients
+        : [createEmptyClient()],
 
-const [
-  isCourtTypeDropdownOpen,
-  setIsCourtTypeDropdownOpen,
-] = useState(false)
+    opposingParties:
+      normalizeOpposingParties(
+        caseRecord.opposingParties,
+      ),
 
-const [
-  courtTypeInput,
-  setCourtTypeInput,
-] = useState(initialCourtType)
+    coLawyers:
+      normalizeLawyers(
+        caseRecord.coLawyers,
+      ),
 
-const [
-  filteredCourtTypes,
-  setFilteredCourtTypes,
-] = useState<string[]>(
-  COURT_TYPES,
-)
+    opposingLawyers:
+      normalizeLawyers(
+        caseRecord.opposingLawyers,
+      ),
 
-const [
-  isBranchDropdownOpen,
-  setIsBranchDropdownOpen,
-] = useState(false)
+    branchHistory:
+      initialBranchHistory,
 
-const {
-  register,
-  handleSubmit,
-  control,
-  watch,
-  setValue,
+    province:
+      activeInitialCourtLocation
+        ?.province ?? '',
 
-  formState: {
-    errors,
-    isSubmitting,
-  },
-} = useForm<
-  CaseFormInput,
-  CaseFormContext,
-  CaseFormData
->({
-  resolver:
-    zodResolver(caseSchema),
+    city:
+      activeInitialCourtLocation
+        ?.city ?? '',
 
-  defaultValues:
-    formDefaultValues,
+    courtType:
+      initialCourtType,
 
-  mode: 'onSubmit',
+    courtBranch:
+      activeInitialCourtLocation
+        ?.branchNumber ?? '',
 
-  reValidateMode: 'onChange',
-})
+    archiveNumberBranch:
+      activeInitialCourtLocation
+        ?.archiveNumberBranch ??
+      '',
+
+    nonCashDescription:
+      getFirstTextValue(
+        caseRecord.nonCashDescription,
+
+        /**
+         * پشتیبانی موقت از نام قدیمی این فیلد.
+         */
+        caseRecord.installmentDescription,
+      ),
+
+    contractAmount:
+      toFiniteNumber(
+        caseRecord.contractAmount,
+      ) || undefined,
+
+    remainingAmount:
+      toFiniteNumber(
+        caseRecord.remainingAmount,
+      ) || undefined,
+
+    overdueAmount:
+      toFiniteNumber(
+        caseRecord.overdueAmount,
+      ) || undefined,
+
+    expenses:
+      normalizeExpenses(
+        caseRecord.expenses,
+      ),
+
+    otherPersons:
+      normalizeOtherPersons(
+        caseRecord.otherPersons,
+      ),
+
+    description:
+      cleanText(
+        caseRecord.description,
+      ),
+  }
+
+  const [
+    paymentType,
+    setPaymentType,
+  ] = useState<
+    CaseFormData['paymentType']
+  >(initialPaymentType)
+
+  const [
+    isCourtTypeDropdownOpen,
+    setIsCourtTypeDropdownOpen,
+  ] = useState(false)
+
+  const [
+    courtTypeInput,
+    setCourtTypeInput,
+  ] = useState(initialCourtType)
+
+  const [
+    filteredCourtTypes,
+    setFilteredCourtTypes,
+  ] = useState<string[]>(
+    COURT_TYPES,
+  )
+
+  const [
+    isBranchDropdownOpen,
+    setIsBranchDropdownOpen,
+  ] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+
+    formState: {
+      errors,
+      isSubmitting,
+    },
+  } = useForm<
+    CaseFormInput,
+    CaseFormContext,
+    CaseFormData
+  >({
+    resolver:
+      zodResolver(caseSchema),
+
+    defaultValues:
+      formDefaultValues,
+
+    mode: 'onSubmit',
+
+    reValidateMode: 'onChange',
+  })
 
 
 
@@ -1042,50 +1187,50 @@ const {
   const watchExpenses = watch('expenses') || []
   const watchClients = watch('clients') || []
 
-const contractAmount = toFiniteNumber(watch('contractAmount'))
+  const contractAmount = toFiniteNumber(watch('contractAmount'))
 
-const activeClients = watchClients
-  .map((client, index) => ({
-    index,
-    clientId: client.clientId?.trim() || undefined,
-    clientName: client.name?.trim() || '',
-    feeShareAmount: toFiniteNumber(client.feeShareAmount),
-  }))
-  .filter((client) => Boolean(client.clientId || client.clientName))
+  const activeClients = watchClients
+    .map((client, index) => ({
+      index,
+      clientId: client.clientId?.trim() || undefined,
+      clientName: client.name?.trim() || '',
+      feeShareAmount: toFiniteNumber(client.feeShareAmount),
+    }))
+    .filter((client) => Boolean(client.clientId || client.clientName))
 
-const getClientOptionValue = (client: { clientId?: string; clientName: string }): string => {
-  if (client.clientId) {
-    return `id:${client.clientId}`
-  }
-  return `name:${client.clientName}`
-}
-
-const allocatedFeeTotal = activeClients.reduce<number>(
-  (total, client) => total + client.feeShareAmount,
-  0
-)
-
-const unallocatedFeeAmount = contractAmount - allocatedFeeTotal
-
-const splitFeeEqually = () => {
-  if (activeClients.length === 0 || contractAmount <= 0) {
-    return
+  const getClientOptionValue = (client: { clientId?: string; clientName: string }): string => {
+    if (client.clientId) {
+      return `id:${client.clientId}`
+    }
+    return `name:${client.clientName}`
   }
 
-  const baseAmount = Math.floor(contractAmount / activeClients.length)
-  let assignedAmount = 0
+  const allocatedFeeTotal = activeClients.reduce<number>(
+    (total, client) => total + client.feeShareAmount,
+    0
+  )
 
-  activeClients.forEach((client, position) => {
-    const isLastClient = position === activeClients.length - 1
-    const clientShare = isLastClient ? contractAmount - assignedAmount : baseAmount
-    assignedAmount += clientShare
+  const unallocatedFeeAmount = contractAmount - allocatedFeeTotal
 
-    setValue(`clients.${client.index}.feeShareAmount`, clientShare, {
-      shouldDirty: true,
-      shouldValidate: true,
+  const splitFeeEqually = () => {
+    if (activeClients.length === 0 || contractAmount <= 0) {
+      return
+    }
+
+    const baseAmount = Math.floor(contractAmount / activeClients.length)
+    let assignedAmount = 0
+
+    activeClients.forEach((client, position) => {
+      const isLastClient = position === activeClients.length - 1
+      const clientShare = isLastClient ? contractAmount - assignedAmount : baseAmount
+      assignedAmount += clientShare
+
+      setValue(`clients.${client.index}.feeShareAmount`, clientShare, {
+        shouldDirty: true,
+        shouldValidate: true,
+      })
     })
-  })
-}
+  }
   const activeCourtLocationIndex = watchBranchHistory.findIndex((location) => location.isActive)
   const activeCourtLocation =
     activeCourtLocationIndex >= 0 ? watchBranchHistory[activeCourtLocationIndex] : undefined
@@ -1151,23 +1296,23 @@ const splitFeeEqually = () => {
 
   const singleClientIndex = activeClients.length === 1 ? activeClients[0].index : null
 
-const singleClientCurrentShare =
-  activeClients.length === 1 ? activeClients[0].feeShareAmount : null
+  const singleClientCurrentShare =
+    activeClients.length === 1 ? activeClients[0].feeShareAmount : null
 
-useEffect(() => {
-  if (singleClientIndex === null) {
-    return
-  }
+  useEffect(() => {
+    if (singleClientIndex === null) {
+      return
+    }
 
-  if (singleClientCurrentShare === contractAmount) {
-    return
-  }
+    if (singleClientCurrentShare === contractAmount) {
+      return
+    }
 
-  setValue(`clients.${singleClientIndex}.feeShareAmount`, contractAmount, {
-    shouldDirty: false,
-    shouldValidate: false,
-  })
-}, [contractAmount, setValue, singleClientCurrentShare, singleClientIndex])
+    setValue(`clients.${singleClientIndex}.feeShareAmount`, contractAmount, {
+      shouldDirty: false,
+      shouldValidate: false,
+    })
+  }, [contractAmount, setValue, singleClientCurrentShare, singleClientIndex])
 
   const setOptionalNumberValue = (value: string) => {
     if (!value) return undefined
@@ -1177,26 +1322,26 @@ useEffect(() => {
   }
 
   const fillClientFromSavedList = (index: number, savedClientId: string) => {
-  setValue(`clients.${index}.clientId`, savedClientId, { shouldDirty: true })
+    setValue(`clients.${index}.clientId`, savedClientId, { shouldDirty: true })
 
-  if (!savedClientId) {
-    setValue(`clients.${index}.name`, '')
-    setValue(`clients.${index}.phone`, '')
-    setValue(`clients.${index}.nationalId`, '')
-    setValue(`clients.${index}.role`, '')
-    setValue(`clients.${index}.representative`, '')
-    return
+    if (!savedClientId) {
+      setValue(`clients.${index}.name`, '')
+      setValue(`clients.${index}.phone`, '')
+      setValue(`clients.${index}.nationalId`, '')
+      setValue(`clients.${index}.role`, '')
+      setValue(`clients.${index}.representative`, '')
+      return
+    }
+
+    const selectedClient = savedClients.find((client) => client.id === savedClientId)
+    if (!selectedClient) return
+
+    setValue(`clients.${index}.name`, getSavedClientFullName(selectedClient), { shouldDirty: true })
+    setValue(`clients.${index}.phone`, selectedClient.phoneNumber || selectedClient.phone || '', { shouldDirty: true })
+    setValue(`clients.${index}.nationalId`, selectedClient.nationalId || '', { shouldDirty: true })
+    setValue(`clients.${index}.role`, selectedClient.role || '', { shouldDirty: true })
+    setValue(`clients.${index}.representative`, selectedClient.representative || '', { shouldDirty: true })
   }
-
-  const selectedClient = savedClients.find((client) => client.id === savedClientId)
-  if (!selectedClient) return
-
-  setValue(`clients.${index}.name`, getSavedClientFullName(selectedClient), { shouldDirty: true })
-  setValue(`clients.${index}.phone`, selectedClient.phoneNumber || selectedClient.phone || '', { shouldDirty: true })
-  setValue(`clients.${index}.nationalId`, selectedClient.nationalId || '', { shouldDirty: true })
-  setValue(`clients.${index}.role`, selectedClient.role || '', { shouldDirty: true })
-  setValue(`clients.${index}.representative`, selectedClient.representative || '', { shouldDirty: true })
-}
 
   const normalizePersianDigits = (value: string) => {
     return value
@@ -1341,16 +1486,63 @@ useEffect(() => {
   }
 
   const onSubmit = async (data: CaseFormData) => {
-    const cleanedClients = (data.clients || [])
-      .map((client) => ({
-        clientId: cleanText(client.clientId) || undefined,
-        name: cleanText(client.name),
-        phone: cleanText(client.phone),
-        nationalId: cleanText(client.nationalId),
-        role: cleanText(client.role),
-        representative: cleanText(client.representative),
-      }))
-      .filter((client) => Object.values(client).some(Boolean))
+    const cleanedClients =
+      (
+        data.clients ??
+        []
+      )
+        .map(
+          (
+            client
+          ) => ({
+            clientId:
+              cleanText(
+                client.clientId
+              ) ||
+              undefined,
+
+            name:
+              cleanText(
+                client.name
+              ),
+
+            phone:
+              cleanText(
+                client.phone
+              ),
+
+            nationalId:
+              cleanText(
+                client.nationalId
+              ),
+
+            role:
+              cleanText(
+                client.role
+              ),
+
+            representative:
+              cleanText(
+                client.representative
+              ),
+
+
+            feeShareAmount:
+              toFiniteNumber(
+                client.feeShareAmount
+              ),
+          })
+        )
+        .filter(
+          (
+            client
+          ) =>
+            Boolean(
+              client.clientId ||
+              client.name ||
+              client.phone
+            )
+        )
 
     const cleanedOpposingParties = (data.opposingParties || [])
       .map((party) => ({
@@ -1399,71 +1591,296 @@ useEffect(() => {
       cleanedBranchHistory.find((location) => location.isActive) ||
       cleanedBranchHistory[cleanedBranchHistory.length - 1]
 
-    const formattedCashPayments = (data.cashPayments || [])
-      .map((payment) => ({
-        clientId: cleanText(payment.clientId) || undefined,
-        clientName: cleanText(payment.clientName) || undefined,
-        amount: Number(payment.amount) || 0,
-        isPaid: Boolean(payment.isPaid),
-        paymentDate: cleanText(payment.paymentDate) || undefined,
-      }))
-      .filter((payment) => payment.amount > 0 || payment.isPaid || Boolean(payment.paymentDate))
 
-    const cleanedExpenses = (data.expenses || [])
-      .map((expense) => ({
-        title: cleanText(expense.title),
-        description: cleanText(expense.description),
-        amount: Number(expense.amount) || 0,
-        date: cleanText(expense.date),
-        isPaid: Boolean(expense.isPaid),
-      }))
-      .filter(
-        (expense) =>
-          Boolean(expense.title) ||
-          Boolean(expense.description) ||
-          expense.amount > 0 ||
-          Boolean(expense.date) ||
-          expense.isPaid
+    const formattedCashPayments =
+      (
+        data.cashPayments ??
+        []
+      )
+        .map(
+          (
+            payment
+          ) => ({
+
+            id:
+              cleanText(
+                payment.paymentId
+              ) ||
+              undefined,
+
+            clientId:
+              cleanText(
+                payment.clientId
+              ) ||
+              undefined,
+
+            clientName:
+              cleanText(
+                payment.clientName
+              ) ||
+              undefined,
+
+            amount:
+              toFiniteNumber(
+                payment.amount
+              ),
+
+            isPaid:
+              Boolean(
+                payment.isPaid
+              ),
+
+            paymentDate:
+              cleanText(
+                payment.paymentDate
+              ) ||
+              undefined,
+          })
+        )
+        .filter(
+          (
+            payment
+          ) =>
+            payment.amount >
+            0 ||
+            payment.isPaid ||
+            Boolean(
+              payment.paymentDate
+            )
+        )
+
+
+
+    const cleanedExpenses =
+      (
+        data.expenses ??
+        []
+      )
+        .map(
+          (
+            expense
+          ) => ({
+
+            id:
+              cleanText(
+                expense.expenseId
+              ) ||
+              undefined,
+
+            title:
+              cleanText(
+                expense.title
+              ),
+
+            description:
+              cleanText(
+                expense.description
+              ),
+
+            amount:
+              toFiniteNumber(
+                expense.amount
+              ),
+
+            date:
+              cleanText(
+                expense.date
+              ),
+
+            isPaid:
+              Boolean(
+                expense.isPaid
+              ),
+          })
+        )
+        .filter(
+          (
+            expense
+          ) =>
+            Boolean(
+              expense.id
+            ) ||
+            Boolean(
+              expense.title
+            ) ||
+            Boolean(
+              expense.description
+            ) ||
+            expense.amount >
+            0 ||
+            Boolean(
+              expense.date
+            ) ||
+            expense.isPaid
+        )
+
+
+
+        .filter(
+          (expense) =>
+            Boolean(expense.title) ||
+            Boolean(expense.description) ||
+            expense.amount > 0 ||
+            Boolean(expense.date) ||
+            expense.isPaid
+        )
+    const effectivePaymentType =
+      data.paymentType ||
+      paymentType ||
+      'cash'
+
+    const activeCourtType =
+      cleanText(
+        data.courtType ||
+        courtTypeInput
       )
 
-    const effectivePaymentType = data.paymentType || paymentType || 'cash'
-    const activeCourtType = cleanText(data.courtType || courtTypeInput)
-    const hasCourtBranchData = hasCourtLocationValue(activeCourtLocationForSubmit)
+    const hasCourtBranchData =
+      hasCourtLocationValue(
+        activeCourtLocationForSubmit
+      )
 
-    updateCase(id, {
-      ...data,
-      title: cleanText(data.title),
-      caseNumber: cleanText(data.caseNumber),
-      clients: cleanedClients,
-      opposingParties: cleanedOpposingParties,
-      otherPersons: cleanedOtherPersons,
-      coLawyers: cleanLawyers(data.coLawyers),
-      opposingLawyers: cleanLawyers(data.opposingLawyers),
-      branchHistory: cleanedBranchHistory,
-      province: activeCourtLocationForSubmit?.province || '',
-      city: activeCourtLocationForSubmit?.city || '',
-      courtType: activeCourtType,
-      archiveNumberBranch: activeCourtLocationForSubmit?.archiveNumberBranch || '',
-      courtBranch: hasCourtBranchData
-        ? {
-            province: activeCourtLocationForSubmit?.province || '',
-            city: activeCourtLocationForSubmit?.city || '',
-            courtType: activeCourtType,
-            branch: activeCourtLocationForSubmit?.branchNumber || '',
-            currentBranchNumber: activeCourtLocationForSubmit?.branchNumber || '',
-            archiveNumberBranch: activeCourtLocationForSubmit?.archiveNumberBranch || '',
-            branchHistory: cleanedBranchHistory,
+
+
+    const payload:
+      UpdateCasePayload = {
+      title:
+        cleanText(
+          data.title
+        ),
+
+      status:
+        data.status,
+
+      caseNumber:
+        cleanText(
+          data.caseNumber
+        ),
+
+      clients:
+        cleanedClients,
+
+      opposingParties:
+        cleanedOpposingParties,
+
+      otherPersons:
+        cleanedOtherPersons,
+
+      coLawyers:
+        cleanLawyers(
+          data.coLawyers
+        ),
+
+      opposingLawyers:
+        cleanLawyers(
+          data.opposingLawyers
+        ),
+
+      branchHistory:
+        cleanedBranchHistory,
+
+      province:
+        activeCourtLocationForSubmit
+          ?.province ||
+        '',
+
+      city:
+        activeCourtLocationForSubmit
+          ?.city ||
+        '',
+
+      courtType:
+        activeCourtType,
+
+      archiveNumberBranch:
+        activeCourtLocationForSubmit
+          ?.archiveNumberBranch ||
+        '',
+
+      courtBranch:
+        hasCourtBranchData
+          ? {
+            province:
+              activeCourtLocationForSubmit
+                ?.province ||
+              '',
+
+            city:
+              activeCourtLocationForSubmit
+                ?.city ||
+              '',
+
+            courtType:
+              activeCourtType,
+
+            branch:
+              activeCourtLocationForSubmit
+                ?.branchNumber ||
+              '',
+
+            currentBranchNumber:
+              activeCourtLocationForSubmit
+                ?.branchNumber ||
+              '',
+
+            archiveNumberBranch:
+              activeCourtLocationForSubmit
+                ?.archiveNumberBranch ||
+              '',
+
+            branchHistory:
+              cleanedBranchHistory,
           }
-        : undefined,
-      paymentType: effectivePaymentType,
-      cashPayments: effectivePaymentType === 'cash' || effectivePaymentType === 'both' ? formattedCashPayments : [],
-      expenses: cleanedExpenses,
-      nonCashDescription: cleanText(data.nonCashDescription),
-      description: cleanText(data.description),
-      totalAmount: effectivePaymentType === 'cash' || effectivePaymentType === 'both' ? totalCash : 0,
-    } as any)
+          : undefined,
 
-    router.push(`/dashboard/cases/${id}`)
+      paymentType:
+        effectivePaymentType,
+
+      contractAmount:
+        toFiniteNumber(
+          data.contractAmount
+        ),
+
+      cashPayments:
+        effectivePaymentType ===
+          'cash' ||
+          effectivePaymentType ===
+          'both'
+          ? formattedCashPayments
+          : [],
+
+      expenses:
+        cleanedExpenses,
+
+      nonCashDescription:
+        cleanText(
+          data.nonCashDescription
+        ),
+
+      description:
+        cleanText(
+          data.description
+        ),
+    }
+
+
+
+    clearCaseError()
+
+    const updatedCase =
+      await updateCase(
+        id,
+        payload
+      )
+
+
+    if (!updatedCase) {
+      return
+    }
+
+    router.push(
+      `/dashboard/cases/${updatedCase.id}`
+    )
   }
 
   return (
@@ -1482,6 +1899,14 @@ useEffect(() => {
         onSubmit={handleSubmit(onSubmit)}
         className="bg-white rounded-lg border text-zinc-900 border-zinc-200 p-4 sm:p-6 space-y-8"
       >
+        {caseError && (
+          <div
+            role="alert"
+            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-700"
+          >
+            {caseError}
+          </div>
+        )}
         <input type="hidden" {...register('courtType')} />
         <input type="hidden" {...register('province')} />
         <input type="hidden" {...register('city')} />
@@ -1517,14 +1942,28 @@ useEffect(() => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-900 mb-2">شماره پرونده</label>
+            <label className="block text-sm font-medium text-zinc-900 mb-2">
+              شماره پرونده *
+            </label>
+
             <input
-              {...register('caseNumber')}
+              {...register(
+                'caseNumber'
+              )}
               type="text"
               className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="شماره پرونده"
+              placeholder="مثال: 1405/125"
               dir="ltr"
             />
+
+            {errors.caseNumber && (
+              <p className="mt-1 text-sm text-red-600">
+                {
+                  errors.caseNumber
+                    .message
+                }
+              </p>
+            )}
           </div>
         </div>
 
@@ -1722,31 +2161,79 @@ useEffect(() => {
                     </button>
                   )}
                 </div>
-                  <div className="mb-4">
-  <label className="text-xs text-blue-700 font-medium block mb-1">
-    انتخاب از موکلین ثبت‌شده
-  </label>
+                <div className="mb-4">
+                  <label className="text-xs text-blue-700 font-medium block mb-1">
+                    انتخاب از موکلین ثبت‌شده
+                  </label>
 
-  <select
-    value={(watch(`clients.${index}.clientId` as any) as string) || ''}
-    onChange={(e) => fillClientFromSavedList(index, e.target.value)}
-    className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-  >
-    <option value="">ورود دستی اطلاعات موکل</option>
+                  <select
+                    value={
+                      (
+                        watch(
+                          `clients.${index}.clientId` as any
+                        ) as string
+                      ) ||
+                      ''
+                    }
+                    disabled={
+                      isClientsLoading
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      fillClientFromSavedList(
+                        index,
+                        event.target.value
+                      )
+                    }
+                    className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-zinc-100 disabled:cursor-wait"
+                  >
+                    <option value="">
+                      {isClientsLoading
+                        ? 'در حال دریافت موکلین از سرور...'
+                        : 'ورود دستی اطلاعات موکل'}
+                    </option>
 
-    {savedClients.map((client: any) => (
-      <option key={client.id} value={client.id}>
-        {getSavedClientFullName(client)}
-        {client.nationalId ? ` - ${client.nationalId}` : ''}
-        {client.phoneNumber ? ` - ${client.phoneNumber}` : ''}
-      </option>
-    ))}
-  </select>
+                    {savedClients.map(
+                      (
+                        client
+                      ) => (
+                        <option
+                          key={
+                            client.id
+                          }
+                          value={
+                            client.id
+                          }
+                        >
+                          {
+                            getSavedClientFullName(
+                              client
+                            )
+                          }
 
-  <p className="mt-1 text-xs text-blue-500">
-    می‌توانید موکل ثبت‌شده را انتخاب کنید یا اطلاعات را دستی وارد کنید.
-  </p>
-</div>
+                          {client.nationalId
+                            ? ` - ${client.nationalId}`
+                            : ''}
+
+                          {client.phoneNumber
+                            ? ` - ${client.phoneNumber}`
+                            : ''}
+                        </option>
+                      )
+                    )}
+                  </select>
+
+                  {clientsError && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {clientsError}
+                    </p>
+                  )}
+
+                  <p className="mt-1 text-xs text-blue-500">
+                    می‌توانید موکل ثبت‌شده را انتخاب کنید یا اطلاعات را دستی وارد کنید.
+                  </p>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
                   <div>
                     <label className="text-xs text-blue-700 font-medium block mb-1">نام شخص حقیقی/حقوقی</label>
@@ -1805,7 +2292,6 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* طرف مقابل */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1815,13 +2301,27 @@ useEffect(() => {
             <button
               type="button"
               onClick={() =>
-                appendOpposingParty({
-                  name: '',
-                  phone: '',
-                  nationalId: '',
-                  role: '',
-                  birthDate: '',
-                  description: '',
+                appendClient({
+                  clientId:
+                    '',
+
+                  name:
+                    '',
+
+                  phone:
+                    '',
+
+                  nationalId:
+                    '',
+
+                  role:
+                    '',
+
+                  representative:
+                    '',
+
+                  feeShareAmount:
+                    undefined,
                 })
               }
               className="flex items-center gap-2 px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium"
@@ -1903,11 +2403,10 @@ useEffect(() => {
                       <input
                         {...register(`opposingParties.${index}.birthDate` as const)}
                         type="text"
-                        className={`w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 bg-white ${
-                          underLegalAge
-                            ? 'border border-red-400 focus:ring-red-500'
-                            : 'border border-zinc-200 focus:ring-zinc-500'
-                        }`}
+                        className={`w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 bg-white ${underLegalAge
+                          ? 'border border-red-400 focus:ring-red-500'
+                          : 'border border-zinc-200 focus:ring-zinc-500'
+                          }`}
                         placeholder="مثال: 1384/09/09"
                         dir="ltr"
                       />
@@ -2265,98 +2764,96 @@ useEffect(() => {
               </div>
             </div>
           </div>
-            {activeClients.length > 1 && (
-  <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-5">
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h3 className="font-bold text-violet-900">تقسیم حق‌الوکاله بین موکلین</h3>
-        <p className="mt-1 text-sm leading-6 text-violet-700">
-          سهم هر موکل را مشخص کنید. مجموع سهم‌ها باید دقیقاً برابر مبلغ کل قرارداد باشد.
-        </p>
-      </div>
+          {activeClients.length > 1 && (
+            <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-purple-50 p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="font-bold text-violet-900">تقسیم حق‌الوکاله بین موکلین</h3>
+                  <p className="mt-1 text-sm leading-6 text-violet-700">
+                    سهم هر موکل را مشخص کنید. مجموع سهم‌ها باید دقیقاً برابر مبلغ کل قرارداد باشد.
+                  </p>
+                </div>
 
-      <button
-        type="button"
-        onClick={splitFeeEqually}
-        disabled={contractAmount <= 0}
-        className="shrink-0 rounded-lg border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        تقسیم مساوی
-      </button>
-    </div>
+                <button
+                  type="button"
+                  onClick={splitFeeEqually}
+                  disabled={contractAmount <= 0}
+                  className="shrink-0 rounded-lg border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  تقسیم مساوی
+                </button>
+              </div>
 
-    <div className="mt-5 grid gap-3">
-      {activeClients.map((client) => (
-        <div
-          key={client.clientId ?? `${client.clientName}-${client.index}`}
-          className="grid grid-cols-1 items-center gap-3 rounded-xl border border-violet-200 bg-white p-4 sm:grid-cols-[minmax(0,1fr)_minmax(180px,260px)]"
-        >
-          <div className="min-w-0">
-            <p className="truncate font-bold text-zinc-900">
-              {client.clientName || `موکل ${client.index + 1}`}
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">سهم این موکل از مبلغ کل قرارداد</p>
-          </div>
+              <div className="mt-5 grid gap-3">
+                {activeClients.map((client) => (
+                  <div
+                    key={client.clientId ?? `${client.clientName}-${client.index}`}
+                    className="grid grid-cols-1 items-center gap-3 rounded-xl border border-violet-200 bg-white p-4 sm:grid-cols-[minmax(0,1fr)_minmax(180px,260px)]"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-bold text-zinc-900">
+                        {client.clientName || `موکل ${client.index + 1}`}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500">سهم این موکل از مبلغ کل قرارداد</p>
+                    </div>
 
-          <div>
-            <div className="relative">
-              <input
-                {...register(`clients.${client.index}.feeShareAmount`, {
-                  setValueAs: setOptionalNumberValue,
-                })}
-                type="text"
-                inputMode="numeric"
-                placeholder="0"
-                dir="ltr"
-                className="w-full rounded-lg border border-violet-200 bg-white px-3 py-2 pl-14 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
-              />
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">
-                ریال
-              </span>
+                    <div>
+                      <div className="relative">
+                        <input
+                          {...register(`clients.${client.index}.feeShareAmount`, {
+                            setValueAs: setOptionalNumberValue,
+                          })}
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="0"
+                          dir="ltr"
+                          className="w-full rounded-lg border border-violet-200 bg-white px-3 py-2 pl-14 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                        />
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400">
+                          ریال
+                        </span>
+                      </div>
+
+                      {errors.clients?.[client.index]?.feeShareAmount && (
+                        <p className="mt-1 text-xs text-red-600">
+                          {errors.clients[client.index]?.feeShareAmount?.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-lg bg-white p-3 ring-1 ring-violet-100">
+                  <p className="text-xs text-zinc-500">مبلغ کل قرارداد</p>
+                  <p className="mt-1 font-black text-zinc-900">
+                    {contractAmount.toLocaleString('fa-IR')} ریال
+                  </p>
+                </div>
+
+                <div className="rounded-lg bg-white p-3 ring-1 ring-violet-100">
+                  <p className="text-xs text-zinc-500">مجموع سهم‌های ثبت‌شده</p>
+                  <p className="mt-1 font-black text-violet-700">
+                    {allocatedFeeTotal.toLocaleString('fa-IR')} ریال
+                  </p>
+                </div>
+
+                <div
+                  className={`rounded-lg p-3 ring-1 ${unallocatedFeeAmount === 0 ? 'bg-emerald-50 ring-emerald-200' : 'bg-red-50 ring-red-200'
+                    }`}
+                >
+                  <p className="text-xs text-zinc-500">اختلاف با مبلغ قرارداد</p>
+                  <p
+                    className={`mt-1 font-black ${unallocatedFeeAmount === 0 ? 'text-emerald-700' : 'text-red-700'
+                      }`}
+                  >
+                    {Math.abs(unallocatedFeeAmount).toLocaleString('fa-IR')} ریال
+                  </p>
+                </div>
+              </div>
             </div>
-
-            {errors.clients?.[client.index]?.feeShareAmount && (
-              <p className="mt-1 text-xs text-red-600">
-                {errors.clients[client.index]?.feeShareAmount?.message}
-              </p>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-
-    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <div className="rounded-lg bg-white p-3 ring-1 ring-violet-100">
-        <p className="text-xs text-zinc-500">مبلغ کل قرارداد</p>
-        <p className="mt-1 font-black text-zinc-900">
-          {contractAmount.toLocaleString('fa-IR')} ریال
-        </p>
-      </div>
-
-      <div className="rounded-lg bg-white p-3 ring-1 ring-violet-100">
-        <p className="text-xs text-zinc-500">مجموع سهم‌های ثبت‌شده</p>
-        <p className="mt-1 font-black text-violet-700">
-          {allocatedFeeTotal.toLocaleString('fa-IR')} ریال
-        </p>
-      </div>
-
-      <div
-        className={`rounded-lg p-3 ring-1 ${
-          unallocatedFeeAmount === 0 ? 'bg-emerald-50 ring-emerald-200' : 'bg-red-50 ring-red-200'
-        }`}
-      >
-        <p className="text-xs text-zinc-500">اختلاف با مبلغ قرارداد</p>
-        <p
-          className={`mt-1 font-black ${
-            unallocatedFeeAmount === 0 ? 'text-emerald-700' : 'text-red-700'
-          }`}
-        >
-          {Math.abs(unallocatedFeeAmount).toLocaleString('fa-IR')} ریال
-        </p>
-      </div>
-    </div>
-  </div>
-)}
+          )}
           <div className="space-y-3">
             <label className="block text-sm font-medium text-zinc-900">نوع قرارداد</label>
 
@@ -2398,18 +2895,16 @@ useEffect(() => {
                   setPaymentType(nextValue)
                   setValue('paymentType', nextValue)
                 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${
-                  paymentType === 'both'
-                    ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${paymentType === 'both'
+                  ? 'bg-emerald-600 text-white border-emerald-600'
+                  : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
+                  }`}
               >
                 <span
-                  className={`w-5 h-5 rounded-md border flex items-center justify-center text-xs font-bold ${
-                    paymentType === 'both'
-                      ? 'bg-white text-emerald-600 border-white'
-                      : 'bg-white text-transparent border-emerald-400'
-                  }`}
+                  className={`w-5 h-5 rounded-md border flex items-center justify-center text-xs font-bold ${paymentType === 'both'
+                    ? 'bg-white text-emerald-600 border-white'
+                    : 'bg-white text-transparent border-emerald-400'
+                    }`}
                 >
                   ✓
                 </span>
@@ -2424,13 +2919,20 @@ useEffect(() => {
                 <h3 className="font-medium text-green-800 text-lg">پرداخت‌های نقدی</h3>
                 <button
                   type="button"
-                 onClick={() =>
+                  onClick={() =>
                     appendCashPayment({
-                      clientId: '',
-                      clientName: '',
-                      amount: undefined,
-                      isPaid: false,
-                      paymentDate: '',
+                      paymentId:
+                        '',
+                      clientId:
+                        '',
+                      clientName:
+                        '',
+                      amount:
+                        undefined,
+                      isPaid:
+                        false,
+                      paymentDate:
+                        '',
                     })
                   }
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
@@ -2446,6 +2948,12 @@ useEffect(() => {
               <div className="space-y-4">
                 {cashPaymentFields.map((field, index) => (
                   <div key={field.id} className="bg-white border border-green-300 rounded-lg p-4">
+                    <input
+                      type="hidden"
+                      {...register(
+                        `cashPayments.${index}.paymentId` as const
+                      )}
+                    />
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-sm font-medium text-green-800">پرداخت {index + 1}</h4>
                       <button
@@ -2456,7 +2964,7 @@ useEffect(() => {
                         <X size={16} />
                       </button>
                     </div>
-                            {activeClients.length > 1 && (
+                    {activeClients.length > 1 && (
                       <div className="mb-3">
                         <label className="mb-1 block text-xs font-medium text-green-700">
                           موکل مرتبط
@@ -2577,6 +3085,12 @@ useEffect(() => {
           <div className="space-y-4">
             {expenseFields.map((field, index) => (
               <div key={field.id} className="bg-white border border-amber-300 rounded-lg p-4">
+                <input
+                  type="hidden"
+                  {...register(
+                    `expenses.${index}.expenseId` as const
+                  )}
+                />
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-sm font-medium text-amber-800">هزینه {index + 1}</h4>
 
@@ -2661,10 +3175,16 @@ useEffect(() => {
         <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t-2 border-zinc-200">
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:opacity-50 font-medium text-lg shadow-lg"
+            disabled={
+              isSubmitting ||
+              isCaseSaving
+            }
+            className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-lg shadow-lg"
           >
-            {isSubmitting ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
+            {isSubmitting ||
+              isCaseSaving
+              ? 'در حال ذخیره در سرور...'
+              : 'ذخیره تغییرات'}
           </button>
           <Link
             href={`/dashboard/cases/${id}`}

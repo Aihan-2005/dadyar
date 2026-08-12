@@ -22,7 +22,6 @@ import {
 } from 'lucide-react'
 
 import { useCasesStore } from '@/store/cases.store'
-import { useAuthStore } from '@/store/auth.store'
 import {
   useClientStore,
   type Client,
@@ -266,8 +265,13 @@ const caseSchema = z.object({
     .array(opposingPartySchema)
     .optional(),
 
-  caseNumber: optionalTextSchema,
-
+caseNumber: z
+  .string()
+  .trim()
+  .min(
+    1,
+    'شماره پرونده الزامی است'
+  ),
   archiveNumberBranch:
     optionalTextSchema,
 
@@ -576,11 +580,7 @@ type CourtLocationField =
   | 'archiveNumberBranch'
 
 
-type AuthUserWithArchive = {
-  id: string
-  archiveNumberOffice?: string
-  archiveNumberLawyer?: string
-}
+
 
 const cleanText = (
   value?: string | null
@@ -804,37 +804,61 @@ const getLastDate = (
 }
 
 export default function NewCasePage() {
-  const router = useRouter()
 
-  const addCase =
-    useCasesStore(
-      (state) =>
-        state.addCase
-    )
+  const router =
+  useRouter()
 
-  const caseError =
-    useCasesStore(
-      (state) =>
-        state.error
-    )
 
-  const clearCaseError =
-    useCasesStore(
-      (state) =>
-        state.clearError
-    )
 
-  const user =
-    useAuthStore(
-      (state) =>
-        state.user
-    )
+const addCase =
+  useCasesStore(
+    (state) =>
+      state.addCase
+  )
 
-  const savedClients =
-    useClientStore(
-      (state) =>
-        state.clients
-    )
+const caseError =
+  useCasesStore(
+    (state) =>
+      state.error
+  )
+
+const isCaseSaving =
+  useCasesStore(
+    (state) =>
+      state.isSaving
+  )
+
+const clearCaseError =
+  useCasesStore(
+    (state) =>
+      state.clearError
+  )
+
+
+
+const savedClients =
+  useClientStore(
+    (state) =>
+      state.clients
+  )
+
+const fetchAllClients =
+  useClientStore(
+    (state) =>
+      state.fetchAllClients
+  )
+
+const isClientsLoading =
+  useClientStore(
+    (state) =>
+      state.isLoading
+  )
+
+const clientsError =
+  useClientStore(
+    (state) =>
+      state.error
+  )
     const fetchSavedClients =
   useClientStore(
     (state) =>
@@ -880,6 +904,8 @@ export default function NewCasePage() {
   watch,
   setValue,
 
+
+  
   formState: {
     errors,
     isSubmitting,
@@ -964,6 +990,11 @@ export default function NewCasePage() {
 
 
 
+useEffect(() => {
+  void fetchAllClients()
+}, [
+  fetchAllClients,
+])
 
   const {
     fields:
@@ -1936,19 +1967,12 @@ useEffect(() => {
       )
     }
 
-  const onSubmit = async (
-    data: CaseFormData
-  ) => {
-    if (!user?.id) {
-      return
-    }
+ const onSubmit = async (
+  data: CaseFormData
+) => {
+  clearCaseError()
 
-    clearCaseError()
-
-    const authUser =
-      user as AuthUserWithArchive
-
-    const cleanedClients =
+  const cleanedClients =
       (data.clients ?? [])
         .map((client) => ({
           clientId:
@@ -2415,23 +2439,12 @@ const formattedCashPayments =
         status: data.status,
 
         caseNumber:
-          cleanText(
-            data.caseNumber
-          ) || undefined,
+  cleanText(
+    data.caseNumber
+  ),
 
-        lawyerId:
-          authUser.id,
-
-        archiveNumberOffice:
-          authUser
-            .archiveNumberOffice,
-
-        archiveNumberLawyer:
-          authUser
-            .archiveNumberLawyer,
-
-        clients:
-          cleanedClients,
+clients:
+  cleanedClients,
 
         clientId:
           primaryClient
@@ -2636,15 +2649,29 @@ const formattedCashPayments =
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-900 mb-2">شماره پرونده</label>
-            <input
-              {...register('caseNumber')}
-              type="text"
-              className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="شماره پرونده"
-              dir="ltr"
-            />
-          </div>
+  <label className="block text-sm font-medium text-zinc-900 mb-2">
+    شماره پرونده *
+  </label>
+
+  <input
+    {...register(
+      'caseNumber'
+    )}
+    type="text"
+    className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+    placeholder="مثال: 1405/125"
+    dir="ltr"
+  />
+
+  {errors.caseNumber && (
+    <p className="mt-1 text-sm text-red-600">
+      {
+        errors.caseNumber
+          .message
+      }
+    </p>
+  )}
+</div>
         </div>
 
         {/* شعبه دادگاه */}
@@ -2861,31 +2888,85 @@ const formattedCashPayments =
           )}
         </div>
 
-        <div className="mb-4">
-          <label className="text-xs text-blue-700 font-medium block mb-1">
-            انتخاب از موکلین ثبت‌شده
-          </label>
+       <div className="mb-4">
+  <label className="text-xs text-blue-700 font-medium block mb-1">
+    انتخاب از موکلین ثبت‌شده
+  </label>
 
-          <select
-            value={(watch(`clients.${index}.clientId` as any) as string) || ''}
-            onChange={(e) => fillClientFromSavedList(index, e.target.value)}
-            className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          >
-            <option value="">ورود دستی اطلاعات موکل</option>
+  <select
+    value={
+      (
+        watch(
+          `clients.${index}.clientId` as any
+        ) as string
+      ) || ''
+    }
+    disabled={
+      isClientsLoading
+    }
+    onChange={(
+      event
+    ) =>
+      fillClientFromSavedList(
+        index,
+        event.target.value
+      )
+    }
+    className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-zinc-100 disabled:cursor-wait"
+  >
+    <option value="">
+      {isClientsLoading
+        ? 'در حال دریافت موکلین از سرور...'
+        : 'ورود دستی اطلاعات موکل'}
+    </option>
 
-            {savedClients.map((client: any) => (
-              <option key={client.id} value={client.id}>
-                {getSavedClientFullName(client)}
-                {client.nationalId ? ` - ${client.nationalId}` : ''}
-                {client.phoneNumber ? ` - ${client.phoneNumber}` : ''}
-              </option>
-            ))}
-          </select>
+    {savedClients.map(
+      (
+        client
+      ) => (
+        <option
+          key={
+            client.id
+          }
+          value={
+            client.id
+          }
+        >
+          {
+            getSavedClientFullName(
+              client
+            )
+          }
 
-          <p className="mt-1 text-xs text-blue-500">
-            می‌توانید موکل ثبت‌شده را انتخاب کنید یا اطلاعات را دستی وارد کنید.
-          </p>
-        </div>
+          {client.nationalId
+            ? ` - ${client.nationalId}`
+            : ''}
+
+          {client.phoneNumber
+            ? ` - ${client.phoneNumber}`
+            : ''}
+        </option>
+      )
+    )}
+  </select>
+
+  {clientsError ? (
+    <p className="mt-1 text-xs font-medium text-red-600">
+      {clientsError}
+    </p>
+  ) : (
+    <p className="mt-1 text-xs text-blue-500">
+      {savedClients.length >
+      0
+        ? `${savedClients.length.toLocaleString(
+            'fa-IR'
+          )} موکل از سرور دریافت شده است.`
+        : isClientsLoading
+          ? 'در حال دریافت اطلاعات از سرور...'
+          : 'می‌توانید اطلاعات موکل را به‌صورت دستی وارد کنید.'}
+    </p>
+  )}
+</div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
           <div>
@@ -4029,13 +4110,19 @@ const formattedCashPayments =
 )}
 
         <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t-2 border-zinc-200">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:opacity-50 font-medium text-lg shadow-lg"
-          >
-            {isSubmitting ? 'در حال ذخیره...' : 'ذخیره پرونده'}
-          </button>
+        <button
+  type="submit"
+  disabled={
+    isSubmitting ||
+    isCaseSaving
+  }
+  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-lg shadow-lg"
+>
+  {isSubmitting ||
+  isCaseSaving
+    ? 'در حال ذخیره در سرور...'
+    : 'ذخیره پرونده'}
+</button>
           <Link
             href="/dashboard/cases"
             className="px-6 py-3 border-2 border-zinc-300 rounded-lg hover:bg-zinc-50 transition-colors text-center font-medium text-lg"

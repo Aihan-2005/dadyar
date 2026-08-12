@@ -1,14 +1,24 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import {
+  create,
+} from 'zustand'
 
-import { createDemoCases } from '@/features/cases/data/cases.mock'
-import { parseFinanceDate } from '@/features/finance/utils/date'
-import { toFiniteNumber } from '@/features/finance/utils/number'
+import {
+  createCaseApi,
+  deleteCaseApi,
+  fetchAllCasesApi,
+  fetchCaseByIdApi,
+  getCaseApiErrorMessage,
+  updateCaseApi,
+} from '@/features/cases/api/case.api'
+
+import {
+  toFiniteNumber,
+} from '@/features/finance/utils/number'
+
 import type {
   Case,
   CaseStatus,
   CreateCasePayload,
-  PaymentType,
   UpdateCasePayload,
 } from '@/types/case'
 
@@ -20,619 +30,604 @@ export type {
   CourtBranch,
 } from '@/types/case'
 
+
+
+const LEGACY_STORAGE_KEY =
+  'cases-storage'
+
+const ACTIVE_STATUSES:
+  CaseStatus[] = [
+    'pending',
+    'in-progress',
+    'open',
+    'in_progress',
+  ]
+
+
+
+function removeLegacyCaseStorage():
+  void {
+  if (
+    typeof window ===
+    'undefined'
+  ) {
+    return
+  }
+
+  window.localStorage.removeItem(
+    LEGACY_STORAGE_KEY
+  )
+}
+
+
 interface FetchCasesOptions {
   force?: boolean
 }
 
 interface CasesStore {
   cases: Case[]
-  selectedCase: Case | null
 
-  isLoading: boolean
-  error: string | null
+  selectedCase:
+    Case | null
 
-  hasHydrated: boolean
-  hasLoaded: boolean
-  lastSyncedAt: string | null
+  isLoading:
+    boolean
+
+  isSaving:
+    boolean
+
+  isDeleting:
+    boolean
+
+  error:
+    string | null
+
+ 
+  hasHydrated:
+    boolean
+
+  hasLoaded:
+    boolean
+
+  lastSyncedAt:
+    string | null
 
   fetchCases: (
-    options?: FetchCasesOptions
+    options?:
+      FetchCasesOptions
   ) => Promise<void>
 
   fetchCaseById: (
-    id: string
-  ) => Promise<Case | null>
+    id:
+      string
+  ) => Promise<
+    Case | null
+  >
 
   addCase: (
-    caseData: CreateCasePayload
-  ) => Promise<Case | null>
+    caseData:
+      CreateCasePayload
+  ) => Promise<
+    Case | null
+  >
 
   updateCase: (
-    id: string,
-    caseData: UpdateCasePayload
-  ) => Promise<Case | null>
+    id:
+      string,
+    caseData:
+      UpdateCasePayload
+  ) => Promise<
+    Case | null
+  >
 
-  deleteCase: (id: string) => Promise<void>
+  deleteCase: (
+    id:
+      string
+  ) => Promise<void>
 
   setSelectedCase: (
-    caseItem: Case | null
+    caseItem:
+      Case | null
   ) => void
 
-  clearError: () => void
+  clearError:
+    () => void
 
+  
   setHasHydrated: (
-    value: boolean
+    value:
+      boolean
   ) => void
 
-  clearLocalCases: () => void
-  restoreDemoCases: () => void
+  clearLocalCases:
+    () => void
+
+  restoreDemoCases:
+    () => void
+
+  resetCases:
+    () => void
 
   getCaseById: (
-    id: string
-  ) => Case | undefined
-
-  getActiveCases: () => Case[]
-  getArchivedCases: () => Case[]
-  getTotalDebt: () => number
-}
-
-const SHOULD_SEED_DEMO_CASES =
-  process.env.NEXT_PUBLIC_ENABLE_DEMO_CASES !==
-  'false'
-
-const ACTIVE_STATUSES: CaseStatus[] = [
-  'pending',
-  'in-progress',
-  'open',
-  'in_progress',
-]
-
-function createId(): string {
-  return (
-    globalThis.crypto?.randomUUID?.() ??
-    `case-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}`
-  )
-}
-
-function cleanArray<T extends object>(
-  items?: T[]
-): T[] {
-  return (items ?? []).filter((item) =>
-    Object.values(
-      item as Record<string, unknown>
-    ).some((value) => {
-      if (typeof value === 'boolean') {
-        return value
-      }
-
-      if (typeof value === 'number') {
-        return value !== 0
-      }
-
-      if (Array.isArray(value)) {
-        return value.length > 0
-      }
-
-      return String(value ?? '').trim().length > 0
-    })
-  )
-}
-
-function normalizePaymentType(
-  value?: PaymentType
-): PaymentType {
-  return value === 'non-cash' || value === 'both'
-    ? value
-    : 'cash'
-}
-
-function toIso(
-  value: unknown,
-  fallback?: Date
-): string | undefined {
-  return (
-    parseFinanceDate(
-      value as Date | string | undefined
-    )?.toISOString() ??
-    fallback?.toISOString()
-  )
-}
-
-function firstDate(
-  values: Array<string | undefined>,
-  direction: 'asc' | 'desc'
-): string | undefined {
-  return values
-    .filter(
-      (value): value is string => Boolean(value)
-    )
-    .sort((first, second) =>
-      direction === 'asc'
-        ? new Date(first).getTime() -
-          new Date(second).getTime()
-        : new Date(second).getTime() -
-          new Date(first).getTime()
-    )[0]
-}
-
-function normalizeCase(
-  input: Partial<Case> &
-    Pick<Case, 'id' | 'title'>,
-  now = new Date()
-): Case {
-  const paymentType = normalizePaymentType(
-    input.paymentType
-  )
-
-  const clients = cleanArray(input.clients)
-
-  const primaryClient = clients.find(
-    (client) => client.name?.trim()
-  )
-
-  const cashPayments =
-    paymentType === 'non-cash'
-      ? []
-      : cleanArray(input.cashPayments).map(
-          (payment) => ({
-            ...payment,
-
-            id:
-              payment.id ||
-              createId(),
-
-            amount: toFiniteNumber(
-              payment.amount
-            ),
-
-            isPaid: Boolean(
-              payment.isPaid
-            ),
-          })
-        )
-
-  const installments = cleanArray(
-    input.installments
-  ).map((payment) => ({
-    ...payment,
-
     id:
-      payment.id ||
-      createId(),
+      string
+  ) =>
+    Case | undefined
 
-    amount: toFiniteNumber(
-      payment.amount
-    ),
+  getActiveCases:
+    () => Case[]
 
-    isPaid: Boolean(
-      payment.isPaid
-    ),
-  }))
+  getArchivedCases:
+    () => Case[]
 
-  const payments =
-    cashPayments.length > 0
-      ? cashPayments
-      : installments
-
-  const paymentsTotal = payments.reduce(
-    (sum, payment) =>
-      sum +
-      toFiniteNumber(payment.amount),
-    0
-  )
-
-  const paymentsPaid = payments.reduce(
-    (sum, payment) =>
-      payment.isPaid
-        ? sum +
-          toFiniteNumber(payment.amount)
-        : sum,
-    0
-  )
-
-  const contractAmount =
-    [
-      input.contractAmount,
-      input.totalFee,
-      input.totalAmount,
-      paymentsTotal,
-    ]
-      .map(toFiniteNumber)
-      .find((amount) => amount > 0) ?? 0
-
-  const paidAmount =
-    paymentsPaid ||
-    toFiniteNumber(input.paidAmount)
-
-  const remainingAmount =
-    contractAmount > 0
-      ? Math.max(
-          contractAmount - paidAmount,
-          0
-        )
-      : Math.max(
-          toFiniteNumber(
-            input.remainingAmount
-          ),
-          0
-        )
-
-  const dueDates = payments
-    .filter(
-      (payment) => !payment.isPaid
-    )
-    .map((payment) =>
-      toIso(
-        payment.dueDate ??
-          payment.paymentDate
-      )
-    )
-
-  const paidDates = payments
-    .filter(
-      (payment) => payment.isPaid
-    )
-    .map((payment) =>
-      toIso(
-        payment.paidDate ??
-          payment.paymentDate ??
-          payment.dueDate
-      )
-    )
-
-  const calculatedOverdue =
-    payments.reduce((sum, payment) => {
-      if (payment.isPaid) {
-        return sum
-      }
-
-      const dueDate = parseFinanceDate(
-        payment.dueDate ??
-          payment.paymentDate
-      )
-
-      return dueDate &&
-        dueDate.getTime() < now.getTime()
-        ? sum +
-            toFiniteNumber(
-              payment.amount
-            )
-        : sum
-    }, 0)
-
-  const status =
-    input.status ?? 'pending'
-
-  return {
-    ...input,
-
-    id: input.id,
-    title: input.title.trim(),
-    status,
-
-    createdAt:
-      toIso(input.createdAt, now) ??
-      now.toISOString(),
-
-    updatedAt:
-      toIso(input.updatedAt, now) ??
-      now.toISOString(),
-
-    closedAt:
-      toIso(input.closedAt) ??
-      (status === 'completed' ||
-      status === 'closed'
-        ? now.toISOString()
-        : undefined),
-
-    clients,
-
-    clientId:
-      input.clientId ||
-      primaryClient?.clientId,
-
-    clientName:
-      input.clientName?.trim() ||
-      primaryClient?.name?.trim(),
-
-    clientPhone:
-      input.clientPhone ||
-      primaryClient?.phone,
-
-    paymentType,
-    cashPayments,
-    installments,
-
-    expenses: cleanArray(
-      input.expenses
-    ).map((expense) => ({
-      ...expense,
-
-      id:
-        expense.id ||
-        createId(),
-
-      amount: toFiniteNumber(
-        expense.amount
-      ),
-
-      isPaid: Boolean(
-        expense.isPaid
-      ),
-    })),
-
-    opposingParties: cleanArray(
-      input.opposingParties
-    ),
-
-    coLawyers: cleanArray(
-      input.coLawyers
-    ),
-
-    opposingLawyers: cleanArray(
-      input.opposingLawyers
-    ),
-
-    otherPersons: cleanArray(
-      input.otherPersons
-    ),
-
-    branchHistory: cleanArray(
-      input.branchHistory
-    ),
-
-    contractAmount,
-    totalFee: contractAmount,
-
-    totalAmount:
-      paymentsTotal ||
-      toFiniteNumber(
-        input.totalAmount
-      ),
-
-    paidAmount,
-    remainingAmount,
-
-    overdueAmount: Math.max(
-      calculatedOverdue,
-      toFiniteNumber(
-        input.overdueAmount
-      )
-    ),
-
-    dueDate:
-      firstDate(dueDates, 'asc') ||
-      toIso(input.dueDate),
-
-    lastPaymentDate:
-      firstDate(paidDates, 'desc') ||
-      toIso(input.lastPaymentDate),
-
-    nonCashDescription:
-      input.nonCashDescription ||
-      input.installmentDescription ||
-      '',
-  }
+  getTotalDebt:
+    () => number
 }
 
-function createCase(
-  caseData: CreateCasePayload
-): Case {
-  const now = new Date()
 
-  return normalizeCase(
-    {
-      ...caseData,
 
-      id: createId(),
-      title: caseData.title,
+const initialDomainState = {
+  cases:
+    [] as Case[],
 
-      status:
-        caseData.status ??
-        'pending',
+  selectedCase:
+    null as
+      | Case
+      | null,
 
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-    },
-    now
-  )
+  isLoading:
+    false,
+
+  isSaving:
+    false,
+
+  isDeleting:
+    false,
+
+  error:
+    null as
+      | string
+      | null,
+
+ 
+  hasHydrated:
+    true,
+
+  hasLoaded:
+    false,
+
+  lastSyncedAt:
+    null as
+      | string
+      | null,
 }
+
 
 export const useCasesStore =
   create<CasesStore>()(
-    persist(
-      (set, get) => ({
-        cases: [],
-        selectedCase: null,
+    (
+      set,
+      get
+    ) => ({
+      ...initialDomainState,
 
-        isLoading: false,
-        error: null,
+     
 
-        hasHydrated: false,
-        hasLoaded: false,
-        lastSyncedAt: null,
-
-        fetchCases: async (
-          { force = false } = {}
+      fetchCases:
+        async (
+          {
+            force =
+              false,
+          } = {}
         ) => {
+       
+          removeLegacyCaseStorage()
+
           if (
-            !get().hasHydrated ||
-            (get().hasLoaded && !force)
+            get().hasLoaded &&
+            !force
           ) {
             return
           }
 
           set({
-            isLoading: true,
-            error: null,
+            isLoading:
+              true,
+
+            error:
+              null,
           })
 
-          const currentCases =
-            get().cases
+          try {
+            const cases =
+              await fetchAllCasesApi()
 
-          const cases =
-            currentCases.length > 0
-              ? currentCases.map(
-                  (caseItem) =>
-                    normalizeCase(
-                      caseItem
-                    )
-                )
-              : SHOULD_SEED_DEMO_CASES
-                ? createDemoCases().map(
-                    createCase
-                  )
-                : []
+            set({
+              cases,
 
-          set({
-            cases,
-            isLoading: false,
-            hasLoaded: true,
-            lastSyncedAt:
-              new Date().toISOString(),
-          })
+              isLoading:
+                false,
+
+              hasLoaded:
+                true,
+
+              lastSyncedAt:
+                new Date()
+                  .toISOString(),
+
+              error:
+                null,
+            })
+          } catch (
+            error
+          ) {
+            set({
+              isLoading:
+                false,
+
+              hasLoaded:
+                true,
+
+              error:
+                getCaseApiErrorMessage(
+                  error,
+
+                  'دریافت پرونده‌ها از سرور ناموفق بود.'
+                ),
+            })
+          }
         },
 
-        fetchCaseById: async (
+     
+
+      fetchCaseById:
+        async (
           id
         ) => {
-          const caseItem =
-            get().cases.find(
-              (item) =>
-                item.id === id
-            ) ?? null
-
           set({
-            selectedCase: caseItem,
-            error: null,
+            isLoading:
+              true,
+
+            error:
+              null,
           })
 
-          return caseItem
+          try {
+            const caseItem =
+              await fetchCaseByIdApi(
+                id
+              )
+
+            set(
+              (
+                state
+              ) => {
+                const exists =
+                  state.cases.some(
+                    (item) =>
+                      item.id ===
+                      caseItem.id
+                  )
+
+                return {
+                  selectedCase:
+                    caseItem,
+
+                  cases:
+                    exists
+                      ? state.cases.map(
+                          (
+                            item
+                          ) =>
+                            item.id ===
+                            caseItem.id
+                              ? caseItem
+                              : item
+                        )
+                      : [
+                          caseItem,
+                          ...state.cases,
+                        ],
+
+                  isLoading:
+                    false,
+
+                  error:
+                    null,
+
+                  lastSyncedAt:
+                    new Date()
+                      .toISOString(),
+                }
+              }
+            )
+
+            return caseItem
+          } catch (
+            error
+          ) {
+            set({
+              isLoading:
+                false,
+
+              error:
+                getCaseApiErrorMessage(
+                  error,
+
+                  'دریافت پرونده از سرور ناموفق بود.'
+                ),
+            })
+
+            return null
+          }
         },
 
-        addCase: async (
+      
+      addCase:
+        async (
           caseData
         ) => {
           set({
-            isLoading: true,
-            error: null,
+            isSaving:
+              true,
+
+            error:
+              null,
           })
 
-          const newCase =
-            createCase(caseData)
+          try {
+            const createdCase =
+              await createCaseApi(
+                caseData
+              )
 
-          set((state) => ({
-            cases: [
-              newCase,
-              ...state.cases,
-            ],
+            set(
+              (
+                state
+              ) => ({
+                cases: [
+                  createdCase,
 
-            selectedCase: newCase,
+                  ...state.cases.filter(
+                    (item) =>
+                      item.id !==
+                      createdCase.id
+                  ),
+                ],
 
-            isLoading: false,
-            hasLoaded: true,
+                selectedCase:
+                  createdCase,
 
-            lastSyncedAt:
-              new Date().toISOString(),
-          }))
+                isSaving:
+                  false,
 
-          return newCase
+                hasLoaded:
+                  true,
+
+                error:
+                  null,
+
+                lastSyncedAt:
+                  new Date()
+                    .toISOString(),
+              })
+            )
+
+            return createdCase
+          } catch (
+            error
+          ) {
+            set({
+              isSaving:
+                false,
+
+              error:
+                getCaseApiErrorMessage(
+                  error,
+
+                  'ثبت پرونده در سرور ناموفق بود.'
+                ),
+            })
+
+            return null
+          }
         },
 
-        updateCase: async (
+     
+
+      updateCase:
+        async (
           id,
           caseData
         ) => {
-          set({
-            isLoading: true,
-            error: null,
-          })
-
           const currentCase =
             get().cases.find(
               (item) =>
-                item.id === id
+                item.id ===
+                id
             )
 
           if (!currentCase) {
             set({
-              isLoading: false,
               error:
-                'پرونده موردنظر پیدا نشد',
+                'پرونده موردنظر در حافظه پیدا نشد.',
             })
 
             return null
           }
 
-          const updatedCase =
-            normalizeCase({
+          set({
+            isSaving:
+              true,
+
+            error:
+              null,
+          })
+
+        
+          const mergedCase:
+            Case = {
               ...currentCase,
+
               ...caseData,
 
-              id,
+              id:
+                currentCase.id,
 
               title:
                 caseData.title ??
                 currentCase.title,
 
+              status:
+                caseData.status ??
+                currentCase.status,
+
               createdAt:
                 currentCase.createdAt,
 
               updatedAt:
-                new Date().toISOString(),
+                currentCase.updatedAt,
+            }
+
+          try {
+            const updatedCase =
+              await updateCaseApi(
+                id,
+
+                mergedCase
+              )
+
+            set(
+              (
+                state
+              ) => ({
+                cases:
+                  state.cases.map(
+                    (item) =>
+                      item.id ===
+                      id
+                        ? updatedCase
+                        : item
+                  ),
+
+                selectedCase:
+                  state
+                    .selectedCase
+                    ?.id ===
+                  id
+                    ? updatedCase
+                    : state
+                        .selectedCase,
+
+                isSaving:
+                  false,
+
+                error:
+                  null,
+
+                lastSyncedAt:
+                  new Date()
+                    .toISOString(),
+              })
+            )
+
+            return updatedCase
+          } catch (
+            error
+          ) {
+            set({
+              isSaving:
+                false,
+
+              error:
+                getCaseApiErrorMessage(
+                  error,
+
+                  'ویرایش پرونده در سرور ناموفق بود.'
+                ),
             })
 
-          set((state) => ({
-            cases:
-              state.cases.map(
-                (item) =>
-                  item.id === id
-                    ? updatedCase
-                    : item
-              ),
-
-            selectedCase:
-              state.selectedCase?.id ===
-              id
-                ? updatedCase
-                : state.selectedCase,
-
-            isLoading: false,
-
-            lastSyncedAt:
-              new Date().toISOString(),
-          }))
-
-          return updatedCase
+            return null
+          }
         },
 
-        deleteCase: async (
+      
+
+      deleteCase:
+        async (
           id
         ) => {
-          set((state) => ({
-            cases:
-              state.cases.filter(
-                (item) =>
-                  item.id !== id
-              ),
+          set({
+            isDeleting:
+              true,
 
-            selectedCase:
-              state.selectedCase?.id ===
+            error:
+              null,
+          })
+
+          try {
+            await deleteCaseApi(
               id
-                ? null
-                : state.selectedCase,
+            )
 
-            isLoading: false,
-            error: null,
+            set(
+              (
+                state
+              ) => ({
+                cases:
+                  state.cases.filter(
+                    (item) =>
+                      item.id !==
+                      id
+                  ),
 
-            lastSyncedAt:
-              new Date().toISOString(),
-          }))
+                selectedCase:
+                  state
+                    .selectedCase
+                    ?.id ===
+                  id
+                    ? null
+                    : state
+                        .selectedCase,
+
+                isDeleting:
+                  false,
+
+                error:
+                  null,
+
+                lastSyncedAt:
+                  new Date()
+                    .toISOString(),
+              })
+            )
+          } catch (
+            error
+          ) {
+            const message =
+              getCaseApiErrorMessage(
+                error,
+
+                'حذف پرونده از سرور ناموفق بود.'
+              )
+
+            set({
+              isDeleting:
+                false,
+
+              error:
+                message,
+            })
+
+           
+            throw error
+          }
         },
 
-        setSelectedCase: (
+      
+
+      setSelectedCase:
+        (
           caseItem
         ) =>
           set({
@@ -640,54 +635,92 @@ export const useCasesStore =
               caseItem,
           }),
 
-        clearError: () =>
+     
+
+      clearError:
+        () =>
           set({
-            error: null,
+            error:
+              null,
           }),
 
-        setHasHydrated: (
+     
+
+      setHasHydrated:
+        (
           value
         ) =>
           set({
-            hasHydrated: value,
+            hasHydrated:
+              value,
           }),
 
-        clearLocalCases: () =>
+      clearLocalCases:
+        () => {
+          removeLegacyCaseStorage()
+
           set({
             cases: [],
-            selectedCase: null,
 
-            error: null,
-            hasLoaded: true,
+            selectedCase:
+              null,
+
+            hasLoaded:
+              false,
+
+            error:
+              null,
 
             lastSyncedAt:
-              new Date().toISOString(),
-          }),
+              null,
+          })
+        },
 
-        restoreDemoCases: () =>
+      
+      restoreDemoCases:
+        () => {
+          removeLegacyCaseStorage()
+
           set({
-            cases:
-              createDemoCases().map(
-                createCase
-              ),
+            cases: [],
 
-            selectedCase: null,
-            error: null,
-            hasLoaded: true,
+            selectedCase:
+              null,
+
+            hasLoaded:
+              false,
+
+            error:
+              null,
 
             lastSyncedAt:
-              new Date().toISOString(),
+              null,
+          })
+        },
+
+    
+      resetCases:
+        () =>
+          set({
+            ...initialDomainState,
+
+            hasHydrated:
+              true,
           }),
 
-        getCaseById: (
+    
+      getCaseById:
+        (
           id
         ) =>
           get().cases.find(
             (item) =>
-              item.id === id
+              item.id ===
+              id
           ),
 
-        getActiveCases: () =>
+      getActiveCases:
+        () =>
           get().cases.filter(
             (item) =>
               ACTIVE_STATUSES.includes(
@@ -695,43 +728,27 @@ export const useCasesStore =
               )
           ),
 
-        getArchivedCases: () =>
+      getArchivedCases:
+        () =>
           get().cases.filter(
             (item) =>
               item.status ===
               'archived'
           ),
 
-        getTotalDebt: () =>
+      getTotalDebt:
+        () =>
           get().cases.reduce(
-            (sum, item) =>
-              sum +
+            (
+              total,
+              item
+            ) =>
+              total +
               toFiniteNumber(
                 item.remainingAmount
               ),
+
             0
           ),
-      }),
-
-      {
-        name: 'cases-storage',
-
-        partialize: (state) => ({
-          cases: state.cases,
-
-          selectedCase:
-            state.selectedCase,
-
-          lastSyncedAt:
-            state.lastSyncedAt,
-        }),
-
-        onRehydrateStorage:
-          () => (state) => {
-            state?.setHasHydrated(
-              true
-            )
-          },
-      }
-    )
+    })
   )

@@ -23,12 +23,14 @@ import type {
   ApiEnvelope,
 } from './types'
 
+
 export interface ClientListResult {
   items: Client[]
 
   pagination:
     ClientPagination
 }
+
 
 
 export async function fetchClientsApi(
@@ -69,8 +71,68 @@ export async function fetchClientsApi(
 }
 
 
+
+export async function fetchAllClientsApi():
+  Promise<Client[]> {
+  const firstPage =
+    await fetchClientsApi({
+      page: 1,
+      limit: 100,
+    })
+
+  const allClients = [
+    ...firstPage.items,
+  ]
+
+  const totalPages =
+    firstPage.pagination
+      .totalPages
+
+  
+
+
+  for (
+    let page = 2;
+    page <= totalPages;
+    page += 1
+  ) {
+    const result =
+      await fetchClientsApi({
+        page,
+        limit: 100,
+      })
+
+    allClients.push(
+      ...result.items
+    )
+  }
+
+ 
+  const uniqueClients =
+    new Map<
+      string,
+      Client
+    >()
+
+  for (
+    const client of
+    allClients
+  ) {
+    uniqueClients.set(
+      client.id,
+      client
+    )
+  }
+
+  return Array.from(
+    uniqueClients.values()
+  )
+}
+
+
 export async function fetchClientByIdApi(
-  clientId: string
+  clientId:
+    string
 ): Promise<Client> {
   const response =
     await api.get<
@@ -87,7 +149,8 @@ export async function fetchClientByIdApi(
 
 
 export async function lookupClientByPhoneApi(
-  phone: string
+  phone:
+    string
 ): Promise<Client | null> {
   const response =
     await api.get<
@@ -141,7 +204,9 @@ export async function createClientApi(
 
 
 export async function updateClientApi(
-  clientId: string,
+  clientId:
+    string,
+
   payload:
     UpdateClientPayload
 ): Promise<Client> {
@@ -164,9 +229,10 @@ export async function updateClientApi(
 }
 
 
-
 export function getClientApiErrorMessage(
-  error: unknown,
+  error:
+    unknown,
+
   fallback =
     'عملیات موکل با خطا مواجه شد.'
 ): string {
