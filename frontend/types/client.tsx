@@ -1,43 +1,71 @@
 export interface Client {
   id: string
+
   fullName: string
-  nationalId: string
+
   phoneNumber: string
 
-  /** فیلدهای جدید */
-  role?: string
+ 
+  phone?: string
+
+  nationalId?: string
+
   landlineNumber?: string
+
   birthDate?: string
-  isMinor?: boolean
+
   representative?: string
 
-  email?: string
   address?: string
-  notes?: string
-  lawyerId?: string
+
   createdAt: string
   updatedAt: string
-  caseIds: string[]
+
+ 
+  caseIds?: string[]
+
+  
+  role?: string
+
+
+  isMinor?: boolean
 }
 
 export interface CreateClientPayload {
-fullName: string
-  nationalId: string
+  fullName: string
+
   phoneNumber: string
 
-  /** فیلدهای جدید */
-  role?: string
+  nationalId?: string
+
   landlineNumber?: string
+
   birthDate?: string
-  isMinor?: boolean
+
   representative?: string
 
-  email?: string
   address?: string
-  notes?: string
-  lawyerId?: string
 }
 
-export interface UpdateClientPayload extends Partial<CreateClientPayload> {
-  id: string
+export type UpdateClientPayload =
+  Partial<CreateClientPayload>
+
+export interface ClientPagination {
+  page: number
+
+  limit: number
+
+  total: number
+
+  totalPages: number
+}
+
+export interface ClientListOptions {
+  search?: string
+
+  page?: number
+
+  limit?: number
+
+  force?: boolean
 }

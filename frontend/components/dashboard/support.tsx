@@ -7,35 +7,29 @@ import { Headphones, Phone, X, MessageCircle } from 'lucide-react'
 const supportOptions = [
   { 
     id: 'phone', 
-    label: '۰۹۱۲۳۴۵۶۷۸۹', 
+    label: '۰۹۹۱۶۳۹۳۶۸۴', 
     icon: <Phone size={20} />, 
     color: 'bg-blue-500',
     href: 'tel:09123456789' 
   },
   { 
     id: 'telegram', 
-    label: '@Dadyar_Support', 
+    label: '@mojtaba_2A', 
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
     ), 
     color: 'bg-[#229ED9]',
-    href: 'https://t.me/username' 
+    href: 'https://t.me/mojtaba_2A' 
   },
-  { 
-    id: 'bale', 
-    label: '@Dadyar_Support', 
-    icon: <MessageCircle size={20} />, 
-    color: 'bg-[#56ade1]',
-    href: 'https://ble.ir/username' 
-  },
+
   { 
     id: 'whatsapp', 
-    label:'@Dadyar_Support', 
+    label:'@mojtaba_2A', 
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-11.7 8.38 8.38 0 0 1 3.8.9L21 3z"/></svg>
     ), 
     color: 'bg-[#25D366]',
-    href: 'https://wa.me/989123456789' 
+    href: 'https://wa.me/09916393684' 
   },
 ]
 

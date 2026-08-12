@@ -835,6 +835,11 @@ export default function NewCasePage() {
       (state) =>
         state.clients
     )
+    const fetchSavedClients =
+  useClientStore(
+    (state) =>
+      state.fetchClients
+  )
 
   const [
     paymentType,
@@ -1428,11 +1433,18 @@ const overdueTotal =
     0
   )
 
-/*
-|--------------------------------------------------------------------------
-| محاسبه خودکار مانده و مطالبات معوق فرم
-|--------------------------------------------------------------------------
-*/
+
+useEffect(() => {
+  void fetchSavedClients({
+    page: 1,
+
+    limit: 100,
+
+    force: true,
+  })
+}, [
+  fetchSavedClients,
+])
 
 useEffect(() => {
   const remainingAmount =

@@ -1,912 +1,1341 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Plus, Search, Users, Edit2, Trash2, Eye } from 'lucide-react'
-import { useClientStore } from '@/store/client.store'
-import type { Client, CreateClientPayload } from '@/types/client'
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 
-type ClientExtraFields = {
-  role?: string
-  landlineNumber?: string
-  birthDate?: string
-  address?: string
-  isMinor?: boolean
-   personalPassword?: string 
-   contractNumber?: string
-}
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Database,
+  Edit2,
+  Eye,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Search,
+  Users,
+  X,
+} from 'lucide-react'
 
-type ClientWithExtra = Client & ClientExtraFields
+import {
+  ClientDetailsModal,
+} from '@/components/dashboard/customers/ClientDetailsModal'
 
-type ClientFormData = CreateClientPayload & ClientExtraFields
+import {
+  ClientEditorModal,
+} from '@/components/dashboard/customers/ClientEditorModal'
 
-type ClientEditorModalProps = {
-  isOpen: boolean
-  client?: ClientWithExtra
-  onClose: () => void
-  onSubmit: (payload: ClientFormData) => void
-}
+import {
+  useClientStore,
+} from '@/store/client.store'
 
-const normalizeDigits = (value: string) =>
-  value
-    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
-    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+import type {
+  Client,
+  CreateClientPayload,
+} from '@/types/client'
 
-const isValidJalaliDateParts = (year: number, month: number, day: number) => {
-  if (year < 1200 || year > 1600) return false
-  if (month < 1 || month > 12) return false
+import {
+  isClientMinor,
+} from '@/features/clients/utils/client-date'
 
-  const maxDay = month <= 6 ? 31 : month <= 11 ? 30 : 30
-  return day >= 1 && day <= maxDay
-}
+const PAGE_SIZE =
+  20
 
-const jalaliToGregorianDate = (year: number, month: number, day: number) => {
-  let jy = year + 1595
-  let days =
-    -355668 +
-    365 * jy +
-    Math.floor(jy / 33) * 8 +
-    Math.floor(((jy % 33) + 3) / 4) +
-    day +
-    (month < 7 ? (month - 1) * 31 : (month - 7) * 30 + 186)
+export default function CustomersPage() {
+  const clients =
+    useClientStore(
+      (state) =>
+        state.clients
+    )
 
-  let gy = 400 * Math.floor(days / 146097)
-  days %= 146097
+  const pagination =
+    useClientStore(
+      (state) =>
+        state.pagination
+    )
 
-  if (days > 36524) {
-    gy += 100 * Math.floor(--days / 36524)
-    days %= 36524
-    if (days >= 365) days++
-  }
+  const isLoading =
+    useClientStore(
+      (state) =>
+        state.isLoading
+    )
 
-  gy += 4 * Math.floor(days / 1461)
-  days %= 1461
+  const isSaving =
+    useClientStore(
+      (state) =>
+        state.isSaving
+    )
 
-  if (days > 365) {
-    gy += Math.floor((days - 1) / 365)
-    days = (days - 1) % 365
-  }
+  const error =
+    useClientStore(
+      (state) =>
+        state.error
+    )
 
-  let gd = days + 1
-  const monthDays = [
-    0,
-    31,
-    (gy % 4 === 0 && gy % 100 !== 0) || gy % 400 === 0 ? 29 : 28,
-    31,
-    30,
-    31,
-    30,
-    31,
-    31,
-    30,
-    31,
-    30,
-    31,
-  ]
+  const migrationReport =
+    useClientStore(
+      (state) =>
+        state.migrationReport
+    )
 
-  let gm = 1
-  while (gm <= 12 && gd > monthDays[gm]) {
-    gd -= monthDays[gm]
-    gm++
-  }
+  const fetchClients =
+    useClientStore(
+      (state) =>
+        state.fetchClients
+    )
 
-  return new Date(gy, gm - 1, gd)
-}
+  const addClient =
+    useClientStore(
+      (state) =>
+        state.addClient
+    )
 
-const parseJalaliBirthDate = (value?: string) => {
-  if (!value) return null
+  const updateClient =
+    useClientStore(
+      (state) =>
+        state.updateClient
+    )
 
-  const normalizedValue = normalizeDigits(value.trim())
-  const match = normalizedValue.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/)
-  if (!match) return null
+  const migrateLegacyClients =
+    useClientStore(
+      (state) =>
+        state.migrateLegacyClients
+    )
 
-  const year = Number(match[1])
-  const month = Number(match[2])
-  const day = Number(match[3])
+  const clearError =
+    useClientStore(
+      (state) =>
+        state.clearError
+    )
 
-  if (!isValidJalaliDateParts(year, month, day)) return null
+  const clearMigrationReport =
+    useClientStore(
+      (state) =>
+        state.clearMigrationReport
+    )
 
-  return jalaliToGregorianDate(year, month, day)
-}
+  const [
+    ready,
+    setReady,
+  ] =
+    useState(false)
 
-const calculateAgeFromJalali = (birthDate?: string) => {
-  const birthGregorianDate = parseJalaliBirthDate(birthDate)
-  if (!birthGregorianDate) return null
+  const [
+    search,
+    setSearch,
+  ] =
+    useState('')
 
-  const today = new Date()
-  let age = today.getFullYear() - birthGregorianDate.getFullYear()
-  const monthDiff = today.getMonth() - birthGregorianDate.getMonth()
+  const [
+    page,
+    setPage,
+  ] =
+    useState(1)
 
-  if (
-    monthDiff < 0 ||
-    (monthDiff === 0 && today.getDate() < birthGregorianDate.getDate())
-  ) {
-    age--
-  }
+  const [
+    editorOpen,
+    setEditorOpen,
+  ] =
+    useState(false)
 
-  return age
-}
+  const [
+    editingClient,
+    setEditingClient,
+  ] =
+    useState<Client | undefined>()
 
-const isUnderLegalAge = (birthDate?: string) => {
-  const age = calculateAgeFromJalali(birthDate)
-  return age !== null && age < 18
-}
+  const [
+    viewingClient,
+    setViewingClient,
+  ] =
+    useState<Client | null>(
+      null
+    )
 
-const getEmptyClientForm = (): ClientFormData =>
-({
-  fullName: '',
-  representative: '',
-  nationalId: '',
-  phoneNumber: '',
-  landlineNumber: '',
-  birthDate: '',
-  role: '',
-  address: '',
-  isMinor: false,
-   personalPassword: '', 
-     contractNumber: '',
-} as ClientFormData)
-
-const getClientDisplayName = (client: ClientWithExtra) =>
-  client.fullName?.trim() || 'بدون نام'
-
-const getClientInitials = (client: ClientWithExtra) => {
-  const words = client.fullName?.trim().split(/\s+/) ?? []
-
-  const firstInitial = words[0]?.charAt(0) ?? ''
-  const lastInitial =
-    words.length > 1 ? words[words.length - 1].charAt(0) : ''
-
-  return `${firstInitial}${lastInitial}` || 'م'
-}
-function ClientEditorModal({ isOpen, client, onClose, onSubmit }: ClientEditorModalProps) {
-  const [formData, setFormData] = useState<ClientFormData>(getEmptyClientForm())
 
   useEffect(() => {
-    if (!isOpen) return
+    let cancelled =
+      false
 
-    if (client) {
-      setFormData({
-        ...getEmptyClientForm(),
-        ...client,
-        role: client.role || '',
-        landlineNumber: client.landlineNumber || '',
-        birthDate: client.birthDate || '',
-        personalPassword: client.personalPassword || '',
-         contractNumber: client.contractNumber || '', 
-        isMinor: isUnderLegalAge(client.birthDate),
-      } as ClientFormData)
-    } else {
-      setFormData(getEmptyClientForm())
+    const initialize =
+      async () => {
+        await migrateLegacyClients()
+
+        if (
+          !cancelled
+        ) {
+          setReady(
+            true
+          )
+        }
+      }
+
+    void initialize()
+
+    return () => {
+      cancelled =
+        true
     }
-  }, [client, isOpen])
+  }, [
+    migrateLegacyClients,
+  ])
 
-  if (!isOpen) return null
+  useEffect(() => {
+    if (!ready) {
+      return
+    }
 
-  const minor = isUnderLegalAge(formData.birthDate)
-  const calculatedAge = calculateAgeFromJalali(formData.birthDate)
+    const timeoutId =
+      window.setTimeout(
+        () => {
+          void fetchClients({
+            search,
 
-  const updateField = <K extends keyof ClientFormData>(field: K, value: ClientFormData[K]) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
-  }
+            page,
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+            limit:
+              PAGE_SIZE,
 
-    const normalizedBirthDate = normalizeDigits((formData.birthDate || '').trim())
+            force:
+              true,
+          })
+        },
+        300
+      )
 
-const payload = {
-  ...formData,
-  fullName: (formData.fullName || '').trim(),
-  representative: (formData.representative || '').trim() || undefined,
+    return () =>
+      window.clearTimeout(
+        timeoutId
+      )
+  }, [
+    fetchClients,
+    page,
+    ready,
+    search,
+  ])
 
-      nationalId: (formData.nationalId || '').trim(),
-      phoneNumber: (formData.phoneNumber || '').trim(),
-      landlineNumber: (formData.landlineNumber || '').trim() || undefined,
-      birthDate: normalizedBirthDate || undefined,
-      role: (formData.role || '').trim() || undefined,
-      address: (formData.address || '').trim() || undefined,
-      personalPassword: (formData.personalPassword || '').trim() || undefined, 
-       contractNumber: (formData.contractNumber || '').trim() || undefined,
-      isMinor: isUnderLegalAge(normalizedBirthDate),
-    } as ClientFormData
 
-    onSubmit(payload)
-  }
+
+  useEffect(() => {
+    setPage(1)
+  }, [
+    search,
+  ])
+
+  const pageStats =
+    useMemo(
+      () => {
+        const minors =
+          clients.filter(
+            (client) =>
+              isClientMinor(
+                client.birthDate
+              )
+          ).length
+
+        const withNationalId =
+          clients.filter(
+            (client) =>
+              Boolean(
+                client.nationalId
+              )
+          ).length
+
+        const completeProfiles =
+          clients.filter(
+            (client) =>
+              Boolean(
+                client.fullName &&
+                  client.phoneNumber &&
+                  client.nationalId &&
+                  client.address
+              )
+          ).length
+
+        return {
+          minors,
+
+          withNationalId,
+
+          completeProfiles,
+        }
+      },
+      [
+        clients,
+      ]
+    )
+
+  const openCreate =
+    () => {
+      clearError()
+
+      setEditingClient(
+        undefined
+      )
+
+      setEditorOpen(
+        true
+      )
+    }
+
+  const openEdit =
+    (
+      client:
+        Client
+    ) => {
+      clearError()
+
+      setEditingClient(
+        client
+      )
+
+      setEditorOpen(
+        true
+      )
+    }
+
+  const closeEditor =
+    () => {
+      if (
+        isSaving
+      ) {
+        return
+      }
+
+      setEditorOpen(
+        false
+      )
+
+      setEditingClient(
+        undefined
+      )
+
+      clearError()
+    }
+
+  const handleSubmit =
+    async (
+      payload:
+        CreateClientPayload
+    ) => {
+      const result =
+        editingClient
+          ? await updateClient(
+              editingClient.id,
+              payload
+            )
+          : await addClient(
+              payload
+            )
+
+      if (!result) {
+        return
+      }
+
+      closeEditor()
+
+     
+      await fetchClients({
+        search,
+
+        page:
+          editingClient
+            ? page
+            : 1,
+
+        limit:
+          PAGE_SIZE,
+
+        force:
+          true,
+      })
+
+      if (!editingClient) {
+        setPage(1)
+      }
+    }
+
+  const refresh =
+    () => {
+      void fetchClients({
+        search,
+
+        page,
+
+        limit:
+          PAGE_SIZE,
+
+        force:
+          true,
+      })
+    }
+
+  const hasPrevious =
+    pagination.page >
+    1
+
+  const hasNext =
+    pagination.page <
+    pagination.totalPages
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[100] p-0 sm:p-4"
-      onClick={onClose}
+      dir="rtl"
+      className="min-h-screen bg-zinc-50 pb-20"
     >
-      <div
-        className="bg-white rounded-t-3xl sm:rounded-2xl max-w-3xl w-full max-h-[95vh] overflow-y-auto"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="sticky top-0 bg-white border-b border-zinc-100 px-6 py-4 flex items-center justify-between z-10">
-          <div>
-            <h2 className="text-lg font-bold text-zinc-900">
-              {client ? 'ویرایش موکل' : 'افزودن موکل جدید'}
-            </h2>
-            <p className="text-xs text-zinc-500 mt-1">
-              اطلاعات این بخش بعداً در فرم افزودن پرونده قابل انتخاب خواهد بود.
-            </p>
+      <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 text-white shadow-sm">
+              <Users
+                size={23}
+              />
+            </div>
+
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-black text-zinc-900 sm:text-2xl">
+                  موکلان
+                </h1>
+
+              
+              </div>
+
+              <p className="mt-1 text-xs text-zinc-500 sm:text-sm">
+                مدیریت اطلاعات موکلان ذخیره‌شده در دیتابیس
+              </p>
+            </div>
           </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={
+                refresh
+              }
+              disabled={
+                isLoading
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-bold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
+            >
+              <RefreshCw
+                size={16}
+                className={
+                  isLoading
+                    ? 'animate-spin'
+                    : ''
+                }
+              />
+
+              بروزرسانی
+            </button>
+
+            <button
+              type="button"
+              onClick={
+                openCreate
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-zinc-800"
+            >
+              <Plus
+                size={18}
+              />
+
+              افزودن موکل
+            </button>
+          </div>
+        </header>
+
+        {migrationReport &&
+          migrationReport.detected >
+            0 && (
+            <MigrationBanner
+              report={
+                migrationReport
+              }
+              onClose={
+                clearMigrationReport
+              }
+            />
+          )}
+
+        {error &&
+          !editorOpen && (
+            <div className="flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+              <div className="flex items-start gap-2 text-sm text-red-700">
+                <AlertCircle
+                  size={18}
+                  className="mt-0.5 shrink-0"
+                />
+
+                <p>
+                  {error}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  clearError
+                }
+                className="text-red-400 hover:text-red-700"
+              >
+                <X
+                  size={17}
+                />
+              </button>
+            </div>
+          )}
+
+        <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="relative">
+            <Search
+              size={18}
+              className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400"
+            />
+
+            <input
+              value={
+                search
+              }
+              onChange={(
+                event
+              ) =>
+                setSearch(
+                  event.target
+                    .value
+                )
+              }
+              placeholder="جست‌وجو بر اساس نام، کد ملی، موبایل یا تلفن ثابت..."
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-3 pl-10 pr-11 text-sm outline-none transition focus:border-zinc-400 focus:bg-white focus:ring-4 focus:ring-zinc-100"
+            />
+
+            {search && (
+              <button
+                type="button"
+                aria-label="پاک‌کردن جست‌وجو"
+                onClick={() =>
+                  setSearch('')
+                }
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
+              >
+                <X
+                  size={17}
+                />
+              </button>
+            )}
+          </div>
+        </section>
+
+        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            label="کل موکلان"
+            value={
+              pagination.total
+            }
+            className="text-zinc-900"
+          />
+
+          <StatCard
+            label="نمایش داده‌شده"
+            value={
+              clients.length
+            }
+            className="text-blue-600"
+          />
+
+          <StatCard
+            label="دارای کد ملی"
+            value={
+              pageStats.withNationalId
+            }
+            className="text-emerald-600"
+          />
+
+          <StatCard
+            label="زیر سن در این صفحه"
+            value={
+              pageStats.minors
+            }
+            className="text-red-600"
+          />
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          {isLoading &&
+          clients.length ===
+            0 ? (
+            <LoadingState />
+          ) : clients.length ===
+            0 ? (
+            <EmptyState
+              hasSearch={
+                Boolean(
+                  search.trim()
+                )
+              }
+              onAdd={
+                openCreate
+              }
+            />
+          ) : (
+            <>
+              <div className="grid gap-4 p-4 lg:hidden">
+                {clients.map(
+                  (client) => (
+                    <ClientMobileCard
+                      key={
+                        client.id
+                      }
+                      client={
+                        client
+                      }
+                      onView={
+                        setViewingClient
+                      }
+                      onEdit={
+                        openEdit
+                      }
+                    />
+                  )
+                )}
+              </div>
+
+              <div className="hidden overflow-x-auto lg:block">
+                <table className="w-full min-w-[900px]">
+                  <thead className="border-b border-zinc-200 bg-zinc-50">
+                    <tr>
+                      <Th>
+                        نام موکل
+                      </Th>
+
+                      <Th>
+                        کد ملی
+                      </Th>
+
+                      <Th>
+                        موبایل
+                      </Th>
+
+                      <Th>
+                        تلفن ثابت
+                      </Th>
+
+                      <Th>
+                        تاریخ تولد
+                      </Th>
+
+                      <Th>
+                        نماینده
+                      </Th>
+
+                      <Th center>
+                        عملیات
+                      </Th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-zinc-100">
+                    {clients.map(
+                      (
+                        client
+                      ) => (
+                        <ClientTableRow
+                          key={
+                            client.id
+                          }
+                          client={
+                            client
+                          }
+                          onView={
+                            setViewingClient
+                          }
+                          onEdit={
+                            openEdit
+                          }
+                        />
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <Pagination
+                pagination={
+                  pagination
+                }
+                isLoading={
+                  isLoading
+                }
+                hasPrevious={
+                  hasPrevious
+                }
+                hasNext={
+                  hasNext
+                }
+                onPrevious={() =>
+                  setPage(
+                    (
+                      current
+                    ) =>
+                      Math.max(
+                        current -
+                          1,
+                        1
+                      )
+                  )
+                }
+                onNext={() =>
+                  setPage(
+                    (
+                      current
+                    ) =>
+                      current +
+                      1
+                  )
+                }
+              />
+            </>
+          )}
+        </section>
+      </div>
+
+      <ClientDetailsModal
+        client={
+          viewingClient
+        }
+        onClose={() =>
+          setViewingClient(
+            null
+          )
+        }
+        onEdit={
+          openEdit
+        }
+      />
+
+      <ClientEditorModal
+        open={
+          editorOpen
+        }
+        client={
+          editingClient
+        }
+        isSaving={
+          isSaving
+        }
+        error={
+          editorOpen
+            ? error
+            : null
+        }
+        onClose={
+          closeEditor
+        }
+        onSubmit={
+          handleSubmit
+        }
+      />
+    </div>
+  )
+}
+
+function ClientTableRow({
+  client,
+  onView,
+  onEdit,
+}: {
+  client:
+    Client
+
+  onView: (
+    client:
+      Client
+  ) => void
+
+  onEdit: (
+    client:
+      Client
+  ) => void
+}) {
+  const minor =
+    isClientMinor(
+      client.birthDate
+    )
+
+  return (
+    <tr className="transition hover:bg-zinc-50">
+      <td className="px-5 py-4">
+        <div className="flex items-center gap-3">
+          <Avatar
+            name={
+              client.fullName
+            }
+          />
+
+          <div>
+            <p className="font-bold text-zinc-900">
+              {client.fullName}
+            </p>
+
+            {minor && (
+              <p className="mt-0.5 text-[11px] font-bold text-red-600">
+                زیر سن قانونی
+              </p>
+            )}
+          </div>
+        </div>
+      </td>
+
+      <Td ltr>
+        {client.nationalId ??
+          '—'}
+      </Td>
+
+      <Td ltr>
+        {client.phoneNumber}
+      </Td>
+
+      <Td ltr>
+        {client.landlineNumber ??
+          '—'}
+      </Td>
+
+      <Td ltr>
+        {client.birthDate ??
+          '—'}
+      </Td>
+
+      <Td>
+        {client.representative ??
+          '—'}
+      </Td>
+
+      <td className="px-5 py-4">
+        <div className="flex items-center justify-center gap-1">
+          <button
+            type="button"
+            title="مشاهده"
+            onClick={() =>
+              onView(
+                client
+              )
+            }
+            className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-50"
+          >
+            <Eye
+              size={18}
+            />
+          </button>
 
           <button
             type="button"
-            onClick={onClose}
-            className="p-2 text-zinc-400 hover:bg-zinc-100 rounded-full transition-colors"
+            title="ویرایش"
+            onClick={() =>
+              onEdit(
+                client
+              )
+            }
+            className="rounded-lg p-2 text-amber-600 transition hover:bg-amber-50"
           >
-            <Plus size={24} className="rotate-45" />
+            <Edit2
+              size={18}
+            />
           </button>
         </div>
+      </td>
+    </tr>
+  )
+}
 
-        <form onSubmit={handleSubmit} className="p-5 sm:p-8 space-y-6 text-zinc-900 ">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-  <label className="block text-sm font-medium text-zinc-800 mb-2">
-    نام و نام خانوادگی
-  </label>
+function ClientMobileCard({
+  client,
+  onView,
+  onEdit,
+}: {
+  client:
+    Client
 
-  <input
-    value={formData.fullName || ''}
-    onChange={(e) =>
-      updateField(
-        'fullName',
-        e.target.value as ClientFormData['fullName']
-      )
-    }
-    type="text"
-    required
-    className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white text-zinc-900"
-    placeholder="مثال: علی رضایی"
-  />
-</div>
+  onView: (
+    client:
+      Client
+  ) => void
 
-<div>
-  <label className="block text-sm font-medium text-zinc-800 mb-2">
-    نماینده
-  </label>
+  onEdit: (
+    client:
+      Client
+  ) => void
+}) {
+  const minor =
+    isClientMinor(
+      client.birthDate
+    )
 
-  <input
-    value={formData.representative || ''}
-    onChange={(e) =>
-      updateField(
-        'representative',
-        e.target.value as ClientFormData['representative']
-      )
-    }
-    type="text"
-    className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white text-zinc-900"
-    placeholder="در صورت وجود"
-  />
-</div>
-            {/* <div>
-              <label className="block text-sm font-medium text-zinc-800 mb-2">
-                سمت
-              </label>
-              <input
-                value={formData.role || ''}
-                onChange={(event) => updateField('role', event.target.value as ClientFormData['role'])}
-                type="text"
-                className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
-                placeholder="مثال: خواهان، خوانده، نماینده، ولی، قیم"
-              />
-            </div> */}
-                        <div >
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <label className="block text-sm font-medium text-zinc-800">
-                  سن
-                </label>
+  return (
+    <article className="rounded-xl border border-zinc-200 p-4">
+      <div className="flex items-start gap-3">
+        <Avatar
+          name={
+            client.fullName
+          }
+          large
+        />
 
-                {minor && (
-                  <span className="text-xs font-bold text-red-600">
-                    زیر سن قانونی
-                  </span>
-                )}
-              </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-black text-zinc-900">
+            {client.fullName}
+          </p>
 
-              <input
-                value={formData.birthDate || ''}
-                onChange={(event) => updateField('birthDate', normalizeDigits(event.target.value) as ClientFormData['birthDate'])}
-                type="text"
-                inputMode="numeric"
-                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 bg-white transition-colors ${minor
-                    ? 'border-red-500 text-red-700 bg-red-50 focus:ring-red-500'
-                    : 'border-zinc-300 focus:ring-zinc-900'
-                  }`}
-                placeholder="1384/09/09"
-                dir="ltr"
-              />
+          <p
+            dir="ltr"
+            className="mt-1 text-right font-mono text-xs text-zinc-500"
+          >
+            {client.phoneNumber}
+          </p>
 
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          {minor && (
+            <span className="mt-2 inline-flex rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-600">
+              زیر سن قانونی
+            </span>
+          )}
+        </div>
 
-                {calculatedAge !== null && (
-                  <span className={minor ? 'text-red-600 font-bold' : 'text-green-700 font-medium'}>
-                    سن محاسبه‌شده: {calculatedAge} سال
-                  </span>
-                )}
-              </div>
-            </div>
+        <div className="flex shrink-0 gap-1">
+          <button
+            type="button"
+            onClick={() =>
+              onView(
+                client
+              )
+            }
+            className="rounded-lg p-2 text-blue-600 hover:bg-blue-50"
+          >
+            <Eye
+              size={17}
+            />
+          </button>
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-800 mb-2">
-                کد ملی
-              </label>
-              <input
-                value={formData.nationalId || ''}
-                onChange={(event) => updateField('nationalId', normalizeDigits(event.target.value) as ClientFormData['nationalId'])}
-                type="text"
-                inputMode="numeric"
-                className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
-                placeholder="1234567890"
-                dir="ltr"
-              />
-            </div>
-            
+          <button
+            type="button"
+            onClick={() =>
+              onEdit(
+                client
+              )
+            }
+            className="rounded-lg p-2 text-amber-600 hover:bg-amber-50"
+          >
+            <Edit2
+              size={17}
+            />
+          </button>
+        </div>
+      </div>
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-800 mb-2">
-                شماره موبایل
-              </label>
-              <input
-                value={formData.phoneNumber || ''}
-                onChange={(event) => updateField('phoneNumber', normalizeDigits(event.target.value) as ClientFormData['phoneNumber'])}
-                type="text"
-                inputMode="tel"
-                required
-                className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
-                placeholder="09123456789"
-                dir="ltr"
-              />
-            </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+        <MiniDetail
+          label="کد ملی"
+          value={
+            client.nationalId ??
+            '—'
+          }
+          ltr
+        />
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-800 mb-2">
-                شماره تماس ثابت
-              </label>
-              <input
-                value={formData.landlineNumber || ''}
-                onChange={(event) => updateField('landlineNumber', normalizeDigits(event.target.value) as ClientFormData['landlineNumber'])}
-                type="text"
-                inputMode="tel"
-                className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
-                placeholder="02112345678"
-                dir="ltr"
-              />
-            </div>
-                 {/* <div>
-              <label className="block text-sm font-medium text-zinc-800 mb-2">
-                سمت
-              </label>
-              <input
-                value={formData.role || ''}
-                onChange={(event) => updateField('role', event.target.value as ClientFormData['role'])}
-                type="text"
-                className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
-                placeholder="مثال: خواهان، خوانده، نماینده، ولی، قیم"
-              />
-            </div> */}
-            <div>
-  <label className="block text-sm font-medium text-zinc-800 mb-2">
-    رمز شخصی
-  </label>
-  <input
-    value={formData.personalPassword || ''}
-    onChange={(event) =>
-      updateField(
-        'personalPassword',
-        event.target.value as ClientFormData['personalPassword']
-      )
-    }
-    type="password"
-    className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
-    placeholder="رمز شخصی موکل"
-    dir="ltr"
-  />
-</div>
+        <MiniDetail
+          label="تلفن ثابت"
+          value={
+            client.landlineNumber ??
+            '—'
+          }
+          ltr
+        />
+      </div>
+    </article>
+  )
+}
 
-            <div>
-  <label className="block text-sm font-medium text-zinc-800 mb-2">
-    شماره قرارداد الکترونیک
-  </label>
-  <input
-    value={formData.contractNumber || ''}
-    onChange={(event) =>
-      updateField(
-        'contractNumber',
-        normalizeDigits(event.target.value) as ClientFormData['contractNumber']
-      )
-    }
-    type="text"
-    inputMode="numeric"
-    className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
-    placeholder="مثال: 140212345678"
-    dir="ltr"
-  />
-</div>
+function Pagination({
+  pagination,
+  isLoading,
+  hasPrevious,
+  hasNext,
+  onPrevious,
+  onNext,
+}: {
+  pagination: {
+    page: number
+    totalPages: number
+    total: number
+  }
 
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-zinc-800 mb-2">
-                آدرس
-              </label>
-              <textarea
-                value={formData.address || ''}
-                onChange={(event) => updateField('address', event.target.value as ClientFormData['address'])}
-                rows={4}
-                className="w-full px-4 py-3 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white resize-none"
-                placeholder="آدرس موکل..."
-              />
-            </div>
-          </div>
+  isLoading:
+    boolean
 
-          <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-zinc-100">
-            <button
-              type="submit"
-              className="flex-1 px-5 py-3 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors font-bold"
-            >
-              {client ? 'ذخیره تغییرات' : 'ثبت موکل'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-3 border border-zinc-200 text-zinc-600 rounded-xl hover:bg-zinc-50 transition-colors font-bold"
-            >
-              انصراف
-            </button>
-          </div>
-        </form>
+  hasPrevious:
+    boolean
+
+  hasNext:
+    boolean
+
+  onPrevious:
+    () => void
+
+  onNext:
+    () => void
+}) {
+  return (
+    <div className="flex flex-col gap-3 border-t border-zinc-100 bg-zinc-50/60 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-xs text-zinc-500">
+        صفحه{' '}
+
+        {pagination.page.toLocaleString(
+          'fa-IR'
+        )}{' '}
+
+        از{' '}
+
+        {Math.max(
+          pagination.totalPages,
+          1
+        ).toLocaleString(
+          'fa-IR'
+        )}
+
+        {' · '}
+
+        {pagination.total.toLocaleString(
+          'fa-IR'
+        )}{' '}
+
+        موکل
+      </p>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={
+            !hasPrevious ||
+            isLoading
+          }
+          onClick={
+            onPrevious
+          }
+          className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ChevronRight
+            size={15}
+          />
+
+          قبلی
+        </button>
+
+        <button
+          type="button"
+          disabled={
+            !hasNext ||
+            isLoading
+          }
+          onClick={
+            onNext
+          }
+          className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          بعدی
+
+          <ChevronLeft
+            size={15}
+          />
+        </button>
       </div>
     </div>
   )
 }
 
-export default function CustomersPage() {
-  const { clients, addClient, updateClient, deleteClient } = useClientStore()
-  const clientList = clients as ClientWithExtra[]
-
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingClient, setEditingClient] = useState<ClientWithExtra | undefined>()
-  const [viewingClient, setViewingClient] = useState<ClientWithExtra | undefined>()
-  const [searchQuery, setSearchQuery] = useState('')
-
-  const filteredClients = clientList.filter((client) => {
-    const fullName = getClientDisplayName(client).toLowerCase()
-    const query = searchQuery.trim().toLowerCase()
-
-    if (!query) return true
-
-    return (
-      fullName.includes(query) ||
-      (client.nationalId || '').includes(query) ||
-      (client.phoneNumber || '').includes(query) ||
-      (client.landlineNumber || '').includes(query) ||
-      (client.role || '').toLowerCase().includes(query)
-    )
-  })
-
-const handleSubmit = async (payload: ClientFormData) => {
-    const normalizedPayload = {
-      ...payload,
-      isMinor: isUnderLegalAge(payload.birthDate),
-    } as CreateClientPayload & ClientExtraFields
-
-    let result
-    if (editingClient) {
-      result = await updateClient(editingClient.id, normalizedPayload)
-    } else {
-      result = await addClient(normalizedPayload)
-    }
-
-    if (result) {
-      setIsModalOpen(false)
-      setEditingClient(undefined)
-    } else {
-      alert(useClientStore.getState().error || 'خطا در ذخیره‌سازی موکل')
-    }
+function MigrationBanner({
+  report,
+  onClose,
+}: {
+  report: {
+    detected: number
+    created: number
+    alreadyExists: number
+    failed: number
+    completed: boolean
   }
 
-  const handleEdit = (client: ClientWithExtra) => {
-    setEditingClient(client)
-    setIsModalOpen(true)
-  }
-
-  const handleDelete = (id: string) => {
-    if (confirm('آیا از حذف این موکل اطمینان دارید؟')) {
-      deleteClient(id)
-    }
-  }
-
-  const handleAddNew = () => {
-    setEditingClient(undefined)
-    setIsModalOpen(true)
-  }
-
-  const handleView = (client: ClientWithExtra) => {
-    setViewingClient(client)
-  }
+  onClose:
+    () => void
+}) {
+  const successful =
+    report.completed
 
   return (
-    <div className="min-h-screen bg-zinc-50 pb-20" dir="rtl">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-zinc-900 rounded-xl shrink-0">
-              <Users size={24} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">موکلان</h1>
-              <p className="text-xs sm:text-sm text-zinc-500 mt-1">
-                مدیریت اطلاعات موکلان و پرونده‌ها
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleAddNew}
-            className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-5 py-3 rounded-xl hover:bg-zinc-700 transition-colors font-medium w-full sm:w-auto"
-          >
-            <Plus size={20} />
-            افزودن موکل جدید
-          </button>
-        </div>
-
-        <div className="bg-white rounded-xl border border-zinc-200 p-3 sm:p-4 shadow-sm">
-          <div className="relative">
-            <Search
-              size={18}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400"
-            />
-            <input
-              type="text"
-              placeholder="جستجو بر اساس نام، سمت، کد ملی، موبایل یا تلفن ثابت..."
-              className="w-full pr-11 pl-4 py-2.5 sm:py-3 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4">
-          {[
-            { label: 'کل موکلان', val: clientList.length, color: 'text-zinc-900' },
-            {
-              label: 'موکلان فعال',
-              val: clientList.filter((client) => (client.caseIds?.length || 0) > 0).length,
-              color: 'text-blue-600',
-            },
-            {
-              label: 'بدون پرونده',
-              val: clientList.filter((client) => (client.caseIds?.length || 0) === 0).length,
-              color: 'text-zinc-400',
-            },
-            {
-              label: 'زیر سن قانونی',
-              val: clientList.filter((client) => client.isMinor || isUnderLegalAge(client.birthDate)).length,
-              color: 'text-red-600',
-            },
-          ].map((stat, index) => (
-            <div
-              key={index}
-              className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-5 flex sm:flex-col justify-between items-center sm:items-start shadow-sm"
-            >
-              <p className="text-xs sm:text-sm text-zinc-500 sm:mb-1">{stat.label}</p>
-              <p className={`text-xl sm:text-3xl font-bold ${stat.color}`}>{stat.val}</p>
-            </div>
-          ))}
-        </div>
-
-        {filteredClients.length === 0 ? (
-          <div className="bg-white rounded-xl border border-zinc-200 p-12 text-center">
-            <Users size={48} className="text-zinc-100 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-zinc-900 mb-2">موکلی یافت نشد</h3>
-            <button onClick={handleAddNew} className="text-blue-600 text-sm font-medium">
-              افزودن اولین موکل
-            </button>
-          </div>
+    <div
+      className={`flex items-start justify-between gap-4 rounded-xl border px-4 py-3 ${
+        successful
+          ? 'border-emerald-200 bg-emerald-50'
+          : 'border-amber-200 bg-amber-50'
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        {successful ? (
+          <CheckCircle2
+            size={19}
+            className="mt-0.5 shrink-0 text-emerald-600"
+          />
         ) : (
-          <>
-            <div className="grid grid-cols-1 gap-4 lg:hidden">
-              {filteredClients.map((client) => {
-                const minor = client.isMinor || isUnderLegalAge(client.birthDate)
-
-                return (
-                  <div
-                    key={client.id}
-                    className="bg-white p-4 rounded-xl border border-zinc-200 shadow-sm space-y-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shrink-0">
-                        {getClientInitials(client)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-zinc-900 truncate">
-                          {getClientDisplayName(client)}
-                        </p>
-                        <p className="text-xs text-zinc-500 font-mono" dir="ltr">
-                          {client.phoneNumber || 'بدون شماره موبایل'}
-                        </p>
-                        {client.role && (
-                          <p className="text-xs text-zinc-500 mt-1 truncate">
-                            سمت: {client.role}
-                          </p>
-                        )}
-                      </div>
-                      <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">
-                        {client.caseIds?.length || 0} پرونده
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      {client.landlineNumber && (
-                        <span className="bg-zinc-100 text-zinc-600 px-2.5 py-1 rounded-full font-mono" dir="ltr">
-                          ثابت: {client.landlineNumber}
-                        </span>
-                      )}
-                      {client.birthDate && (
-                        <span className="bg-zinc-100 text-zinc-600 px-2.5 py-1 rounded-full font-mono" dir="ltr">
-                          تولد: {client.birthDate}
-                        </span>
-                      )}
-                      {minor && (
-                        <span className="bg-red-50 text-red-600 px-2.5 py-1 rounded-full font-bold">
-                          زیر سن قانونی
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
-                      <p className="text-xs text-zinc-400">
-                        کد ملی:{' '}
-                        <span className="font-mono" dir="ltr">
-                          {client.nationalId || '-'}
-                        </span>
-                      </p>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleView(client)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                        >
-                          <Eye size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleEdit(client)}
-                          className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(client.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div className="hidden lg:block bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
-              <table className="w-full">
-                <thead className="bg-zinc-50 border-b border-zinc-200">
-                  <tr>
-                    <th className="text-right px-6 py-4 text-sm font-semibold text-zinc-700">
-                      نام و نام خانوادگی
-                    </th>
-                    <th className="text-right px-6 py-4 text-sm font-semibold text-zinc-700">
-                      سمت
-                    </th>
-                    <th className="text-right px-6 py-4 text-sm font-semibold text-zinc-700">
-                      کد ملی
-                    </th>
-                    <th className="text-right px-6 py-4 text-sm font-semibold text-zinc-700">
-                      شماره تماس
-                    </th>
-                    <th className="text-right px-6 py-4 text-sm font-semibold text-zinc-700">
-                      تلفن ثابت
-                    </th>
-                    <th className="text-right px-6 py-4 text-sm font-semibold text-zinc-700">
-                      وضعیت سن
-                    </th>
-                    <th className="text-right px-6 py-4 text-sm font-semibold text-zinc-700">
-                      پرونده‌ها
-                    </th>
-                    <th className="text-center px-6 py-4 text-sm font-semibold text-zinc-700">
-                      عملیات
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {filteredClients.map((client) => {
-                    const minor = client.isMinor || isUnderLegalAge(client.birthDate)
-
-                    return (
-                      <tr key={client.id} className="hover:bg-zinc-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                              {getClientInitials(client)}
-                            </div>
-                            <p className="font-medium text-zinc-900">
-                              {getClientDisplayName(client)}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-zinc-600">
-                          {client.role || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-zinc-600 font-mono" dir="ltr">
-                          {client.nationalId || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-zinc-600 font-mono" dir="ltr">
-                          {client.phoneNumber || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-zinc-600 font-mono" dir="ltr">
-                          {client.landlineNumber || '-'}
-                        </td>
-                        <td className="px-6 py-4">
-                          {minor ? (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-red-50 text-red-600 text-xs font-bold">
-                              زیر سن قانونی
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-xs font-bold">
-                              عادی
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">
-                            {client.caseIds?.length || 0}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleView(client)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            >
-                              <Eye size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleEdit(client)}
-                              className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                            >
-                              <Edit2 size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(client.id)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </>
+          <AlertCircle
+            size={19}
+            className="mt-0.5 shrink-0 text-amber-600"
+          />
         )}
+
+        <div>
+          <p className="text-sm font-black text-zinc-900">
+            انتقال موکل‌های قدیمی
+          </p>
+
+          <p className="mt-1 text-xs leading-6 text-zinc-600">
+            {report.detected.toLocaleString(
+              'fa-IR'
+            )}{' '}
+            رکورد محلی پیدا شد؛{' '}
+
+            {report.created.toLocaleString(
+              'fa-IR'
+            )}{' '}
+            مورد به دیتابیس منتقل شد و{' '}
+
+            {report.alreadyExists.toLocaleString(
+              'fa-IR'
+            )}{' '}
+            مورد از قبل در دیتابیس وجود داشت.
+
+            {report.failed >
+              0 &&
+              ` ${report.failed.toLocaleString(
+                'fa-IR'
+              )} مورد نیازمند بررسی است و LocalStorage هنوز پاک نشده.`}
+          </p>
+        </div>
       </div>
 
-      {viewingClient && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-[100] p-0 sm:p-4"
-          onClick={() => setViewingClient(undefined)}
-        >
-          <div
-            className="bg-white rounded-t-3xl sm:rounded-2xl max-w-2xl w-full max-h-[95vh] overflow-y-auto"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-white border-b border-zinc-100 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-zinc-900">جزئیات موکل</h2>
-              <button
-                onClick={() => setViewingClient(undefined)}
-                className="p-2 text-zinc-400 hover:bg-zinc-100 rounded-full"
-              >
-                <Plus size={24} className="rotate-45" />
-              </button>
-            </div>
-
-            <div className="p-5 sm:p-8 space-y-6">
-              <div className="flex flex-col sm:flex-row items-center gap-4 pb-6 border-b border-zinc-100 text-center sm:text-right">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
-                  {getClientInitials(viewingClient)}
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-zinc-900">
-                    {getClientDisplayName(viewingClient)}
-                  </h3>
-                  <p className="text-sm text-zinc-500 mt-1">
-                    {viewingClient.caseIds?.length || 0} پرونده فعال در سیستم
-                  </p>
-                </div>
-              </div>
-
-              {(viewingClient.isMinor || isUnderLegalAge(viewingClient.birthDate)) && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                  <p className="text-sm font-bold text-red-600">این موکل زیر سن قانونی است.</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-zinc-50 rounded-xl p-4">
-                  <p className="text-[10px] uppercase tracking-wider text-zinc-400 mb-1">سمت</p>
-                  <p className="text-base font-semibold text-zinc-900">
-                    {viewingClient.role || '-'}
-                  </p>
-                </div>
-                <div className="bg-zinc-50 rounded-xl p-4">
-                  <p className="text-[10px] uppercase tracking-wider text-zinc-400 mb-1">تاریخ تولد شمسی</p>
-                  <p className="text-base font-semibold text-zinc-900 font-mono" dir="ltr">
-                    {viewingClient.birthDate || '-'}
-                  </p>
-                </div>
-                <div className="bg-zinc-50 rounded-xl p-4">
-                  <p className="text-[10px] uppercase tracking-wider text-zinc-400 mb-1">کد ملی</p>
-                  <p className="text-base font-semibold text-zinc-900 font-mono" dir="ltr">
-                    {viewingClient.nationalId || '-'}
-                  </p>
-                </div>
-                <div className="bg-zinc-50 rounded-xl p-4">
-                  <p className="text-[10px] uppercase tracking-wider text-zinc-400 mb-1">شماره موبایل</p>
-                  <p className="text-base font-semibold text-zinc-900 font-mono" dir="ltr">
-                    {viewingClient.phoneNumber || '-'}
-                  </p>
-                </div>
-                <div className="bg-zinc-50 rounded-xl p-4 sm:col-span-2">
-                  <p className="text-[10px] uppercase tracking-wider text-zinc-400 mb-1">شماره تماس ثابت</p>
-                  <p className="text-base font-semibold text-zinc-900 font-mono" dir="ltr">
-                    {viewingClient.landlineNumber || '-'}
-                  </p>
-                </div>
-              </div>
-
-              {viewingClient.address && (
-                <div className="bg-zinc-50 rounded-xl p-4">
-                  <p className="text-[10px] uppercase tracking-wider text-zinc-400 mb-1">آدرس</p>
-                  <p className="text-sm text-zinc-700 leading-relaxed">{viewingClient.address}</p>
-                </div>
-              )}
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                <button
-                  onClick={() => {
-                    setViewingClient(undefined)
-                    handleEdit(viewingClient)
-                  }}
-                  className="flex-1 px-4 py-3.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors font-bold text-sm"
-                >
-                  ویرایش اطلاعات
-                </button>
-                <button
-                  onClick={() => setViewingClient(undefined)}
-                  className="px-6 py-3.5 border border-zinc-200 text-zinc-600 rounded-xl hover:bg-zinc-50 transition-colors font-bold text-sm"
-                >
-                  بستن
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <ClientEditorModal
-        isOpen={isModalOpen}
-        client={editingClient}
-        onClose={() => {
-          setIsModalOpen(false)
-          setEditingClient(undefined)
-        }}
-        onSubmit={handleSubmit}
-      />
+      <button
+        type="button"
+        onClick={
+          onClose
+        }
+        className="text-zinc-400 hover:text-zinc-700"
+      >
+        <X
+          size={17}
+        />
+      </button>
     </div>
+  )
+}
+
+function LoadingState() {
+  return (
+    <div className="flex min-h-72 flex-col items-center justify-center gap-3 text-zinc-500">
+      <Loader2
+        size={28}
+        className="animate-spin"
+      />
+
+      <p className="text-sm">
+        در حال دریافت موکلین از سرور...
+      </p>
+    </div>
+  )
+}
+
+function EmptyState({
+  hasSearch,
+  onAdd,
+}: {
+  hasSearch:
+    boolean
+
+  onAdd:
+    () => void
+}) {
+  return (
+    <div className="px-6 py-16 text-center">
+      <Users
+        size={48}
+        className="mx-auto text-zinc-200"
+      />
+
+      <h2 className="mt-4 font-black text-zinc-900">
+        {hasSearch
+          ? 'موکلی با این مشخصات پیدا نشد'
+          : 'هنوز موکلی ثبت نشده است'}
+      </h2>
+
+      {!hasSearch && (
+        <button
+          type="button"
+          onClick={
+            onAdd
+          }
+          className="mt-4 text-sm font-bold text-blue-600 hover:text-blue-800"
+        >
+          ثبت اولین موکل
+        </button>
+      )}
+    </div>
+  )
+}
+
+function StatCard({
+  label,
+  value,
+  className,
+}: {
+  label: string
+
+  value: number
+
+  className: string
+}) {
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+      <p className="text-xs text-zinc-500 sm:text-sm">
+        {label}
+      </p>
+
+      <p
+        className={`mt-1 text-2xl font-black sm:text-3xl ${className}`}
+      >
+        {value.toLocaleString(
+          'fa-IR'
+        )}
+      </p>
+    </div>
+  )
+}
+
+function Avatar({
+  name,
+  large = false,
+}: {
+  name: string
+
+  large?: boolean
+}) {
+  const parts =
+    name
+      .trim()
+      .split(/\s+/)
+
+  const first =
+    parts[0]?.[0] ??
+    ''
+
+  const last =
+    parts.length > 1
+      ? parts.at(-1)?.[0] ??
+        ''
+      : ''
+
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 font-black text-white ${
+        large
+          ? 'h-12 w-12'
+          : 'h-9 w-9 text-xs'
+      }`}
+    >
+      {`${first}${last}` ||
+        'م'}
+    </div>
+  )
+}
+
+function MiniDetail({
+  label,
+  value,
+  ltr = false,
+}: {
+  label: string
+  value: string
+  ltr?: boolean
+}) {
+  return (
+    <div className="rounded-lg bg-zinc-50 p-2.5">
+      <p className="text-[10px] text-zinc-400">
+        {label}
+      </p>
+
+      <p
+        dir={
+          ltr
+            ? 'ltr'
+            : undefined
+        }
+        className={`mt-1 font-semibold text-zinc-700 ${
+          ltr
+            ? 'text-right font-mono'
+            : ''
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function Th({
+  children,
+  center = false,
+}: {
+  children:
+    React.ReactNode
+
+  center?: boolean
+}) {
+  return (
+    <th
+      className={`px-5 py-4 text-sm font-semibold text-zinc-600 ${
+        center
+          ? 'text-center'
+          : 'text-right'
+      }`}
+    >
+      {children}
+    </th>
+  )
+}
+
+function Td({
+  children,
+  ltr = false,
+}: {
+  children:
+    React.ReactNode
+
+  ltr?: boolean
+}) {
+  return (
+    <td
+      dir={
+        ltr
+          ? 'ltr'
+          : undefined
+      }
+      className={`px-5 py-4 text-sm text-zinc-600 ${
+        ltr
+          ? 'text-right font-mono'
+          : ''
+      }`}
+    >
+      {children}
+    </td>
   )
 }

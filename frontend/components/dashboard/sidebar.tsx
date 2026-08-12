@@ -48,7 +48,6 @@ export default function DashboardSidebar({ isOpen, onClose }: DashboardSidebarPr
 
   return (
     <>
-      {/* Backdrop for mobile */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[60] lg:hidden"
@@ -56,20 +55,17 @@ export default function DashboardSidebar({ isOpen, onClose }: DashboardSidebarPr
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`fixed lg:sticky top-0 right-0 h-screen w-64 bg-white border-l border-zinc-200 flex flex-col z-[70] transform transition-transform duration-300 ease-in-out lg:transform-none ${
           isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
         }`}
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-200">
           <div>
             <h1 className="text-xl font-bold text-zinc-900">دادیار</h1>
             <p className="text-sm text-zinc-500 mt-1">سیستم مدیریت پرونده</p>
           </div>
           
-          {/* Close button - فقط در موبایل */}
           <button
             onClick={onClose}
             className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
@@ -79,7 +75,6 @@ export default function DashboardSidebar({ isOpen, onClose }: DashboardSidebarPr
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon
@@ -106,7 +101,6 @@ export default function DashboardSidebar({ isOpen, onClose }: DashboardSidebarPr
             )
           })}
 
-          {/* Notifications */}
           <Link
             href="/dashboard/notifications"
             onClick={handleNavClick}

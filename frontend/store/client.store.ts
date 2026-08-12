@@ -1,566 +1,535 @@
-// import { create } from 'zustand'
-// import { persist } from 'zustand/middleware'
+import {
+  create,
+} from 'zustand'
 
-// export interface Client {
-//   id: string
-//   firstName?: string
-//   lastName?: string
-//   name?: string
-//   phoneNumber?: string
-//   phone?: string
-//   landlineNumber?: string
-//   nationalId?: string
-//   role?: string
-//   representative?: string
-//   birthDate?: string
-//   isMinor?: boolean
-//   address?: string
-//   caseIds: string[]
-//   createdAt: string
-//   updatedAt: string
-// }
+import type {
+  Client,
+  ClientListOptions,
+  ClientPagination,
+  CreateClientPayload,
+  UpdateClientPayload,
+} from '@/types/client'
 
-// export type CreateClientPayload = Partial<Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'caseIds'>> & {
-//   caseIds?: string[]
-// }
+import {
+  createClientApi,
+  fetchClientByIdApi,
+  fetchClientsApi,
+  getClientApiErrorMessage,
+  lookupClientByPhoneApi,
+  updateClientApi,
+} from '@/features/clients/api/client.api'
 
-// export type UpdateClientPayload = Partial<CreateClientPayload> & {
-//   id: string
-// }
+import {
+  migrateLegacyClientsToServer,
+  type LegacyClientMigrationReport,
+} from '@/features/clients/migration/local-client-migration'
 
-// interface ClientStore {
-//   clients: Client[]
-//   addClient: (payload: CreateClientPayload) => Client
-//   updateClient: (payload: UpdateClientPayload) => void
-//   deleteClient: (id: string) => void
-//   getClientById: (id: string) => Client | undefined
-//   getClientsByCaseId: (caseId: string) => Client[]
-//   linkClientToCase: (clientId: string, caseId: string) => void
-//   unlinkClientFromCase: (clientId: string, caseId: string) => void
-// }
+export type {
+  Client,
+  ClientListOptions,
+  ClientPagination,
+  CreateClientPayload,
+  UpdateClientPayload,
+} from '@/types/client'
 
-// const toEnglishDigits = (value?: string) => {
-//   if (!value) return ''
+const DEFAULT_PAGINATION:
+  ClientPagination = {
+    page: 1,
 
-//   return value
-//     .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
-//     .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
-// }
+    limit: 20,
 
-// const parseJalaliDate = (value?: string) => {
-//   const normalizedValue = toEnglishDigits(value).trim()
-//   const match = normalizedValue.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/)
+    total: 0,
 
-//   if (!match) return null
-
-//   const year = Number(match[1])
-//   const month = Number(match[2])
-//   const day = Number(match[3])
-
-//   if (!year || month < 1 || month > 12 || day < 1 || day > 31) {
-//     return null
-//   }
-
-//   return { year, month, day }
-// }
-
-// const getTodayJalaliParts = () => {
-//   const parts = new Intl.DateTimeFormat('en-US-u-ca-persian-nu-latn', {
-//     year: 'numeric',
-//     month: 'numeric',
-//     day: 'numeric',
-//   }).formatToParts(new Date())
-
-//   return {
-//     year: Number(parts.find((part) => part.type === 'year')?.value || 0),
-//     month: Number(parts.find((part) => part.type === 'month')?.value || 0),
-//     day: Number(parts.find((part) => part.type === 'day')?.value || 0),
-//   }
-// }
-
-// const calculateIsMinorFromBirthDate = (birthDate?: string) => {
-//   const birth = parseJalaliDate(birthDate)
-//   if (!birth) return undefined
-
-//   const today = getTodayJalaliParts()
-//   let age = today.year - birth.year
-
-//   const birthdayHasNotPassedThisYear =
-//     today.month < birth.month ||
-//     (today.month === birth.month && today.day < birth.day)
-
-//   if (birthdayHasNotPassedThisYear) {
-//     age -= 1
-//   }
-
-//   return age < 18
-// }
-
-// const normalizeClientPayload = <T extends CreateClientPayload | UpdateClientPayload>(payload: T): T => {
-//   const isMinor =
-//     payload.isMinor !== undefined
-//       ? payload.isMinor
-//       : calculateIsMinorFromBirthDate(payload.birthDate)
-
-//   return {
-//     ...payload,
-//     firstName: payload.firstName?.trim() || '',
-//     lastName: payload.lastName?.trim() || '',
-//     name: payload.name?.trim() || '',
-//     phoneNumber: payload.phoneNumber?.trim() || '',
-//     phone: payload.phone?.trim() || '',
-//     landlineNumber: payload.landlineNumber?.trim() || '',
-//     nationalId: payload.nationalId?.trim() || '',
-//     role: payload.role?.trim() || '',
-//     representative: payload.representative?.trim() || '',
-//     birthDate: payload.birthDate?.trim() || '',
-//     address: payload.address?.trim() || '',
-//     ...(isMinor !== undefined ? { isMinor } : {}),
-//   }
-// }
-
-// export const useClientStore = create<ClientStore>()(
-//   persist(
-//     (set, get) => ({
-//       clients: [],
-
-//       addClient: (payload) => {
-//         const normalizedPayload = normalizeClientPayload(payload)
-
-//         const newClient: Client = {
-//           id: `client_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
-//           firstName: normalizedPayload.firstName || '',
-//           lastName: normalizedPayload.lastName || '',
-//           name: normalizedPayload.name || '',
-//           phoneNumber: normalizedPayload.phoneNumber || '',
-//           phone: normalizedPayload.phone || '',
-//           landlineNumber: normalizedPayload.landlineNumber || '',
-//           nationalId: normalizedPayload.nationalId || '',
-//           role: normalizedPayload.role || '',
-//           representative: normalizedPayload.representative || '',
-//           birthDate: normalizedPayload.birthDate || '',
-//           isMinor: normalizedPayload.isMinor,
-//           address: normalizedPayload.address || '',
-//           caseIds: normalizedPayload.caseIds || [],
-//           createdAt: new Date().toISOString(),
-//           updatedAt: new Date().toISOString(),
-//         }
-
-//         set((state) => ({ clients: [...state.clients, newClient] }))
-//         return newClient
-//       },
-
-//       updateClient: (payload) => {
-//         const normalizedPayload = normalizeClientPayload(payload)
-
-//         set((state) => ({
-//           clients: state.clients.map((client) =>
-//             client.id === payload.id
-//               ? {
-//                   ...client,
-//                   ...normalizedPayload,
-//                   caseIds: normalizedPayload.caseIds || client.caseIds || [],
-//                   updatedAt: new Date().toISOString(),
-//                 }
-//               : client
-//           ),
-//         }))
-//       },
-
-//       deleteClient: (id) => {
-//         set((state) => ({
-//           clients: state.clients.filter((client) => client.id !== id),
-//         }))
-//       },
-
-//       getClientById: (id) => {
-//         return get().clients.find((client) => client.id === id)
-//       },
-
-//       getClientsByCaseId: (caseId) => {
-//         return get().clients.filter((client) => client.caseIds.includes(caseId))
-//       },
-
-//       linkClientToCase: (clientId, caseId) => {
-//         set((state) => ({
-//           clients: state.clients.map((client) => {
-//             if (client.id !== clientId) return client
-
-//             const currentCaseIds = client.caseIds || []
-//             if (currentCaseIds.includes(caseId)) return client
-
-//             return {
-//               ...client,
-//               caseIds: [...currentCaseIds, caseId],
-//               updatedAt: new Date().toISOString(),
-//             }
-//           }),
-//         }))
-//       },
-
-//       unlinkClientFromCase: (clientId, caseId) => {
-//         set((state) => ({
-//           clients: state.clients.map((client) =>
-//             client.id === clientId
-//               ? {
-//                   ...client,
-//                   caseIds: (client.caseIds || []).filter((id) => id !== caseId),
-//                   updatedAt: new Date().toISOString(),
-//                 }
-//               : client
-//           ),
-//         }))
-//       },
-//     }),
-//     {
-//       name: 'dadyar-clients',
-//       version: 2,
-//       migrate: (persistedState: any) => {
-//         if (!persistedState?.clients) return persistedState
-
-//         return {
-//           ...persistedState,
-//           clients: persistedState.clients.map((client: Partial<Client>) => ({
-//             ...client,
-//             firstName: client.firstName || '',
-//             lastName: client.lastName || '',
-//             name: client.name || '',
-//             phoneNumber: client.phoneNumber || client.phone || '',
-//             phone: client.phone || client.phoneNumber || '',
-//             landlineNumber: client.landlineNumber || '',
-//             role: client.role || '',
-//             representative: client.representative || '',
-//             birthDate: client.birthDate || '',
-//             isMinor:
-//               client.isMinor !== undefined
-//                 ? client.isMinor
-//                 : calculateIsMinorFromBirthDate(client.birthDate),
-//             caseIds: client.caseIds || [],
-//             createdAt: client.createdAt || new Date().toISOString(),
-//             updatedAt: client.updatedAt || new Date().toISOString(),
-//           })),
-//         }
-//       },
-//     }
-//   )
-// )
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import { api } from '@/lib/api'
-
-
-export interface Client {
-  id: string
-fullName: string
-  
-  phoneNumber?: string
-  phone?: string
-  landlineNumber?: string
-  nationalId?: string
-  role?: string
-  representative?: string
-  birthDate?: string
-  isMinor?: boolean
-  address?: string
-  caseIds: string[]
-  createdAt: string
-  updatedAt: string
-}
-
-export type CreateClientPayload = Partial<
-  Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'caseIds'>
-> & {
-  caseIds?: string[]
-}
-
-export type UpdateClientPayload = Partial<CreateClientPayload>
+    totalPages: 0,
+  }
 
 interface ClientStore {
   clients: Client[]
+
+  selectedClient:
+    Client | null
+
+  pagination:
+    ClientPagination
+
   isLoading: boolean
-  error: string | null
 
-  fetchClients: () => Promise<void>
-  addClient: (payload: CreateClientPayload) => Promise<Client | null>
-  updateClient: (id: string, payload: UpdateClientPayload) => Promise<Client | null>
-  deleteClient: (id: string) => Promise<void>
+  isSaving: boolean
 
-  getClientById: (id: string) => Client | undefined
-  getClientsByCaseId: (caseId: string) => Client[]
+  error:
+    string | null
 
-  linkClientToCase: (clientId: string, caseId: string) => Promise<void>
-  unlinkClientFromCase: (clientId: string, caseId: string) => Promise<void>
+  hasLoaded:
+    boolean
+
+  migrationReport:
+    LegacyClientMigrationReport | null
+
+  fetchClients: (
+    options?:
+      ClientListOptions
+  ) => Promise<void>
+
+  fetchClientById: (
+    clientId: string
+  ) => Promise<Client | null>
+
+  lookupByPhone: (
+    phone: string
+  ) => Promise<Client | null>
+
+  addClient: (
+    payload:
+      CreateClientPayload
+  ) => Promise<Client | null>
+
+  updateClient: (
+    clientId: string,
+    payload:
+      UpdateClientPayload
+  ) => Promise<Client | null>
+
+  migrateLegacyClients:
+    () => Promise<LegacyClientMigrationReport>
+
+  setSelectedClient: (
+    client:
+      Client | null
+  ) => void
+
+  getClientById: (
+    clientId: string
+  ) =>
+    Client | undefined
+
+  clearError:
+    () => void
+
+  clearMigrationReport:
+    () => void
+
+  reset:
+    () => void
 }
 
-const toEnglishDigits = (value?: string) => {
-  if (!value) return ''
-
-  return value
-    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
-    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
-}
-
-const parseJalaliDate = (value?: string) => {
-  const normalizedValue = toEnglishDigits(value).trim()
-  const match = normalizedValue.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/)
-
-  if (!match) return null
-
-  const year = Number(match[1])
-  const month = Number(match[2])
-  const day = Number(match[3])
-
-  if (!year || month < 1 || month > 12 || day < 1 || day > 31) {
-    return null
-  }
-
-  return { year, month, day }
-}
-
-const getTodayJalaliParts = () => {
-  const parts = new Intl.DateTimeFormat('en-US-u-ca-persian-nu-latn', {
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-  }).formatToParts(new Date())
-
-  return {
-    year: Number(parts.find((part) => part.type === 'year')?.value || 0),
-    month: Number(parts.find((part) => part.type === 'month')?.value || 0),
-    day: Number(parts.find((part) => part.type === 'day')?.value || 0),
-  }
-}
-
-const calculateIsMinorFromBirthDate = (birthDate?: string) => {
-  const birth = parseJalaliDate(birthDate)
-  if (!birth) return undefined
-
-  const today = getTodayJalaliParts()
-  let age = today.year - birth.year
-
-  const birthdayHasNotPassedThisYear =
-    today.month < birth.month ||
-    (today.month === birth.month && today.day < birth.day)
-
-  if (birthdayHasNotPassedThisYear) {
-    age -= 1
-  }
-
-  return age < 18
-}
-
-const normalizeClientPayload = <
-  T extends CreateClientPayload | UpdateClientPayload
->(
-  payload: T
-): T => {
-  const isMinor =
-    payload.isMinor !== undefined
-      ? payload.isMinor
-      : calculateIsMinorFromBirthDate(payload.birthDate)
-
-  return {
-    ...payload,
-  fullName: payload.fullName?.trim() || '',
-    
-    phoneNumber: payload.phoneNumber?.trim() || '',
-    phone: payload.phone?.trim() || '',
-    landlineNumber: payload.landlineNumber?.trim() || '',
-    nationalId: payload.nationalId?.trim() || '',
-    role: payload.role?.trim() || '',
-    representative: payload.representative?.trim() || '',
-    birthDate: payload.birthDate?.trim() || '',
-    address: payload.address?.trim() || '',
-    ...(isMinor !== undefined ? { isMinor } : {}),
-  }
-}
-
-const getErrorMessage = (err: any) => {
-  return (
-    err?.response?.data?.message ||
-    err?.response?.data?.error ||
-    err?.message ||
-    'خطایی رخ داده است'
-  )
-}
-
-export const useClientStore = create<ClientStore>()(
-  persist(
-    (set, get) => ({
+export const useClientStore =
+  create<ClientStore>()(
+    (
+      set,
+      get
+    ) => ({
       clients: [],
-      isLoading: false,
-      error: null,
 
-      fetchClients: async () => {
-        set({ isLoading: true, error: null })
+      selectedClient:
+        null,
 
-        try {
-          const response = await api.get('/clients')
-
-          set({
-            clients: response.data,
-            isLoading: false,
-          })
-        } catch (err: any) {
-          set({
-            error: getErrorMessage(err),
-            isLoading: false,
-          })
-        }
+      pagination: {
+        ...DEFAULT_PAGINATION,
       },
 
-      addClient: async (payload) => {
-        set({ isLoading: true, error: null })
+      isLoading:
+        false,
 
-        try {
-          const normalizedPayload = normalizeClientPayload(payload)
+      isSaving:
+        false,
 
-          const response = await api.post('/clients', normalizedPayload)
-          const newClient: Client = response.data
+      error:
+        null,
 
-          set((state) => ({
-            clients: [...state.clients, newClient],
-            isLoading: false,
-          }))
+      hasLoaded:
+        false,
 
-          return newClient
-        } catch (err: any) {
+      migrationReport:
+        null,
+
+     
+
+      fetchClients:
+        async (
+          options = {}
+        ) => {
           set({
-            error: getErrorMessage(err),
-            isLoading: false,
+            isLoading:
+              true,
+
+            error:
+              null,
           })
 
-          return null
-        }
-      },
+          try {
+            const result =
+              await fetchClientsApi(
+                options
+              )
 
-      updateClient: async (id, payload) => {
-        set({ isLoading: true, error: null })
+            set({
+              clients:
+                result.items,
 
-        try {
-          const normalizedPayload = normalizeClientPayload(payload)
+              pagination:
+                result.pagination,
 
-          const response = await api.patch(`/clients/${id}`, normalizedPayload)
-          const updatedClient: Client = response.data
+              isLoading:
+                false,
 
-          set((state) => ({
-            clients: state.clients.map((client) =>
-              client.id === id ? updatedClient : client
-            ),
-            isLoading: false,
-          }))
+              hasLoaded:
+                true,
 
-          return updatedClient
-        } catch (err: any) {
-          set({
-            error: getErrorMessage(err),
-            isLoading: false,
-          })
+              error:
+                null,
+            })
+          } catch (
+            error
+          ) {
+            set({
+              isLoading:
+                false,
 
-          return null
-        }
-      },
+              hasLoaded:
+                true,
 
-      deleteClient: async (id) => {
-        set({ isLoading: true, error: null })
+              error:
+                getClientApiErrorMessage(
+                  error,
 
-        try {
-          await api.delete(`/clients/${id}`)
-
-          set((state) => ({
-            clients: state.clients.filter((client) => client.id !== id),
-            isLoading: false,
-          }))
-        } catch (err: any) {
-          set({
-            error: getErrorMessage(err),
-            isLoading: false,
-          })
-        }
-      },
-
-      getClientById: (id) => {
-        return get().clients.find((client) => client.id === id)
-      },
-
-      getClientsByCaseId: (caseId) => {
-        return get().clients.filter((client) =>
-          client.caseIds?.includes(caseId)
-        )
-      },
-
-      linkClientToCase: async (clientId, caseId) => {
-        set({ isLoading: true, error: null })
-
-        try {
-          const client = get().clients.find((item) => item.id === clientId)
-          if (!client) return
-
-          const currentCaseIds = client.caseIds || []
-
-          if (currentCaseIds.includes(caseId)) {
-            set({ isLoading: false })
-            return
+                  'دریافت موکلین ناموفق بود.'
+                ),
+            })
           }
+        },
 
-          const updatedCaseIds = [...currentCaseIds, caseId]
+      
 
-          const response = await api.patch(`/clients/${clientId}`, {
-            caseIds: updatedCaseIds,
-          })
-
-          const updatedClient: Client = response.data
-
-          set((state) => ({
-            clients: state.clients.map((item) =>
-              item.id === clientId ? updatedClient : item
-            ),
-            isLoading: false,
-          }))
-        } catch (err: any) {
+      fetchClientById:
+        async (
+          clientId
+        ) => {
           set({
-            error: getErrorMessage(err),
-            isLoading: false,
-          })
-        }
-      },
+            isLoading:
+              true,
 
-      unlinkClientFromCase: async (clientId, caseId) => {
-        set({ isLoading: true, error: null })
-
-        try {
-          const client = get().clients.find((item) => item.id === clientId)
-          if (!client) return
-
-          const updatedCaseIds = (client.caseIds || []).filter(
-            (id) => id !== caseId
-          )
-
-          const response = await api.patch(`/clients/${clientId}`, {
-            caseIds: updatedCaseIds,
+            error:
+              null,
           })
 
-          const updatedClient: Client = response.data
+          try {
+            const client =
+              await fetchClientByIdApi(
+                clientId
+              )
 
-          set((state) => ({
-            clients: state.clients.map((item) =>
-              item.id === clientId ? updatedClient : item
-            ),
-            isLoading: false,
-          }))
-        } catch (err: any) {
+            set(
+              (
+                state
+              ) => ({
+                selectedClient:
+                  client,
+
+                clients:
+                  state.clients.some(
+                    (item) =>
+                      item.id ===
+                      client.id
+                  )
+                    ? state.clients.map(
+                        (item) =>
+                          item.id ===
+                          client.id
+                            ? client
+                            : item
+                      )
+                    : [
+                        client,
+                        ...state.clients,
+                      ],
+
+                isLoading:
+                  false,
+              })
+            )
+
+            return client
+          } catch (
+            error
+          ) {
+            set({
+              isLoading:
+                false,
+
+              error:
+                getClientApiErrorMessage(
+                  error,
+
+                  'دریافت اطلاعات موکل ناموفق بود.'
+                ),
+            })
+
+            return null
+          }
+        },
+
+    
+
+      lookupByPhone:
+        async (
+          phone
+        ) => {
+          try {
+            return await lookupClientByPhoneApi(
+              phone
+            )
+          } catch (
+            error
+          ) {
+            set({
+              error:
+                getClientApiErrorMessage(
+                  error,
+
+                  'جست‌وجوی موکل ناموفق بود.'
+                ),
+            })
+
+            return null
+          }
+        },
+
+     
+
+      addClient:
+        async (
+          payload
+        ) => {
           set({
-            error: getErrorMessage(err),
-            isLoading: false,
+            isSaving:
+              true,
+
+            error:
+              null,
           })
-        }
-      },
-    }),
-    {
-      name: 'dadyar-clients',
-      partialize: (state) => ({
-        clients: state.clients,
-      }),
-    }
+
+          try {
+            const client =
+              await createClientApi(
+                payload
+              )
+
+            set(
+              (
+                state
+              ) => ({
+                clients: [
+                  client,
+
+                  ...state.clients.filter(
+                    (item) =>
+                      item.id !==
+                      client.id
+                  ),
+                ],
+
+                pagination: {
+                  ...state.pagination,
+
+                  total:
+                    state.pagination
+                      .total +
+                    1,
+
+                  totalPages:
+                    Math.max(
+                      Math.ceil(
+                        (
+                          state.pagination
+                            .total +
+                          1
+                        ) /
+                          Math.max(
+                            state.pagination
+                              .limit,
+                            1
+                          )
+                      ),
+                      1
+                    ),
+                },
+
+                isSaving:
+                  false,
+
+                error:
+                  null,
+              })
+            )
+
+            return client
+          } catch (
+            error
+          ) {
+            set({
+              isSaving:
+                false,
+
+              error:
+                getClientApiErrorMessage(
+                  error,
+
+                  'ثبت موکل در سرور ناموفق بود.'
+                ),
+            })
+
+            return null
+          }
+        },
+
+     
+
+      updateClient:
+        async (
+          clientId,
+          payload
+        ) => {
+          set({
+            isSaving:
+              true,
+
+            error:
+              null,
+          })
+
+          try {
+            const updated =
+              await updateClientApi(
+                clientId,
+                payload
+              )
+
+            set(
+              (
+                state
+              ) => ({
+                clients:
+                  state.clients.map(
+                    (item) =>
+                      item.id ===
+                      clientId
+                        ? updated
+                        : item
+                  ),
+
+                selectedClient:
+                  state
+                    .selectedClient
+                    ?.id ===
+                  clientId
+                    ? updated
+                    : state
+                        .selectedClient,
+
+                isSaving:
+                  false,
+
+                error:
+                  null,
+              })
+            )
+
+            return updated
+          } catch (
+            error
+          ) {
+            set({
+              isSaving:
+                false,
+
+              error:
+                getClientApiErrorMessage(
+                  error,
+
+                  'ویرایش موکل در سرور ناموفق بود.'
+                ),
+            })
+
+            return null
+          }
+        },
+
+    
+      migrateLegacyClients:
+        async () => {
+          const report =
+            await migrateLegacyClientsToServer()
+
+          set({
+            migrationReport:
+              report,
+          })
+
+          return report
+        },
+
+    
+
+      setSelectedClient:
+        (
+          client
+        ) =>
+          set({
+            selectedClient:
+              client,
+          }),
+
+      getClientById:
+        (
+          clientId
+        ) =>
+          get()
+            .clients.find(
+              (client) =>
+                client.id ===
+                clientId
+            ),
+
+      clearError:
+        () =>
+          set({
+            error:
+              null,
+          }),
+
+      clearMigrationReport:
+        () =>
+          set({
+            migrationReport:
+              null,
+          }),
+
+      reset:
+        () =>
+          set({
+            clients: [],
+
+            selectedClient:
+              null,
+
+            pagination: {
+              ...DEFAULT_PAGINATION,
+            },
+
+            isLoading:
+              false,
+
+            isSaving:
+              false,
+
+            error:
+              null,
+
+            hasLoaded:
+              false,
+
+            migrationReport:
+              null,
+          }),
+    })
   )
-)
