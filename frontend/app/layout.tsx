@@ -1,66 +1,46 @@
-// import type { Metadata } from "next";
-// import { Vazirmatn } from "next/font/google";
-// import "./globals.css";
+import type {
+  Metadata,
+} from 'next'
 
-// const vazirmatn = Vazirmatn({
-//   subsets: ["arabic"],
-//   weight: ["400", "500", "700", "900"],
-//   variable: "--font-vazirmatn",
-//   display: "swap",
-// });
+import './globals.css'
 
-// export const metadata: Metadata = {
-//   title: {
-//     default: "دادیار | پلتفرم مدیریت پرونده وکلا",
-//     template: "%s | دادیار",
-//   },
-//   description:
-//     "پلتفرم حرفه‌ای برای وکلا جهت مدیریت پرونده‌ها، قراردادهای مرحله‌ای و روند کاری",
-//   icons: {
-//     icon: "/faicon.ico",
-//   },
-// };
+export const metadata:
+  Metadata = {
+    title: {
+      default:
+        'دادیار | پلتفرم مدیریت پرونده وکلا',
 
-// export default function RootLayout({
-//   children,
-// }: {
-//   children: React.ReactNode;
-// }) {
-//   return (
-//     <html lang="fa" dir="rtl" className={vazirmatn.variable}>
-//       <body className="antialiased bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-50">
-//         {children}
-//       </body>
-//     </html>
-//   );
-// }
+      template:
+        '%s | دادیار',
+    },
 
+    description:
+      'پلتفرم حرفه‌ای برای وکلا جهت مدیریت پرونده‌ها، قراردادهای مرحله‌ای و روند کاری',
 
-import type { Metadata } from "next";
-import "./globals.css";
-
-export const metadata: Metadata = {
-  title: {
-    default: "دادیار | پلتفرم مدیریت پرونده وکلا",
-    template: "%s | دادیار",
-  },
-  description:
-    "پلتفرم حرفه‌ای برای وکلا جهت مدیریت پرونده‌ها، قراردادهای مرحله‌ای و روند کاری",
-  icons: {
-    icon: "/faicon.ico",
-  },
-};
+    icons: {
+      icon:
+        '/faicon.ico',
+    },
+  }
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children:
+    React.ReactNode
 }) {
   return (
-    <html lang="fa" dir="rtl">
-      <body className="antialiased bg-zinc-50 text-zinc-900  dark:bg-black dark:text-zinc-50">
+    <html
+      lang="fa"
+      dir="rtl"
+      style={{
+        colorScheme:
+          'light',
+      }}
+    >
+      <body className="min-h-screen bg-slate-100 text-slate-950 antialiased">
         {children}
       </body>
     </html>
-  );
+  )
 }

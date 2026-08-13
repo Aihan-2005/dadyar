@@ -48,7 +48,8 @@ const MOBILE_PATTERN =
   /^09\d{9}$/
 
 function normalizeDigits(
-  value: string
+  value:
+    string
 ): string {
   const persianDigits =
     '۰۱۲۳۴۵۶۷۸۹'
@@ -97,6 +98,7 @@ const loginSchema =
                 value
               )
             ),
+
           'ایمیل یا شماره همراه معتبر نیست'
         ),
 
@@ -140,6 +142,7 @@ const signupSchema =
               EMAIL_PATTERN.test(
                 value
               ),
+
             'ایمیل معتبر نیست'
           ),
 
@@ -155,6 +158,7 @@ const signupSchema =
                   value
                 )
               ),
+
             'شماره همراه باید با 09 شروع شود و ۱۱ رقم باشد'
           ),
 
@@ -176,15 +180,23 @@ const signupSchema =
           !data.phone
         ) {
           context.addIssue({
-            code: 'custom',
-            path: ['email'],
+            code:
+              'custom',
+
+            path:
+              ['email'],
+
             message:
               'حداقل ایمیل یا شماره همراه را وارد کنید',
           })
 
           context.addIssue({
-            code: 'custom',
-            path: ['phone'],
+            code:
+              'custom',
+
+            path:
+              ['phone'],
+
             message:
               'حداقل ایمیل یا شماره همراه را وارد کنید',
           })
@@ -219,13 +231,13 @@ type AuthFormProps = {
 */
 
 const inputClassName =
-  'h-16 w-full rounded-2xl border-2 border-slate-300 bg-white px-5 text-base font-semibold text-slate-950 outline-none transition placeholder:font-medium placeholder:text-slate-400 hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60'
+  'h-12 w-full rounded-xl border-2 border-slate-300 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:font-medium placeholder:text-slate-400 hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60 sm:h-14 sm:rounded-2xl sm:px-5 sm:text-base'
 
 const labelClassName =
-  'mb-2.5 block text-base font-bold text-slate-800'
+  'mb-1.5 block text-sm font-bold text-slate-800 sm:mb-2 sm:text-base'
 
 const errorClassName =
-  'mt-2 text-sm font-bold text-red-600'
+  'mt-1 text-xs font-bold text-red-600 sm:mt-1.5 sm:text-sm'
 
 /*
 |--------------------------------------------------------------------------
@@ -234,11 +246,20 @@ const errorClassName =
 */
 
 export default function AuthForm({
-  defaultTab = 'login',
-  userType = 'lawyer',
+  defaultTab =
+    'login',
+
+  userType =
+    'lawyer',
 }: AuthFormProps) {
   const router =
     useRouter()
+
+  /*
+  |--------------------------------------------------------------------------
+  | Auth Store
+  |--------------------------------------------------------------------------
+  */
 
   const login =
     useAuthStore(
@@ -270,6 +291,12 @@ export default function AuthForm({
         state.clearError
     )
 
+  /*
+  |--------------------------------------------------------------------------
+  | State
+  |--------------------------------------------------------------------------
+  */
+
   const [
     activeTab,
     setActiveTab,
@@ -284,13 +311,17 @@ export default function AuthForm({
     showLoginPassword,
     setShowLoginPassword,
   ] =
-    useState(false)
+    useState(
+      false
+    )
 
   const [
     showSignupPassword,
     setShowSignupPassword,
   ] =
-    useState(false)
+    useState(
+      false
+    )
 
   const title =
     useMemo(
@@ -299,12 +330,14 @@ export default function AuthForm({
         'lawyer'
           ? 'وکلا'
           : 'موکلین',
-      [userType]
+      [
+        userType,
+      ]
     )
 
   /*
   |--------------------------------------------------------------------------
-  | Login Form
+  | Forms
   |--------------------------------------------------------------------------
   */
 
@@ -316,16 +349,13 @@ export default function AuthForm({
         ),
 
       defaultValues: {
-        identifier: '',
-        password: '',
+        identifier:
+          '',
+
+        password:
+          '',
       },
     })
-
-  /*
-  |--------------------------------------------------------------------------
-  | Signup Form
-  |--------------------------------------------------------------------------
-  */
 
   const signupForm =
     useForm<SignupFormData>({
@@ -335,11 +365,20 @@ export default function AuthForm({
         ),
 
       defaultValues: {
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        password: '',
+        firstName:
+          '',
+
+        lastName:
+          '',
+
+        email:
+          '',
+
+        phone:
+          '',
+
+        password:
+          '',
       },
     })
 
@@ -349,14 +388,18 @@ export default function AuthForm({
   |--------------------------------------------------------------------------
   */
 
-  const changeTab = (
-    tab:
-      | 'login'
-      | 'register'
-  ) => {
-    clearError()
-    setActiveTab(tab)
-  }
+  const changeTab =
+    (
+      tab:
+        | 'login'
+        | 'register'
+    ) => {
+      clearError()
+
+      setActiveTab(
+        tab
+      )
+    }
 
   /*
   |--------------------------------------------------------------------------
@@ -366,7 +409,8 @@ export default function AuthForm({
 
   const handleLogin =
     async (
-      data: LoginFormData
+      data:
+        LoginFormData
     ) => {
       clearError()
 
@@ -395,7 +439,8 @@ export default function AuthForm({
 
   const handleSignup =
     async (
-      data: SignupFormData
+      data:
+        SignupFormData
     ) => {
       clearError()
 
@@ -447,6 +492,10 @@ export default function AuthForm({
       .isSubmitting ||
     isLoading
 
+  const isRegister =
+    activeTab ===
+    'register'
+
   /*
   |--------------------------------------------------------------------------
   | Render
@@ -456,14 +505,14 @@ export default function AuthForm({
   return (
     <div
       dir="rtl"
-      className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-[32px] border-2 border-slate-300 bg-white shadow-2xl shadow-slate-300/50"
+      className="relative mx-auto h-full max-h-[760px] w-full max-w-6xl overflow-hidden rounded-[26px] border-2 border-slate-300 bg-white shadow-2xl shadow-slate-300/50 sm:rounded-[32px]"
     >
-      <div className="grid min-h-[680px] grid-cols-1 lg:grid-cols-2">
+      <div className="grid h-full grid-cols-1 lg:grid-cols-2">
         {/* -----------------------------------------------------------
          * Brand Side
          * --------------------------------------------------------- */}
 
-        <aside className="relative hidden overflow-hidden border-l border-slate-300 bg-gradient-to-br from-blue-100 via-slate-50 to-emerald-50 p-10 lg:flex lg:flex-col lg:justify-between">
+        <aside className="relative hidden overflow-hidden border-l border-slate-300 bg-gradient-to-br from-blue-100 via-slate-50 to-emerald-50 p-8 lg:flex lg:flex-col lg:justify-between xl:p-10">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-blue-300/30 blur-3xl" />
 
@@ -484,14 +533,13 @@ export default function AuthForm({
               سامانه مدیریت هوشمند دادیار
             </span>
 
-            <h1 className="mt-6 text-4xl font-black leading-[1.45] text-slate-950 xl:text-5xl">
-              {activeTab ===
-              'login'
-                ? `ورود ${title} به دادیار`
-                : `ساخت حساب ${title}`}
+            <h1 className="mt-5 text-4xl font-black leading-[1.4] text-slate-950 xl:text-5xl">
+              {isRegister
+                ? `ساخت حساب ${title}`
+                : `ورود ${title} به دادیار`}
             </h1>
 
-            <p className="mt-5 max-w-md text-base font-semibold leading-8 text-slate-700">
+            <p className="mt-4 max-w-md text-base font-semibold leading-8 text-slate-700">
               پرونده‌ها، موکلین،
               قراردادها و گزارش‌های مالی
               دفترتان را در یک محیط ساده،
@@ -499,23 +547,25 @@ export default function AuthForm({
             </p>
           </div>
 
-          <div className="relative z-10 grid gap-3">
+          <div className="relative z-10 grid gap-2.5">
             {[
               'مدیریت پرونده‌ها و موکلین',
               'پیگیری اطلاعات و روند پرونده',
               'مدیریت و گزارش امور مالی',
-            ].map((item) => (
-              <div
-                key={item}
-                className="rounded-2xl border border-slate-300 bg-white/90 p-4 text-base font-bold text-slate-700 shadow-sm"
-              >
-                <span className="ml-2 text-emerald-600">
-                  ✓
-                </span>
+            ].map(
+              (item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl border border-slate-300 bg-white/90 px-4 py-3 text-sm font-bold text-slate-700 shadow-sm xl:text-base"
+                >
+                  <span className="ml-2 text-emerald-600">
+                    ✓
+                  </span>
 
-                {item}
-              </div>
-            ))}
+                  {item}
+                </div>
+              )
+            )}
           </div>
         </aside>
 
@@ -523,49 +573,93 @@ export default function AuthForm({
          * Form Side
          * --------------------------------------------------------- */}
 
-        <section className="relative flex flex-col justify-center p-5 sm:p-8 lg:p-10 xl:p-12">
+        <section
+          className={`relative flex h-full flex-col justify-center overflow-hidden ${
+            isRegister
+              ? 'p-3 sm:p-5 lg:p-6 xl:p-7'
+              : 'p-5 sm:p-8 lg:p-10'
+          }`}
+        >
           {/* Mobile Header */}
 
-          <div className="mb-7 flex items-center justify-between lg:hidden">
+          <div
+            className={`flex items-center justify-between lg:hidden ${
+              isRegister
+                ? 'mb-2'
+                : 'mb-5'
+            }`}
+          >
             <Link
               href="/launch"
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700"
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 sm:text-sm"
             >
               بازگشت
             </Link>
 
-            <span className="text-xl font-black text-slate-950">
+            <span className="text-lg font-black text-slate-950 sm:text-xl">
               دادیار
             </span>
           </div>
 
           {/* Heading */}
 
-          <div className="mb-7">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+          <div
+            className={
+              isRegister
+                ? 'mb-3'
+                : 'mb-6'
+            }
+          >
+            <div
+              className={`items-center justify-center rounded-2xl bg-blue-100 text-blue-700 ${
+                isRegister
+                  ? 'mb-2 hidden h-10 w-10 sm:flex'
+                  : 'mb-3 flex h-12 w-12'
+              }`}
+            >
               <ShieldCheck
-                size={26}
+                size={
+                  isRegister
+                    ? 22
+                    : 26
+                }
               />
             </div>
 
-            <h2 className="text-2xl font-black text-slate-950 sm:text-3xl">
-              {activeTab ===
-              'login'
-                ? `ورود ${title}`
-                : `ثبت‌نام ${title}`}
+            <h2
+              className={`font-black text-slate-950 ${
+                isRegister
+                  ? 'text-xl sm:text-2xl'
+                  : 'text-2xl sm:text-3xl'
+              }`}
+            >
+              {isRegister
+                ? `ثبت‌نام ${title}`
+                : `ورود ${title}`}
             </h2>
 
-            <p className="mt-3 text-base font-medium leading-7 text-slate-700">
-              {activeTab ===
-              'login'
-                ? 'ایمیل یا شماره همراه و رمز عبور خود را وارد کنید.'
-                : 'اطلاعات زیر را برای ساخت حساب کاربری تکمیل کنید.'}
+            <p
+              className={`font-medium text-slate-700 ${
+                isRegister
+                  ? 'mt-1 text-xs leading-5 sm:text-sm'
+                  : 'mt-2 text-sm leading-6 sm:text-base'
+              }`}
+            >
+              {isRegister
+                ? 'اطلاعات زیر را برای ساخت حساب تکمیل کنید.'
+                : 'ایمیل یا شماره همراه و رمز عبور خود را وارد کنید.'}
             </p>
           </div>
 
           {/* Tabs */}
 
-          <div className="mb-7 flex rounded-2xl border border-slate-300 bg-slate-100 p-1.5">
+          <div
+            className={`flex rounded-2xl border border-slate-300 bg-slate-100 p-1 ${
+              isRegister
+                ? 'mb-3'
+                : 'mb-6'
+            }`}
+          >
             <button
               type="button"
               onClick={() =>
@@ -576,7 +670,11 @@ export default function AuthForm({
               disabled={
                 isLoading
               }
-              className={`flex-1 rounded-xl px-4 py-3.5 text-base font-black transition ${
+              className={`flex-1 rounded-xl px-3 font-black transition ${
+                isRegister
+                  ? 'py-2 text-sm'
+                  : 'py-3 text-base'
+              } ${
                 activeTab ===
                 'login'
                   ? 'bg-white text-blue-700 shadow-md ring-1 ring-slate-300'
@@ -596,7 +694,11 @@ export default function AuthForm({
               disabled={
                 isLoading
               }
-              className={`flex-1 rounded-xl px-4 py-3.5 text-base font-black transition ${
+              className={`flex-1 rounded-xl px-3 font-black transition ${
+                isRegister
+                  ? 'py-2 text-sm'
+                  : 'py-3 text-base'
+              } ${
                 activeTab ===
                 'register'
                   ? 'bg-white text-blue-700 shadow-md ring-1 ring-slate-300'
@@ -613,7 +715,11 @@ export default function AuthForm({
             <div
               role="alert"
               aria-live="polite"
-              className="mb-5 rounded-2xl border-2 border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700"
+              className={`rounded-xl border-2 border-red-200 bg-red-50 px-3 text-sm font-bold text-red-700 ${
+                isRegister
+                  ? 'mb-2 py-2'
+                  : 'mb-5 py-3'
+              }`}
             >
               {error}
             </div>
@@ -623,15 +729,14 @@ export default function AuthForm({
            * Login Form
            * ------------------------------------------------------- */}
 
-          {activeTab ===
-          'login' ? (
+          {!isRegister ? (
             <form
               onSubmit={
                 loginForm.handleSubmit(
                   handleLogin
                 )
               }
-              className="space-y-6"
+              className="space-y-5"
               noValidate
             >
               <div>
@@ -727,7 +832,7 @@ export default function AuthForm({
                           !current
                       )
                     }
-                    className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-blue-700"
+                    className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-blue-700 sm:left-3 sm:h-10 sm:w-10"
                     aria-label={
                       showLoginPassword
                         ? 'مخفی کردن رمز عبور'
@@ -771,7 +876,7 @@ export default function AuthForm({
                 disabled={
                   isLoginSubmitting
                 }
-                className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-600 to-blue-700 text-base font-black text-white shadow-lg shadow-blue-200 transition hover:from-blue-700 hover:to-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-600 to-blue-700 text-base font-black text-white shadow-lg shadow-blue-200 transition hover:from-blue-700 hover:to-blue-800 disabled:cursor-not-allowed disabled:opacity-60 sm:h-16"
               >
                 <LogIn
                   size={21}
@@ -785,7 +890,7 @@ export default function AuthForm({
           ) : (
             /*
             |--------------------------------------------------------------------------
-            | Register Form
+            | Signup Form
             |--------------------------------------------------------------------------
             */
 
@@ -795,11 +900,13 @@ export default function AuthForm({
                   handleSignup
                 )
               }
-              className="space-y-5"
+              className="space-y-2.5 sm:space-y-3"
               noValidate
             >
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
+              {/* Name */}
+
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                <div className="min-w-0">
                   <label
                     htmlFor="signup-first-name"
                     className={
@@ -849,7 +956,7 @@ export default function AuthForm({
                   )}
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <label
                     htmlFor="signup-last-name"
                     className={
@@ -899,6 +1006,8 @@ export default function AuthForm({
                   )}
                 </div>
               </div>
+
+              {/* Email */}
 
               <div>
                 <label
@@ -950,6 +1059,8 @@ export default function AuthForm({
                   </p>
                 )}
               </div>
+
+              {/* Phone */}
 
               <div>
                 <label
@@ -1003,6 +1114,8 @@ export default function AuthForm({
                 )}
               </div>
 
+              {/* Password */}
+
               <div>
                 <label
                   htmlFor="signup-password"
@@ -1045,7 +1158,7 @@ export default function AuthForm({
                           !current
                       )
                     }
-                    className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-blue-700"
+                    className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-blue-700 sm:left-3 sm:h-10 sm:w-10"
                     aria-label={
                       showSignupPassword
                         ? 'مخفی کردن رمز عبور'
@@ -1054,11 +1167,11 @@ export default function AuthForm({
                   >
                     {showSignupPassword ? (
                       <EyeOff
-                        size={21}
+                        size={20}
                       />
                     ) : (
                       <Eye
-                        size={21}
+                        size={20}
                       />
                     )}
                   </button>
@@ -1084,15 +1197,16 @@ export default function AuthForm({
                 )}
               </div>
 
+
               <button
                 type="submit"
                 disabled={
                   isSignupSubmitting
                 }
-                className="flex h-16 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-600 to-blue-700 text-base font-black text-white shadow-lg shadow-blue-200 transition hover:from-blue-700 hover:to-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-blue-600 to-blue-700 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:from-blue-700 hover:to-blue-800 disabled:cursor-not-allowed disabled:opacity-60 sm:h-14 sm:rounded-2xl sm:text-base"
               >
                 <UserPlus
-                  size={21}
+                  size={20}
                 />
 
                 {isSignupSubmitting
@@ -1102,11 +1216,15 @@ export default function AuthForm({
             </form>
           )}
 
-          {/* Switch */}
 
-          <div className="mt-7 text-center text-base font-medium text-slate-700">
-            {activeTab ===
-            'login' ? (
+          <div
+            className={`text-center font-medium text-slate-700 ${
+              isRegister
+                ? 'mt-2 text-xs sm:text-sm'
+                : 'mt-6 text-sm sm:text-base'
+            }`}
+          >
+            {!isRegister ? (
               <>
                 حساب کاربری نداری؟{' '}
 

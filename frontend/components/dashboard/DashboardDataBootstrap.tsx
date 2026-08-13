@@ -9,7 +9,6 @@ import {
 
 import {
   AlertCircle,
-  Loader2,
   RefreshCw,
 } from 'lucide-react'
 
@@ -25,17 +24,17 @@ import {
   useClientStore,
 } from '@/store/client.store'
 
+import AppLoadingScreen from '@/components/ui/AppLoadingScreen'
+
 interface DashboardDataBootstrapProps {
   children:
     ReactNode
 }
 
-
-
 export function DashboardDataBootstrap({
   children,
 }: DashboardDataBootstrapProps) {
- 
+
 
   const user =
     useAuthStore(
@@ -43,7 +42,8 @@ export function DashboardDataBootstrap({
         state.user
     )
 
-  
+ 
+
   const fetchCases =
     useCasesStore(
       (state) =>
@@ -62,7 +62,7 @@ export function DashboardDataBootstrap({
         state.error
     )
 
-  
+ 
 
   const resetClients =
     useClientStore(
@@ -70,7 +70,7 @@ export function DashboardDataBootstrap({
         state.reset
     )
 
- 
+  
 
   const [
     readyUserId,
@@ -90,8 +90,7 @@ export function DashboardDataBootstrap({
       false
     )
 
-  
-
+ 
   useEffect(() => {
     const userId =
       user?.id
@@ -107,9 +106,7 @@ export function DashboardDataBootstrap({
     let cancelled =
       false
 
-  
     resetCases()
-
     resetClients()
 
     setReadyUserId(
@@ -192,13 +189,11 @@ export function DashboardDataBootstrap({
       ]
     )
 
-
-
   if (!user?.id) {
     return null
   }
 
- 
+  
 
   if (
     isBootstrapping ||
@@ -206,24 +201,10 @@ export function DashboardDataBootstrap({
       user.id
   ) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <Loader2
-            size={28}
-            className="animate-spin text-zinc-700"
-          />
-
-          <div>
-            <p className="text-sm font-medium text-zinc-800">
-              در حال دریافت اطلاعات از سرور...
-            </p>
-
-            <p className="mt-1 text-xs text-zinc-500">
-              پرونده‌های حساب شما از پایگاه داده دریافت می‌شوند.
-            </p>
-          </div>
-        </div>
-      </div>
+      <AppLoadingScreen
+        title="پنل شما در حال آماده‌سازی است..."
+        description="پرونده‌ها و اطلاعات حساب شما از سرور دریافت می‌شوند"
+      />
     )
   }
 
@@ -231,20 +212,20 @@ export function DashboardDataBootstrap({
 
   if (casesError) {
     return (
-      <div className="mx-auto flex min-h-[50vh] max-w-xl items-center justify-center">
-        <div className="w-full rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
+      <div className="flex min-h-dvh items-center justify-center bg-slate-100 px-4">
+        <div className="w-full max-w-lg rounded-[28px] border-2 border-red-200 bg-white p-7 text-center shadow-xl shadow-slate-200/70">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50">
             <AlertCircle
-              size={24}
+              size={27}
               className="text-red-600"
             />
           </div>
 
-          <h2 className="mt-4 text-lg font-bold text-zinc-900">
-            دریافت اطلاعات Dashboard ناموفق بود
+          <h2 className="mt-5 text-xl font-black text-slate-950">
+            دریافت اطلاعات ناموفق بود
           </h2>
 
-          <p className="mt-2 text-sm leading-6 text-zinc-600">
+          <p className="mt-3 text-sm font-medium leading-7 text-slate-600">
             {casesError}
           </p>
 
@@ -253,10 +234,10 @@ export function DashboardDataBootstrap({
             onClick={() => {
               void handleRetry()
             }}
-            className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
+            className="mt-6 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-black text-white transition hover:bg-blue-700"
           >
             <RefreshCw
-              size={17}
+              size={18}
             />
 
             تلاش مجدد
@@ -265,8 +246,6 @@ export function DashboardDataBootstrap({
       </div>
     )
   }
-
- 
 
   return (
     <>
