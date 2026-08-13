@@ -1,150 +1,335 @@
 'use client'
 
 import Link from 'next/link'
-import SupportButton from './support'
-import { usePathname, useRouter } from 'next/navigation'
-import { 
-  LayoutDashboard, 
-  FolderOpen, 
-  User, 
-  LogOut,
-  Plus,
+
+import {
+  usePathname,
+  useRouter,
+} from 'next/navigation'
+
+import {
   Bell,
-  Users2,
-  X
+  CirclePlus,
+  FolderOpen,
+  LayoutDashboard,
+  LogOut,
+  UserRound,
+  UsersRound,
+  X,
 } from 'lucide-react'
-import { useAuthStore } from '@/store/auth.store'
-import { useNotificationStore } from '@/store/notification.store'
+
+import SupportButton from './support'
+
+import {
+  useAuthStore,
+} from '@/store/auth.store'
+
+import {
+  useNotificationStore,
+} from '@/store/notification.store'
 
 interface DashboardSidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen: boolean
+  onClose: () => void
 }
 
-export default function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
-  const pathname = usePathname()
-  const router = useRouter()
-  const { user, logout } = useAuthStore()
-  const notifications = useNotificationStore((s) => s.notifications)
-  const unreadCount = notifications.filter(n => n.status === 'unread').length
+export default function DashboardSidebar({
+  isOpen,
+  onClose,
+}: DashboardSidebarProps) {
+  const pathname =
+    usePathname()
 
-  const handleLogout = () => {
-    logout()
-    router.push('/login')
-  }
+  const router =
+    useRouter()
 
-  const handleNavClick = () => {
-    if (window.innerWidth < 1024) {
-      onClose()
+  const logout =
+    useAuthStore(
+      (state) =>
+        state.logout
+    )
+
+  const notifications =
+    useNotificationStore(
+      (state) =>
+        state.notifications
+    )
+
+  const unreadCount =
+    notifications.filter(
+      (notification) =>
+        notification.status ===
+        'unread'
+    ).length
+
+  const handleLogout =
+    () => {
+      logout()
+      router.push('/login')
     }
-  }
+
+  const handleNavClick =
+    () => {
+      if (
+        typeof window !==
+          'undefined' &&
+        window.innerWidth <
+          1024
+      ) {
+        onClose()
+      }
+    }
 
   const navItems = [
-    { href: '/dashboard', label: 'داشبورد', icon: LayoutDashboard },
-    { href: '/dashboard/cases', label: 'پرونده‌ها', icon: FolderOpen },
-    { href: '/dashboard/profile', label: 'پروفایل', icon: User },
-    { href: '/dashboard/customers', label: 'موکلین', icon: Users2 },
+    {
+      href: '/dashboard',
+      label: 'داشبورد',
+      icon: LayoutDashboard,
+    },
+    {
+      href: '/dashboard/cases',
+      label: 'پرونده‌ها',
+      icon: FolderOpen,
+    },
+    {
+      href: '/dashboard/profile',
+      label: 'پروفایل',
+      icon: UserRound,
+    },
+    {
+      href: '/dashboard/customers',
+      label: 'موکلین',
+      icon: UsersRound,
+    },
   ]
+
+  const isPathActive = (
+    href: string
+  ) => {
+    if (
+      href === '/dashboard'
+    ) {
+      return (
+        pathname ===
+        '/dashboard'
+      )
+    }
+
+    return (
+      pathname === href ||
+      pathname.startsWith(
+        `${href}/`
+      )
+    )
+  }
+
+  const notificationsActive =
+    pathname.startsWith(
+      '/dashboard/notifications'
+    )
 
   return (
     <>
+      {/* Mobile Overlay */}
+
       {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[60] lg:hidden"
+        <button
+          type="button"
+          aria-label="بستن منو"
+          className="fixed inset-0 z-[60] bg-slate-950/40 backdrop-blur-sm lg:hidden"
           onClick={onClose}
         />
       )}
 
+      {/* Sidebar */}
+
       <aside
-        className={`fixed lg:sticky top-0 right-0 h-screen w-64 bg-white border-l border-zinc-200 flex flex-col z-[70] transform transition-transform duration-300 ease-in-out lg:transform-none ${
-          isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
+        className={`fixed right-0 top-0 z-[70] flex h-screen w-72 flex-col border-l border-slate-200 bg-white shadow-xl shadow-slate-200/40 transition-transform duration-300 ease-in-out lg:sticky lg:w-64 lg:translate-x-0 lg:shadow-none ${
+          isOpen
+            ? 'translate-x-0'
+            : 'translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="flex items-center justify-between p-6 border-b border-zinc-200">
-          <div>
-            <h1 className="text-xl font-bold text-zinc-900">دادیار</h1>
-            <p className="text-sm text-zinc-500 mt-1">سیستم مدیریت پرونده</p>
+        {/* Brand */}
+
+        <div className="flex items-center justify-between border-b border-slate-200 p-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-lg font-black text-white shadow-md shadow-blue-200">
+              د
+            </div>
+
+            <div>
+              <h1 className="text-xl font-black text-slate-950">
+                دادیار
+              </h1>
+
+              <p className="mt-0.5 text-xs font-semibold text-slate-600">
+                مدیریت دفتر وکالت
+              </p>
+            </div>
           </div>
-          
+
           <button
+            type="button"
             onClick={onClose}
-            className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+            className="rounded-xl p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 lg:hidden"
             aria-label="بستن منو"
           >
-            <X size={20} />
+            <X
+              size={21}
+            />
           </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = pathname === item.href
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={handleNavClick}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 group
-                  ${isActive 
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-200' 
-                    : 'text-zinc-700 hover:bg-zinc-100 hover:text-blue-600'
+        {/* Navigation */}
+
+        <nav className="flex-1 space-y-1.5 overflow-y-auto p-4">
+          <p className="mb-3 px-3 text-xs font-black text-slate-500">
+            منوی اصلی
+          </p>
+
+          {navItems.map(
+            (item) => {
+              const Icon =
+                item.icon
+
+              const isActive =
+                isPathActive(
+                  item.href
+                )
+
+              return (
+                <Link
+                  key={
+                    item.href
+                  }
+                  href={
+                    item.href
+                  }
+                  onClick={
+                    handleNavClick
+                  }
+                  className={`group flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all duration-200 ${
+                    isActive
+                      ? 'bg-gradient-to-l from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-200'
+                      : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
                   }`}
-              >
-                <Icon 
-                  size={20} 
-                  className={`transition-colors ${
-                    isActive ? 'text-white' : 'text-zinc-500 group-hover:text-blue-500'
-                  }`} 
-                />
-                <span>{item.label}</span>
-              </Link>
-            )
-          })}
+                >
+                  <div
+                    className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
+                      isActive
+                        ? 'bg-white/15'
+                        : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
+                    }`}
+                  >
+                    <Icon
+                      size={20}
+                    />
+                  </div>
+
+                  <span>
+                    {item.label}
+                  </span>
+                </Link>
+              )
+            }
+          )}
+
+          {/* Notifications */}
 
           <Link
             href="/dashboard/notifications"
-            onClick={handleNavClick}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 group relative
-              ${pathname === '/dashboard/notifications'
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
-                : 'text-zinc-700 hover:bg-zinc-100 hover:text-blue-600'}`}
+            onClick={
+              handleNavClick
+            }
+            className={`group relative flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all duration-200 ${
+              notificationsActive
+                ? 'bg-gradient-to-l from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-200'
+                : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+            }`}
           >
-            <div className="relative">
-              <Bell 
-                size={20} 
-                className={`transition-colors ${
-                  pathname === '/dashboard/notifications' ? 'text-white' : 'text-zinc-500 group-hover:text-blue-500'
-                }`} 
+            <div
+              className={`relative flex h-9 w-9 items-center justify-center rounded-xl transition ${
+                notificationsActive
+                  ? 'bg-white/15'
+                  : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
+              }`}
+            >
+              <Bell
+                size={20}
               />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                  {unreadCount > 99 ? "99+" : unreadCount}
+
+              {unreadCount >
+                0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-white">
+                  {unreadCount >
+                  99
+                    ? '99+'
+                    : unreadCount}
                 </span>
               )}
             </div>
-            <span>یادداشت‌ها</span>
+
+            <span>
+              یادداشت‌ها
+            </span>
           </Link>
 
-          {/* Add New Case */}
-          <Link
-            href="/dashboard/cases/new"
-            onClick={handleNavClick}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 text-white hover:from-emerald-600 hover:to-green-600 transition-all duration-200 mt-4 shadow-md shadow-emerald-200 hover:shadow-emerald-300 group"
-          >
-            <Plus size={20} className="group-hover:scale-110 transition-transform" />
-            <span className="font-medium">پرونده جدید</span>
-          </Link>
-          
+          {/* New Case */}
+
+          <div className="pt-4">
+            <Link
+              href="/dashboard/cases/new"
+              onClick={
+                handleNavClick
+              }
+              className="group flex items-center gap-3 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-600 px-4 py-4 text-sm font-black text-white shadow-lg shadow-emerald-200 transition-all duration-200 hover:-translate-y-0.5 hover:from-emerald-600 hover:to-teal-700 hover:shadow-emerald-300"
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+                <CirclePlus
+                  size={22}
+                  className="transition-transform group-hover:rotate-90"
+                />
+              </div>
+
+              <div>
+                <p>
+                  پرونده جدید
+                </p>
+
+                <p className="mt-0.5 text-[11px] font-semibold text-emerald-50">
+                  ثبت سریع پرونده
+                </p>
+              </div>
+            </Link>
+          </div>
         </nav>
-           <SupportButton />   
-        {/* Logout Button */}
-        <div className="p-4 border-t border-zinc-200">
+
+        {/* Support */}
+
+        <div className="px-4 pb-2">
+          <SupportButton />
+        </div>
+
+        {/* Logout */}
+
+        <div className="border-t border-slate-200 p-4">
           <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-200 w-full font-medium group"
+            type="button"
+            onClick={
+              handleLogout
+            }
+            className="group flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-bold text-red-600 transition hover:bg-red-50"
           >
-            <LogOut size={20} className="group-hover:scale-110 transition-transform" />
-            <span>خروج</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 transition group-hover:bg-red-100">
+              <LogOut
+                size={20}
+              />
+            </div>
+
+            <span>
+              خروج از حساب
+            </span>
           </button>
         </div>
       </aside>

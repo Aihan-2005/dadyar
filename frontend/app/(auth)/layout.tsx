@@ -1,51 +1,33 @@
-// export default function AuthLayout({
-//   children,
-// }: {
-//   children: React.ReactNode
-// }) {
-//   return (
-//     <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-//       {children}
-//     </div>
-//   )
-// }
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <div
+    <main
       dir="rtl"
-      className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0a0a0f] px-4 py-10 text-white"
+      className="relative flex min-h-dvh items-center justify-center overflow-x-hidden bg-slate-100 px-3 py-6 text-slate-950 sm:px-6 sm:py-8"
     >
       {/* Background */}
+
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -right-40 -top-40 h-[520px] w-[520px] rounded-full bg-blue-300/35 blur-[110px]" />
+
+        <div className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full bg-emerald-200/20 blur-[110px]" />
+
         <div
-          className="absolute top-[-15%] right-[-10%] h-[500px] w-[500px] rounded-full opacity-20 blur-3xl"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(37,99,235,1) 0%, rgba(37,99,235,0) 70%)',
-          }}
-        />
-        <div
-          className="absolute bottom-[-10%] left-[-10%] h-[500px] w-[500px] rounded-full opacity-20 blur-3xl"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(124,58,237,1) 0%, rgba(124,58,237,0) 70%)',
-          }}
-        />
-        <div
-          className="absolute inset-0 opacity-[0.04]"
+          className="absolute inset-0 opacity-40"
           style={{
             backgroundImage:
-              'linear-gradient(#ffffff 1px, transparent 1px), linear-gradient(90deg, #ffffff 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
+              'linear-gradient(rgba(100,116,139,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(100,116,139,0.08) 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
           }}
         />
       </div>
 
-      <div className="relative z-10 w-full max-w-6xl">{children}</div>
-    </div>
+      <div className="relative z-10 w-full max-w-6xl">
+        {children}
+      </div>
+    </main>
   )
 }
