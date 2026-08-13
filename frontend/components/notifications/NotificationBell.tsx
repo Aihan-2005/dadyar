@@ -11,6 +11,11 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const unreadCount = useNotificationStore((state) => state.getUnreadCount());
+  const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
+
+    useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {

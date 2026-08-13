@@ -1,8 +1,6 @@
 'use client'
 
-import {
-  useState,
-} from 'react'
+import { useEffect, useState } from "react";
 
 import {
   CheckCheck,
@@ -37,35 +35,28 @@ export default function NotificationsPage() {
       'all'
     )
 
-  const [
-    showForm,
-    setShowForm,
-  ] =
-    useState(false)
+ const [showForm, setShowForm] = useState(false)
 
-  const {
-    notifications,
-    markAsRead,
-    dismiss,
-    markAllAsRead,
-    markAsCompleted,
-  } =
-    useNotificationStore()
+const {
+  notifications,
+  fetchNotifications,
+  markAsRead,
+  dismiss,
+  markAllAsRead,
+  markAsCompleted,
+} = useNotificationStore()
 
-  const activeNotifications =
-    notifications.filter(
-      (item) =>
-        item.status !==
-        'dismissed'
-    )
+useEffect(() => {
+  fetchNotifications()
+}, [fetchNotifications])
 
-  const unreadCount =
-    activeNotifications.filter(
-      (item) =>
-        item.status ===
-        'unread'
-    ).length
+const activeNotifications = notifications.filter(
+  (item) => item.status !== 'dismissed'
+)
 
+const unreadCount = activeNotifications.filter(
+  (item) => item.status === 'unread'
+).length
   const filtered =
     activeNotifications.filter(
       (item) => {

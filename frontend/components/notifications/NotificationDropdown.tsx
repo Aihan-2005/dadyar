@@ -50,7 +50,7 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
   return (
     <div
       dir="rtl"
-      className="absolute left-0 top-12 w-96 bg-white rounded-2xl shadow-2xl border border-zinc-100 z-50 overflow-hidden flex flex-col"
+      className="absolute left-0 top-12 w-96 bg-white rounded-2xl shadow-2xl border border-zinc-100 z-50 overflow-y-auto flex flex-col"
       style={{ maxHeight: "85vh" }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -132,7 +132,7 @@ export default function NotificationDropdown({ onClose }: NotificationDropdownPr
         )}
       </div>
 
-      <div className="overflow-y-auto flex-1 p-3 space-y-2">
+      <div className="flex-1 p-3 space-y-2">
         {filtered.length === 0 ? (
           <div className="text-center py-10">
             <Bell size={32} className="text-zinc-200 mx-auto mb-2" />

@@ -162,7 +162,7 @@ export const useNotificationStore = create<NotificationState>()(
         try {
           const response = await api.get('/notifications')
 
-          const notifications: Notification[] = response.data
+       const notifications: Notification[] = response.data.data
 
           set({
             notifications,
@@ -183,7 +183,7 @@ export const useNotificationStore = create<NotificationState>()(
         try {
           const response = await api.post('/notifications/reminders', payload)
 
-          const newNotification: Notification = response.data
+          const newNotification: Notification = response.data.data
 
           set((state) => {
             const notifications = [newNotification, ...state.notifications]
