@@ -974,7 +974,7 @@ export default function ProfilePage() {
 
   return (
     <div
-      className="mx-auto max-w-4xl space-y-6 pb-12"
+      className="mx-auto max-w-7xl space-y-6 pb-12"
       dir="rtl"
     >
       {error && (

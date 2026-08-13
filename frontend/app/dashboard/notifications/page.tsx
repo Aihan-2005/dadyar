@@ -1,115 +1,254 @@
+'use client'
 
-"use client";
+import {
+  useState,
+} from 'react'
 
-import { useState } from "react";
-import { Bell, Plus, CheckCheck } from "lucide-react";
-import { useNotificationStore } from "@/store/notification.store";
-import { NotificationItem } from "@/components/notifications/NotificationItem";
-import { AddReminderForm } from "@/components/notifications/AddReminderForm";
+import {
+  CheckCheck,
+  NotebookPen,
+  Plus,
+} from 'lucide-react'
+
+import {
+  DashboardPageHeader,
+} from '@/components/dashboard/DashboardPageHeader'
+
+import {
+  useNotificationStore,
+} from '@/store/notification.store'
+
+import {
+  NotificationItem,
+} from '@/components/notifications/NotificationItem'
+
+import {
+  AddReminderForm,
+} from '@/components/notifications/AddReminderForm'
 
 export default function NotificationsPage() {
-  const [activeTab, setActiveTab] = useState<"all" | "lawyer" | "client">("all");
-  const [showForm, setShowForm] = useState(false);
+  const [
+    activeTab,
+    setActiveTab,
+  ] =
+    useState<
+      'all' | 'lawyer' | 'client'
+    >(
+      'all'
+    )
 
-  const { notifications, markAsRead, dismiss, markAllAsRead, markAsCompleted } =
-    useNotificationStore();
+  const [
+    showForm,
+    setShowForm,
+  ] =
+    useState(false)
 
-  const activeNotifications = notifications.filter((n) => n.status !== "dismissed");
-  const unreadCount = activeNotifications.filter((n) => n.status === "unread").length;
+  const {
+    notifications,
+    markAsRead,
+    dismiss,
+    markAllAsRead,
+    markAsCompleted,
+  } =
+    useNotificationStore()
 
-  const filtered = activeNotifications.filter((n) => {
-    if (activeTab === "all") return true;
-    return n.target === activeTab;
-  });
+  const activeNotifications =
+    notifications.filter(
+      (item) =>
+        item.status !==
+        'dismissed'
+    )
+
+  const unreadCount =
+    activeNotifications.filter(
+      (item) =>
+        item.status ===
+        'unread'
+    ).length
+
+  const filtered =
+    activeNotifications.filter(
+      (item) => {
+        if (
+          activeTab ===
+          'all'
+        ) {
+          return true
+        }
+
+        return (
+          item.target ===
+          activeTab
+        )
+      }
+    )
 
   const tabs = [
-    { key: "all", label: "همه" },
-    { key: "lawyer", label: "یادآوری وکیل" },
-    { key: "client", label: "یادآوری موکل" },
-  ] as const;
+    {
+      key:
+        'all',
+
+      label:
+        'همه',
+    },
+
+    {
+      key:
+        'lawyer',
+
+      label:
+        'یادآوری وکیل',
+    },
+
+    {
+      key:
+        'client',
+
+      label:
+        'یادآوری موکل',
+    },
+  ] as const
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-            <Bell size={20} className="text-blue-600" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              یادداشت‌ها و اعلان‌ها
-            </h1>
-            {unreadCount > 0 && (
-              <p className="text-sm text-gray-500">{unreadCount} خوانده‌نشده</p>
+    <div className="mx-auto max-w-7xl space-y-6">
+      <DashboardPageHeader
+        title="یادداشت‌ها و اعلان‌ها"
+        description={
+          unreadCount >
+          0
+            ? `${unreadCount.toLocaleString(
+                'fa-IR'
+              )} مورد خوانده‌نشده`
+            : 'یادداشت‌ها و پیگیری‌های مهم دفتر'
+        }
+        actions={
+          <>
+            {unreadCount >
+              0 && (
+              <button
+                type="button"
+                onClick={
+                  markAllAsRead
+                }
+                className="inline-flex h-11 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 text-sm font-black text-blue-700"
+              >
+                <CheckCheck
+                  size={17}
+                />
+
+                همه خوانده شد
+              </button>
             )}
-          </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          {unreadCount > 0 && (
             <button
-              onClick={markAllAsRead}
-              className="flex items-center gap-1.5 text-sm text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+              type="button"
+              onClick={() =>
+                setShowForm(
+                  (value) =>
+                    !value
+                )
+              }
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white"
             >
-              <CheckCheck size={16} />
-              <span>همه خوانده شد</span>
-            </button>
-          )}
-          <button
-            onClick={() => setShowForm((v) => !v)}
-            className="flex items-center gap-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            <Plus size={16} />
-            <span>یادآوری جدید</span>
-          </button>
-        </div>
-      </div>
-
-      {showForm && (
-        <div className="mb-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">
-            افزودن یادآوری جدید
-          </h2>
-          <AddReminderForm onClose={() => setShowForm(false)} />
-        </div>
-      )}
-
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-4 w-fit">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              activeTab === tab.key
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        {filtered.length === 0 ? (
-          <div className="py-16 text-center text-gray-400">
-            <Bell size={32} className="mx-auto mb-3 opacity-30" />
-            <p className="text-sm">اعلانی وجود ندارد</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {filtered.map((n) => (
-              <NotificationItem
-                key={n.id}
-                notification={n}
-                onRead={() => markAsRead(n.id)}
-                onDismiss={() => dismiss(n.id)}
-                onToggleComplete={() => markAsCompleted(n.id)}
+              <Plus
+                size={18}
               />
-            ))}
+
+              یادآوری جدید
+            </button>
+          </>
+        }
+      />
+
+      <div className="mx-auto w-full max-w-3xl">
+        {showForm && (
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-4 text-sm font-black text-slate-900">
+              افزودن یادآوری جدید
+            </h2>
+
+            <AddReminderForm
+              onClose={() =>
+                setShowForm(
+                  false
+                )
+              }
+            />
           </div>
         )}
+
+        <div className="mb-4 flex w-fit gap-1 rounded-xl bg-slate-100 p-1">
+          {tabs.map(
+            (tab) => (
+              <button
+                key={
+                  tab.key
+                }
+                type="button"
+                onClick={() =>
+                  setActiveTab(
+                    tab.key
+                  )
+                }
+                className={`rounded-lg px-4 py-2 text-sm font-black transition ${
+                  activeTab ===
+                  tab.key
+                    ? 'bg-white text-slate-950 shadow-sm'
+                    : 'text-slate-600'
+                }`}
+              >
+                {tab.label}
+              </button>
+            )
+          )}
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {filtered.length ===
+          0 ? (
+            <div className="py-16 text-center text-slate-500">
+              <NotebookPen
+                size={34}
+                className="mx-auto mb-3 text-slate-300"
+              />
+
+              <p className="text-sm font-bold">
+                یادداشتی وجود ندارد
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {filtered.map(
+                (notification) => (
+                  <NotificationItem
+                    key={
+                      notification.id
+                    }
+                    notification={
+                      notification
+                    }
+                    onRead={() =>
+                      markAsRead(
+                        notification.id
+                      )
+                    }
+                    onDismiss={() =>
+                      dismiss(
+                        notification.id
+                      )
+                    }
+                    onToggleComplete={() =>
+                      markAsCompleted(
+                        notification.id
+                      )
+                    }
+                  />
+                )
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
-  );
+  )
 }

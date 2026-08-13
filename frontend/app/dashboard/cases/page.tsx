@@ -19,6 +19,10 @@ import {
 } from 'lucide-react'
 
 import {
+  DashboardPageHeader,
+} from '@/components/dashboard/DashboardPageHeader'
+
+import {
   useCasesStore,
 } from '@/store/cases.store'
 
@@ -30,8 +34,7 @@ import type {
   Case,
 } from '@/types/case'
 
-
-function normalizeSearchText(
+function normalizeText(
   value:
     string | undefined
 ): string {
@@ -45,7 +48,7 @@ function normalizeSearchText(
     )
 }
 
-function getCaseClientNames(
+function getClientNames(
   caseItem:
     Case
 ): string[] {
@@ -73,52 +76,46 @@ function getCaseClientNames(
     return names
   }
 
-  const legacyName =
-    caseItem
-      .clientName
-      ?.trim()
-
-  return legacyName
+  return caseItem.clientName
     ? [
-        legacyName,
+        caseItem.clientName,
       ]
     : []
 }
 
-function matchesClientName(
+function matchesClient(
   caseItem:
     Case,
-
   query:
     string
 ): boolean {
-  const normalizedQuery =
-    normalizeSearchText(
+  const normalized =
+    normalizeText(
       query
     )
 
-  if (!normalizedQuery) {
+  if (!normalized) {
     return true
   }
 
-  return getCaseClientNames(
+  return getClientNames(
     caseItem
   ).some(
     (name) =>
-      normalizeSearchText(
+      normalizeText(
         name
       ).includes(
-        normalizedQuery
+        normalized
       )
   )
 }
 
-function formatCaseClients(
+function formatClients(
   caseItem:
     Case
 ): string {
   const names =
-    getCaseClientNames(
+    getClientNames(
       caseItem
     )
 
@@ -136,43 +133,21 @@ function formatCaseClients(
     return names[0]
   }
 
-  const visibleNames =
-    names.slice(
-      0,
-      2
+  if (
+    names.length ===
+    2
+  ) {
+    return names.join(
+      '، '
     )
+  }
 
-  const remaining =
-    names.length -
-    visibleNames.length
-
-  return remaining >
-    0
-    ? `${visibleNames.join(
-        '، '
-      )} و ${remaining.toLocaleString(
-        'fa-IR'
-      )} موکل دیگر`
-    : visibleNames.join(
-        '، '
-      )
+  return `${names
+    .slice(0, 2)
+    .join('، ')} و ${
+    names.length - 2
+  } موکل دیگر`
 }
-
-function isValidDate(
-  value:
-    string
-): boolean {
-  const timestamp =
-    new Date(
-      value
-    ).getTime()
-
-  return !Number.isNaN(
-    timestamp
-  )
-}
-
-
 
 function getStatusBadge(
   status:
@@ -184,25 +159,25 @@ function getStatusBadge(
       string
     > = {
       pending:
-        'bg-amber-100 text-amber-700',
+        'bg-amber-100 text-amber-800',
 
       'in-progress':
-        'bg-blue-100 text-blue-700',
+        'bg-blue-100 text-blue-800',
 
       in_progress:
-        'bg-blue-100 text-blue-700',
+        'bg-blue-100 text-blue-800',
 
       open:
-        'bg-emerald-100 text-emerald-700',
+        'bg-emerald-100 text-emerald-800',
 
       completed:
-        'bg-green-100 text-green-700',
+        'bg-green-100 text-green-800',
 
       closed:
-        'bg-zinc-200 text-zinc-700',
+        'bg-slate-200 text-slate-700',
 
       archived:
-        'bg-zinc-100 text-zinc-700',
+        'bg-slate-100 text-slate-700',
     }
 
   const labels:
@@ -234,64 +209,44 @@ function getStatusBadge(
 
   return (
     <span
-      className={`rounded-full px-2 py-1 text-xs font-medium ${
-        styles[
-          status
-        ] ??
-        'bg-zinc-100 text-zinc-700'
+      className={`rounded-full px-2.5 py-1 text-xs font-black ${
+        styles[status] ??
+        'bg-slate-100 text-slate-700'
       }`}
     >
-      {labels[
-        status
-      ] ??
+      {labels[status] ??
         status}
     </span>
   )
 }
 
-
-
 export default function CasesListPage() {
- 
   const cases =
     useCasesStore(
       (state) =>
         state.cases
     )
 
-
   const searchParams =
     useSearchParams()
 
-  const {
-    searchTerm,
-    setSearchTerm,
-  } =
-    useSearchStore()
-
-  useEffect(() => {
-    const urlSearch =
-      searchParams.get(
-        'search'
-      ) ??
-      ''
-
-    setSearchTerm(
-      urlSearch
+  const searchTerm =
+    useSearchStore(
+      (state) =>
+        state.searchTerm
     )
-  }, [
-    searchParams,
-    setSearchTerm,
-  ])
 
- 
+  const setSearchTerm =
+    useSearchStore(
+      (state) =>
+        state.setSearchTerm
+    )
+
   const [
     showFilters,
     setShowFilters,
   ] =
-    useState(
-      false
-    )
+    useState(false)
 
   const [
     filters,
@@ -311,82 +266,77 @@ export default function CasesListPage() {
         '',
     })
 
-  
+  useEffect(() => {
+    setSearchTerm(
+      searchParams.get(
+        'search'
+      ) ??
+        ''
+    )
+  }, [
+    searchParams,
+    setSearchTerm,
+  ])
 
   const filteredCases =
     useMemo(
       () => {
-        const normalizedSearch =
-          normalizeSearchText(
+        const globalSearch =
+          normalizeText(
             searchTerm
-          )
-
-        const normalizedTitleFilter =
-          normalizeSearchText(
-            filters.title
           )
 
         return cases.filter(
           (
             caseItem
           ) => {
-          
-
             const matchesSearch =
-              !normalizedSearch ||
-              normalizeSearchText(
+              !globalSearch ||
+              normalizeText(
                 caseItem.title
               ).includes(
-                normalizedSearch
+                globalSearch
               ) ||
-              normalizeSearchText(
+              normalizeText(
                 caseItem.caseNumber
               ).includes(
-                normalizedSearch
+                globalSearch
               ) ||
-              matchesClientName(
+              matchesClient(
                 caseItem,
-                normalizedSearch
+                globalSearch
               )
 
-           
             const matchesTitle =
-              !normalizedTitleFilter ||
-              normalizeSearchText(
+              !filters.title ||
+              normalizeText(
                 caseItem.title
               ).includes(
-                normalizedTitleFilter
+                normalizeText(
+                  filters.title
+                )
               )
 
-          
-
-            const matchesClient =
-              matchesClientName(
+            const matchesClientName =
+              matchesClient(
                 caseItem,
                 filters.clientName
               )
 
-          
             const createdAt =
               new Date(
                 caseItem.createdAt
               )
 
-            const matchesFromDate =
+            const matchesFrom =
               !filters.fromDate ||
-              !isValidDate(
-                filters.fromDate
-              ) ||
               createdAt >=
                 new Date(
                   filters.fromDate
                 )
 
-            const matchesToDate =
+            const matchesTo =
               !filters.toDate ||
-              !isValidDate(
-                filters.toDate
-              ) ||
               createdAt <=
                 new Date(
                   `${filters.toDate}T23:59:59.999`
@@ -395,21 +345,19 @@ export default function CasesListPage() {
             return (
               matchesSearch &&
               matchesTitle &&
-              matchesClient &&
-              matchesFromDate &&
-              matchesToDate
+              matchesClientName &&
+              matchesFrom &&
+              matchesTo
             )
           }
         )
       },
       [
         cases,
-        searchTerm,
         filters,
+        searchTerm,
       ]
     )
-
-  
 
   const clearFilters =
     () => {
@@ -436,87 +384,73 @@ export default function CasesListPage() {
         filters.toDate
     )
 
- 
-
   return (
-    <div className="space-y-6">
-
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900">
-            پرونده‌ها
-          </h1>
-
-          <p className="mt-1 text-zinc-600">
-            {filteredCases.length.toLocaleString(
-              'fa-IR'
-            )}{' '}
-            پرونده از{' '}
-            {cases.length.toLocaleString(
-              'fa-IR'
-            )}{' '}
-            پرونده یافت شد
-
-            {searchTerm && (
-              <span>
-                {' '}
-                برای «
-                {searchTerm}
-                »
-              </span>
-            )}
-          </p>
-        </div>
-
-        <Link
-          href="/dashboard/cases/new"
-          className="flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-white transition-colors hover:bg-zinc-800"
-        >
-          <Plus
-            size={20}
-          />
-
-          <span>
-            پرونده جدید
-          </span>
-        </Link>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-6">
 
 
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() =>
-            setShowFilters(
-              (
-                current
-              ) =>
-                !current
-            )
-          }
-          className={`flex items-center gap-2 rounded-lg border px-4 py-2 transition-colors ${
-            showFilters
-              ? 'border-zinc-900 bg-zinc-900 text-white'
-              : 'border-zinc-200 text-black hover:bg-slate-100'
-          }`}
-        >
-          <Filter
-            size={20}
-          />
 
-          <span>
-            فیلتر پیشرفته
-          </span>
-        </button>
-      </div>
+      <DashboardPageHeader
+        title="پرونده‌ها"
+        description={`${filteredCases.length.toLocaleString(
+          'fa-IR'
+        )} پرونده از ${cases.length.toLocaleString(
+          'fa-IR'
+        )} پرونده`}
+        actions={
+          <div
+            dir="rtl"
+            className="flex w-full items-center gap-2 sm:w-auto"
+          >
+
+            <button
+              type="button"
+              onClick={() =>
+                setShowFilters(
+                  (value) =>
+                    !value
+                )
+              }
+              className={`inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-black transition sm:flex-none ${
+                showFilters
+                  ? 'border-blue-600 bg-blue-600 text-white'
+                  : 'border-slate-300 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700'
+              }`}
+            >
+              <Filter
+                size={18}
+              />
+
+              فیلتر پیشرفته
+            </button>
+
+            <Link
+              href="/dashboard/cases/new"
+              className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 sm:flex-none"
+            >
+              <Plus
+                size={19}
+              />
+
+              پرونده جدید
+            </Link>
+          </div>
+        }
+      />
 
 
       {showFilters && (
-        <div className="space-y-4 rounded-lg border border-zinc-200 bg-white p-4">
+        <section className="rounded-2xl border border-slate-300 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-zinc-900">
-              فیلترها
-            </h3>
+            <div>
+              <h2 className="font-black text-slate-950">
+                فیلتر پرونده‌ها
+              </h2>
+
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                نتایج را براساس اطلاعات
+                پرونده محدود کنید.
+              </p>
+            </div>
 
             <button
               type="button"
@@ -526,25 +460,23 @@ export default function CasesListPage() {
               disabled={
                 !hasFilters
               }
-              className="flex items-center gap-1 text-sm text-red-600 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-1 text-sm font-black text-red-600 disabled:opacity-40"
             >
               <X
                 size={16}
               />
 
-              پاک کردن همه
+              پاک کردن
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-
+          <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">
+              <label className="mb-2 block text-sm font-black text-slate-700">
                 عنوان پرونده
               </label>
 
               <input
-                type="text"
                 value={
                   filters.title
                 }
@@ -563,19 +495,17 @@ export default function CasesListPage() {
                     })
                   )
                 }
-                placeholder="مثال: پرونده ملکی"
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-gray-600 outline-none focus:ring-2 focus:ring-zinc-900"
+                className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                placeholder="عنوان پرونده"
               />
             </div>
 
-
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">
+              <label className="mb-2 block text-sm font-black text-slate-700">
                 نام موکل
               </label>
 
               <input
-                type="text"
                 value={
                   filters.clientName
                 }
@@ -594,14 +524,13 @@ export default function CasesListPage() {
                     })
                   )
                 }
-                placeholder="مثال: علی رضایی"
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-gray-600 outline-none focus:ring-2 focus:ring-zinc-900"
+                className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                placeholder="نام موکل"
               />
             </div>
 
-
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">
+              <label className="mb-2 block text-sm font-black text-slate-700">
                 از تاریخ
               </label>
 
@@ -625,13 +554,12 @@ export default function CasesListPage() {
                     })
                   )
                 }
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-gray-600 outline-none focus:ring-2 focus:ring-zinc-900"
+                className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-700"
               />
             </div>
 
-
             <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">
+              <label className="mb-2 block text-sm font-black text-slate-700">
                 تا تاریخ
               </label>
 
@@ -655,186 +583,41 @@ export default function CasesListPage() {
                     })
                   )
                 }
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-gray-600 outline-none focus:ring-2 focus:ring-zinc-900"
+                className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-700"
               />
             </div>
           </div>
-
-
-          {hasFilters && (
-            <div className="flex flex-wrap gap-2 border-t pt-3">
-              <span className="text-sm text-zinc-600">
-                فیلترهای فعال:
-              </span>
-
-              {filters.title && (
-                <span className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-2 py-1 text-sm text-blue-700">
-                  عنوان:{' '}
-                  {
-                    filters.title
-                  }
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFilters(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-
-                          title:
-                            '',
-                        })
-                      )
-                    }
-                    className="hover:text-blue-900"
-                  >
-                    <X
-                      size={14}
-                    />
-                  </button>
-                </span>
-              )}
-
-              {filters.clientName && (
-                <span className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-2 py-1 text-sm text-blue-700">
-                  موکل:{' '}
-                  {
-                    filters.clientName
-                  }
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFilters(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-
-                          clientName:
-                            '',
-                        })
-                      )
-                    }
-                    className="hover:text-blue-900"
-                  >
-                    <X
-                      size={14}
-                    />
-                  </button>
-                </span>
-              )}
-
-              {filters.fromDate && (
-                <span className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-2 py-1 text-sm text-blue-700">
-                  از:{' '}
-                  {new Date(
-                    filters.fromDate
-                  ).toLocaleDateString(
-                    'fa-IR'
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFilters(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-
-                          fromDate:
-                            '',
-                        })
-                      )
-                    }
-                    className="hover:text-blue-900"
-                  >
-                    <X
-                      size={14}
-                    />
-                  </button>
-                </span>
-              )}
-
-              {filters.toDate && (
-                <span className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-2 py-1 text-sm text-blue-700">
-                  تا:{' '}
-                  {new Date(
-                    filters.toDate
-                  ).toLocaleDateString(
-                    'fa-IR'
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFilters(
-                        (
-                          current
-                        ) => ({
-                          ...current,
-
-                          toDate:
-                            '',
-                        })
-                      )
-                    }
-                    className="hover:text-blue-900"
-                  >
-                    <X
-                      size={14}
-                    />
-                  </button>
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+        </section>
       )}
+
+
 
 
       {filteredCases.length ===
       0 ? (
-        <div className="rounded-lg border border-zinc-200 bg-white py-12 text-center">
-          <p className="text-zinc-600">
+        <div className="rounded-2xl border border-slate-300 bg-white py-14 text-center">
+          <p className="font-bold text-slate-600">
             {cases.length ===
             0
-              ? 'هیچ پرونده‌ای ثبت نشده است.'
-              : 'پرونده‌ای با معیارهای انتخاب‌شده پیدا نشد.'}
+              ? 'هنوز پرونده‌ای ثبت نشده است.'
+              : 'پرونده‌ای مطابق فیلترها پیدا نشد.'}
           </p>
 
           {cases.length ===
-          0 ? (
+          0 && (
             <Link
               href="/dashboard/cases/new"
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-white transition-colors hover:bg-zinc-800"
+              className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
             >
               <Plus
-                size={20}
+                size={18}
               />
 
-              <span>
-                ایجاد اولین پرونده
-              </span>
+              ایجاد اولین پرونده
             </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={
-                clearFilters
-              }
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-white transition-colors hover:bg-zinc-800"
-            >
-              پاک کردن فیلترها
-            </button>
           )}
         </div>
       ) : (
-       
-
         <div className="grid gap-4">
           {filteredCases.map(
             (
@@ -845,37 +628,39 @@ export default function CasesListPage() {
                   caseItem.id
                 }
                 href={`/dashboard/cases/${caseItem.id}`}
-                className="rounded-lg border border-zinc-200 bg-white p-6 transition-colors hover:border-zinc-900"
+                className="rounded-2xl border border-slate-300 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md sm:p-6"
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-2 flex flex-wrap items-center gap-3">
-                      <h3 className="text-lg font-semibold text-zinc-900">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="text-lg font-black text-slate-950">
                         {
                           caseItem.title
                         }
-                      </h3>
+                      </h2>
 
                       {getStatusBadge(
                         caseItem.status
                       )}
                     </div>
 
-                    <p className="mb-2 text-zinc-600">
-                      موکل:{' '}
-                      {formatCaseClients(
+                    <p className="mt-3 font-semibold text-slate-700">
+                      موکل:
+                      {' '}
+                      {formatClients(
                         caseItem
                       )}
                     </p>
 
-                    <p className="text-sm text-zinc-500">
-                      شماره پرونده:{' '}
+                    <p className="mt-1 text-sm font-medium text-slate-500">
+                      شماره پرونده:
+                      {' '}
                       {caseItem.caseNumber ||
                         'ثبت نشده'}
                     </p>
 
                     {caseItem.description && (
-                      <p className="mt-2 line-clamp-2 text-sm text-zinc-500">
+                      <p className="mt-2 line-clamp-2 text-sm font-medium leading-6 text-slate-600">
                         {
                           caseItem.description
                         }
@@ -883,9 +668,10 @@ export default function CasesListPage() {
                     )}
                   </div>
 
-                  <div className="shrink-0 text-right text-sm text-zinc-500 sm:text-left">
+                  <div className="shrink-0 text-sm font-medium text-slate-500">
                     <p>
-                      ایجاد:{' '}
+                      ایجاد:
+                      {' '}
                       {new Date(
                         caseItem.createdAt
                       ).toLocaleDateString(
@@ -894,7 +680,8 @@ export default function CasesListPage() {
                     </p>
 
                     <p className="mt-1">
-                      آخرین بروزرسانی:{' '}
+                      بروزرسانی:
+                      {' '}
                       {new Date(
                         caseItem.updatedAt
                       ).toLocaleDateString(

@@ -8,11 +8,11 @@ import {
 } from 'next/navigation'
 
 import {
-  Bell,
   CirclePlus,
   FolderOpen,
   LayoutDashboard,
   LogOut,
+  NotebookPen,
   UserRound,
   UsersRound,
   X,
@@ -29,8 +29,11 @@ import {
 } from '@/store/notification.store'
 
 interface DashboardSidebarProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen:
+    boolean
+
+  onClose:
+    () => void
 }
 
 export default function DashboardSidebar({
@@ -57,15 +60,18 @@ export default function DashboardSidebar({
 
   const unreadCount =
     notifications.filter(
-      (notification) =>
-        notification.status ===
+      (item) =>
+        item.status ===
         'unread'
     ).length
 
   const handleLogout =
     () => {
       logout()
-      router.push('/login')
+
+      router.push(
+        '/login'
+      )
     }
 
   const handleNavClick =
@@ -82,69 +88,82 @@ export default function DashboardSidebar({
 
   const navItems = [
     {
-      href: '/dashboard',
-      label: 'داشبورد',
-      icon: LayoutDashboard,
+      href:
+        '/dashboard',
+
+      label:
+        'داشبورد',
+
+      icon:
+        LayoutDashboard,
     },
+
     {
-      href: '/dashboard/cases',
-      label: 'پرونده‌ها',
-      icon: FolderOpen,
+      href:
+        '/dashboard/cases',
+
+      label:
+        'پرونده‌ها',
+
+      icon:
+        FolderOpen,
     },
+
+   
+
     {
-      href: '/dashboard/profile',
-      label: 'پروفایل',
-      icon: UserRound,
-    },
-    {
-      href: '/dashboard/customers',
-      label: 'موکلین',
-      icon: UsersRound,
+      href:
+        '/dashboard/customers',
+
+      label:
+        'موکلین',
+
+      icon:
+        UsersRound,
     },
   ]
 
-  const isPathActive = (
-    href: string
-  ) => {
-    if (
-      href === '/dashboard'
-    ) {
-      return (
-        pathname ===
+  const isPathActive =
+    (
+      href:
+        string
+    ) => {
+      if (
+        href ===
         '/dashboard'
+      ) {
+        return (
+          pathname ===
+          '/dashboard'
+        )
+      }
+
+      return (
+        pathname === href ||
+        pathname.startsWith(
+          `${href}/`
+        )
       )
     }
 
-    return (
-      pathname === href ||
-      pathname.startsWith(
-        `${href}/`
-      )
-    )
-  }
-
-  const notificationsActive =
+  const notificationActive =
     pathname.startsWith(
       '/dashboard/notifications'
     )
 
   return (
     <>
-      {/* Mobile Overlay */}
-
       {isOpen && (
         <button
           type="button"
           aria-label="بستن منو"
-          className="fixed inset-0 z-[60] bg-slate-950/40 backdrop-blur-sm lg:hidden"
           onClick={onClose}
+          className="fixed inset-0 z-[60] bg-slate-950/40 backdrop-blur-sm lg:hidden"
         />
       )}
 
-      {/* Sidebar */}
-
       <aside
-        className={`fixed right-0 top-0 z-[70] flex h-screen w-72 flex-col border-l border-slate-200 bg-white shadow-xl shadow-slate-200/40 transition-transform duration-300 ease-in-out lg:sticky lg:w-64 lg:translate-x-0 lg:shadow-none ${
+        className={`fixed right-0 top-0 z-[70] flex h-screen w-72 flex-col border-l border-slate-200 bg-white shadow-xl shadow-slate-200/40 transition-transform duration-300 lg:sticky lg:w-64 lg:translate-x-0 lg:shadow-none ${
           isOpen
             ? 'translate-x-0'
             : 'translate-x-full lg:translate-x-0'
@@ -172,8 +191,7 @@ export default function DashboardSidebar({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 lg:hidden"
-            aria-label="بستن منو"
+            className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
           >
             <X
               size={21}
@@ -184,16 +202,12 @@ export default function DashboardSidebar({
         {/* Navigation */}
 
         <nav className="flex-1 space-y-1.5 overflow-y-auto p-4">
-          <p className="mb-3 px-3 text-xs font-black text-slate-500">
-            منوی اصلی
-          </p>
-
           {navItems.map(
             (item) => {
               const Icon =
                 item.icon
 
-              const isActive =
+              const active =
                 isPathActive(
                   item.href
                 )
@@ -209,15 +223,15 @@ export default function DashboardSidebar({
                   onClick={
                     handleNavClick
                   }
-                  className={`group flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all duration-200 ${
-                    isActive
+                  className={`group flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-black transition ${
+                    active
                       ? 'bg-gradient-to-l from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-200'
                       : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
                   }`}
                 >
                   <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
-                      isActive
+                    className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                      active
                         ? 'bg-white/15'
                         : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
                     }`}
@@ -227,35 +241,33 @@ export default function DashboardSidebar({
                     />
                   </div>
 
-                  <span>
-                    {item.label}
-                  </span>
+                  {item.label}
                 </Link>
               )
             }
           )}
 
-          {/* Notifications */}
+          {/* Notes */}
 
           <Link
             href="/dashboard/notifications"
             onClick={
               handleNavClick
             }
-            className={`group relative flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-bold transition-all duration-200 ${
-              notificationsActive
+            className={`group flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-black transition ${
+              notificationActive
                 ? 'bg-gradient-to-l from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-200'
                 : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
             }`}
           >
             <div
-              className={`relative flex h-9 w-9 items-center justify-center rounded-xl transition ${
-                notificationsActive
+              className={`relative flex h-9 w-9 items-center justify-center rounded-xl ${
+                notificationActive
                   ? 'bg-white/15'
                   : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
               }`}
             >
-              <Bell
+              <NotebookPen
                 size={20}
               />
 
@@ -270,9 +282,7 @@ export default function DashboardSidebar({
               )}
             </div>
 
-            <span>
-              یادداشت‌ها
-            </span>
+            یادداشت‌ها
           </Link>
 
           {/* New Case */}
@@ -283,12 +293,11 @@ export default function DashboardSidebar({
               onClick={
                 handleNavClick
               }
-              className="group flex items-center gap-3 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-600 px-4 py-4 text-sm font-black text-white shadow-lg shadow-emerald-200 transition-all duration-200 hover:-translate-y-0.5 hover:from-emerald-600 hover:to-teal-700 hover:shadow-emerald-300"
+              className="group flex items-center gap-3 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-600 px-4 py-4 text-sm font-black text-white shadow-lg shadow-emerald-200 transition hover:-translate-y-0.5 hover:from-emerald-600 hover:to-teal-700"
             >
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
                 <CirclePlus
                   size={22}
-                  className="transition-transform group-hover:rotate-90"
                 />
               </div>
 
@@ -305,13 +314,9 @@ export default function DashboardSidebar({
           </div>
         </nav>
 
-        {/* Support */}
-
         <div className="px-4 pb-2">
           <SupportButton />
         </div>
-
-        {/* Logout */}
 
         <div className="border-t border-slate-200 p-4">
           <button
@@ -319,17 +324,15 @@ export default function DashboardSidebar({
             onClick={
               handleLogout
             }
-            className="group flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-bold text-red-600 transition hover:bg-red-50"
+            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-black text-red-600 transition hover:bg-red-50"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 transition group-hover:bg-red-100">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50">
               <LogOut
                 size={20}
               />
             </div>
 
-            <span>
-              خروج از حساب
-            </span>
+            خروج از حساب
           </button>
         </div>
       </aside>

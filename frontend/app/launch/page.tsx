@@ -1,37 +1,74 @@
 import Link from 'next/link'
 
-export default function LaunchPage() {
+import {
+  BriefcaseBusiness,
+  CheckCircle2,
+  UserRound,
+} from 'lucide-react'
+
+import {
+  getSubscriptionPlan,
+  isSubscriptionPlanKey,
+} from '@/lib/subscription-plans'
+
+type LaunchPageProps = {
+  searchParams:
+    Promise<{
+      plan?:
+        string | string[]
+    }>
+}
+
+export default async function LaunchPage({
+  searchParams,
+}: LaunchPageProps) {
+  const params =
+    await searchParams
+
+  const rawPlan =
+    Array.isArray(
+      params.plan
+    )
+      ? params.plan[0]
+      : params.plan
+
+  const selectedPlanKey =
+    isSubscriptionPlanKey(
+      rawPlan
+    )
+      ? rawPlan
+      : undefined
+
+  const selectedPlan =
+    selectedPlanKey
+      ? getSubscriptionPlan(
+          selectedPlanKey
+        )
+      : undefined
+
+  const planQuery =
+    selectedPlanKey
+      ? `?plan=${selectedPlanKey}`
+      : ''
+
   return (
     <main
       dir="rtl"
       className="relative h-dvh overflow-hidden bg-slate-100 text-slate-950"
     >
-      {/* Background */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -right-40 -top-48 h-[520px] w-[520px] rounded-full bg-blue-300/30 blur-[110px]" />
 
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -right-40 -top-52 h-[560px] w-[560px] rounded-full bg-blue-300/35 blur-[110px]" />
-
-        <div className="absolute -bottom-52 -left-40 h-[520px] w-[520px] rounded-full bg-emerald-200/25 blur-[110px]" />
-
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(100,116,139,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(100,116,139,0.08) 1px, transparent 1px)',
-            backgroundSize: '48px 48px',
-          }}
-        />
+        <div className="absolute -bottom-48 -left-36 h-[480px] w-[480px] rounded-full bg-emerald-200/20 blur-[110px]" />
       </div>
 
-      {/* Header */}
-
       <header className="absolute inset-x-0 top-0 z-20">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-8 sm:py-5">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-8">
           <Link
             href="/"
             className="flex items-center gap-3"
           >
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 text-lg font-black text-white shadow-md shadow-blue-200">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-lg font-black text-white shadow-md shadow-blue-200">
               د
             </div>
 
@@ -40,118 +77,95 @@ export default function LaunchPage() {
                 دادیار
               </p>
 
-              <p className="text-xs font-semibold text-slate-600">
+              <p className="hidden text-xs font-semibold text-slate-600 sm:block">
                 مدیریت هوشمند دفتر وکالت
               </p>
             </div>
           </Link>
 
           <Link
-            href="/"
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+            href="/#plans"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:border-blue-300 hover:text-blue-700"
           >
-            مشاهده پلن‌ها
+            تغییر پلن
           </Link>
         </div>
       </header>
 
-      {/* Content */}
-
-      <div className="relative z-10 mx-auto flex h-full max-w-6xl items-center justify-center px-4 pb-4 pt-20 sm:px-8 sm:pb-6">
+      <div className="relative z-10 mx-auto flex h-full max-w-6xl items-center justify-center px-4 pb-4 pt-20 sm:px-8">
         <div className="w-full max-w-4xl text-center">
-          <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-blue-300 bg-blue-100 px-4 py-2 text-sm font-bold text-blue-800 shadow-sm">
-            <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+          {selectedPlan && (
+            <div className="mx-auto mb-5 flex w-fit items-center gap-2 rounded-full border border-emerald-300 bg-emerald-100 px-4 py-2 text-sm font-black text-emerald-800">
+              <CheckCircle2
+                size={17}
+              />
 
-            نسل جدید مدیریت پرونده‌های حقوقی
-          </div>
+              پلن انتخابی:
+              {' '}
+              {
+                selectedPlan.title
+              }
+            </div>
+          )}
 
-          <h1 className="mx-auto mt-5 max-w-3xl text-3xl font-black leading-[1.3] tracking-tight text-slate-950 sm:mt-6 sm:text-5xl lg:text-6xl">
-            پرونده‌هات رو
-            <span className="mx-2 text-blue-700">
-              هوشمند
-            </span>
-            مدیریت کن
+          <h1 className="text-3xl font-black leading-tight text-slate-950 sm:text-5xl">
+            چطور می‌خواهید وارد دادیار شوید؟
           </h1>
 
-          <p className="mx-auto mt-4 max-w-2xl text-base font-medium leading-8 text-slate-700 sm:text-lg">
-            ثبت پرونده، مدیریت موکلین،
-            پیگیری امور مالی و کنترل اطلاعات
-            دفتر وکالت؛ همه در یک پنل ساده و
-            یکپارچه.
+          <p className="mx-auto mt-4 max-w-2xl text-base font-semibold leading-8 text-slate-700">
+            نوع حساب خود را انتخاب کنید تا
+            وارد بخش مربوط به خودتان شوید.
           </p>
 
-          {/* Login cards */}
-
-          <div className="mx-auto mt-7 grid max-w-3xl grid-cols-1 gap-4 sm:mt-8 sm:grid-cols-2 sm:gap-5">
-            {/* Lawyer */}
-
+          <div className="mx-auto mt-8 grid max-w-3xl grid-cols-1 gap-5 sm:grid-cols-2">
             <Link
-              href="/login"
-              className="group rounded-[26px] border-2 border-blue-200 bg-white p-5 text-right shadow-md shadow-slate-300/40 transition duration-300 hover:-translate-y-1 hover:border-blue-400 hover:shadow-xl hover:shadow-blue-200/50 sm:p-6"
+              href={`/login${planQuery}`}
+              className="group rounded-[28px] border border-blue-300 bg-white p-6 text-right shadow-md shadow-slate-300/40 transition hover:-translate-y-1 hover:border-blue-500 hover:shadow-xl"
             >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-2xl shadow-inner">
-                  ⚖️
-                </div>
-
-                <span className="text-sm font-black text-blue-700 transition group-hover:-translate-x-1">
-                  ورود ←
-                </span>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                <BriefcaseBusiness
+                  size={27}
+                />
               </div>
 
-              <h2 className="mt-4 text-xl font-black text-slate-950 sm:text-2xl">
+              <h2 className="mt-5 text-2xl font-black text-slate-950">
                 ورود وکلا
               </h2>
 
-              <p className="mt-2 text-sm font-semibold leading-7 text-slate-700 sm:text-base">
-                ورود یا ثبت‌نام و دسترسی به
-                پنل مدیریت دفتر وکالت
+              <p className="mt-2 text-base font-semibold leading-7 text-slate-700">
+                ورود یا ثبت‌نام برای مدیریت
+                پرونده‌ها، موکلین و امور
+                مالی دفتر
+              </p>
+
+              <p className="mt-4 text-sm font-black text-blue-700">
+                ادامه به عنوان وکیل ←
               </p>
             </Link>
-
-            {/* Client */}
 
             <Link
               href="/client-login"
-              className="group rounded-[26px] border-2 border-emerald-200 bg-white p-5 text-right shadow-md shadow-slate-300/40 transition duration-300 hover:-translate-y-1 hover:border-emerald-400 hover:shadow-xl hover:shadow-emerald-200/50 sm:p-6"
+              className="group rounded-[28px] border border-emerald-300 bg-white p-6 text-right shadow-md shadow-slate-300/40 transition hover:-translate-y-1 hover:border-emerald-500 hover:shadow-xl"
             >
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-2xl shadow-inner">
-                  👤
-                </div>
-
-                <span className="text-sm font-black text-emerald-700 transition group-hover:-translate-x-1">
-                  مشاهده ←
-                </span>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                <UserRound
+                  size={27}
+                />
               </div>
 
-              <h2 className="mt-4 text-xl font-black text-slate-950 sm:text-2xl">
+              <h2 className="mt-5 text-2xl font-black text-slate-950">
                 ورود موکلین
               </h2>
 
-              <p className="mt-2 text-sm font-semibold leading-7 text-slate-700 sm:text-base">
-                مشاهده وضعیت و اطلاعات
-                پرونده‌ها در پنل اختصاصی
-                موکل
+              <p className="mt-2 text-base font-semibold leading-7 text-slate-700">
+                دسترسی موکل به اطلاعات و
+                وضعیت پرونده‌ها
+              </p>
+
+              <p className="mt-4 text-sm font-black text-emerald-700">
+                مشاهده پنل موکل ←
               </p>
             </Link>
-          </div>
-
-          {/* Feature badges */}
-
-          <div className="mx-auto mt-5 flex max-w-2xl flex-wrap items-center justify-center gap-2 sm:mt-7">
-            {[
-              'مدیریت پرونده',
-              'مدیریت موکلین',
-              'گزارش مالی',
-            ].map((item) => (
-              <span
-                key={item}
-                className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm sm:text-sm"
-              >
-                {item}
-              </span>
-            ))}
           </div>
         </div>
       </div>

@@ -5,6 +5,10 @@ import {
   useMemo,
   useState,
 } from 'react'
+import {
+  DashboardPageHeader,
+} from '@/components/dashboard/DashboardPageHeader'
+
 
 import {
   AlertCircle,
@@ -388,7 +392,7 @@ export default function CustomersPage() {
       dir="rtl"
       className="min-h-screen bg-zinc-50 pb-20"
     >
-      <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+      <div className="mx-auto max-w-7xl space-y-6">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 text-white shadow-sm">

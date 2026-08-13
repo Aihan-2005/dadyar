@@ -273,7 +273,7 @@ export default function FinancesPage() {
   return (
     <>
       <div className="min-h-screen bg-zinc-50">
-        <div className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 md:p-8">
+        <div className="mx-auto max-w-7xl space-y-8">
           <header className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-200/70">
