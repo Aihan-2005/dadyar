@@ -13,6 +13,7 @@ import {
 import {
   Eye,
   EyeOff,
+  KeyRound,
   LogIn,
   ShieldCheck,
   UserPlus,
@@ -38,6 +39,8 @@ import {
   getSubscriptionPlan,
   type SubscriptionPlanKey,
 } from '@/lib/subscription-plans'
+
+
 
 const EMAIL_PATTERN =
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -136,7 +139,8 @@ const signupSchema =
           .trim()
           .refine(
             (value) =>
-              value === '' ||
+              value ===
+                '' ||
               EMAIL_PATTERN.test(
                 value
               ),
@@ -150,7 +154,8 @@ const signupSchema =
           .trim()
           .refine(
             (value) =>
-              value === '' ||
+              value ===
+                '' ||
               MOBILE_PATTERN.test(
                 normalizeDigits(
                   value
@@ -182,7 +187,9 @@ const signupSchema =
               'custom',
 
             path:
-              ['email'],
+              [
+                'email',
+              ],
 
             message:
               'حداقل ایمیل یا شماره همراه را وارد کنید',
@@ -201,7 +208,7 @@ type SignupFormData =
     typeof signupSchema
   >
 
-type AuthFormProps = {
+interface AuthFormProps {
   defaultTab?:
     'login' | 'register'
 
@@ -212,14 +219,17 @@ type AuthFormProps = {
     SubscriptionPlanKey
 }
 
+
 const inputClassName =
-  'h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:text-slate-400 hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100 sm:h-14 sm:rounded-2xl sm:text-base'
+  'h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:text-slate-400 hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60 sm:h-14 sm:rounded-2xl sm:text-base'
 
 const labelClassName =
   'mb-1.5 block text-sm font-black text-slate-800 sm:text-base'
 
 const errorClassName =
-  'mt-1 text-xs font-bold text-red-600'
+  'mt-1 text-xs font-bold text-red-600 sm:text-sm'
+
+
 
 export default function AuthForm({
   defaultTab =
@@ -232,6 +242,8 @@ export default function AuthForm({
 }: AuthFormProps) {
   const router =
     useRouter()
+
+  
 
   const login =
     useAuthStore(
@@ -263,6 +275,8 @@ export default function AuthForm({
         state.clearError
     )
 
+  
+
   const [
     activeTab,
     setActiveTab,
@@ -277,13 +291,19 @@ export default function AuthForm({
     showLoginPassword,
     setShowLoginPassword,
   ] =
-    useState(false)
+    useState(
+      false
+    )
 
   const [
     showSignupPassword,
     setShowSignupPassword,
   ] =
-    useState(false)
+    useState(
+      false
+    )
+
+  
 
   const selectedPlan =
     selectedPlanKey
@@ -292,11 +312,15 @@ export default function AuthForm({
         )
       : undefined
 
+  
+
   const title =
     userType ===
     'lawyer'
       ? 'وکلا'
       : 'موکلین'
+
+ 
 
   const loginForm =
     useForm<LoginFormData>({
@@ -339,6 +363,8 @@ export default function AuthForm({
       },
     })
 
+  
+
   const rememberSelectedPlan =
     () => {
       if (
@@ -355,6 +381,8 @@ export default function AuthForm({
       )
     }
 
+ 
+
   const changeTab =
     (
       tab:
@@ -366,6 +394,8 @@ export default function AuthForm({
         tab
       )
     }
+
+ 
 
   const handleLogin =
     async (
@@ -389,9 +419,11 @@ export default function AuthForm({
           '/dashboard'
         )
       } catch {
-        // Error is handled by store.
+       
       }
     }
+
+  
 
   const handleSignup =
     async (
@@ -436,10 +468,11 @@ export default function AuthForm({
           '/dashboard'
         )
       } catch {
-        // Error is handled by store.
+    
       }
     }
 
+  
   const isRegister =
     activeTab ===
     'register'
@@ -459,16 +492,19 @@ export default function AuthForm({
       ? `/launch?plan=${selectedPlanKey}`
       : '/launch'
 
+  const forgotPasswordHref =
+    selectedPlanKey
+      ? `/forgot-password?plan=${selectedPlanKey}`
+      : '/forgot-password'
+
+   
   return (
     <div
       dir="rtl"
       className="relative mx-auto h-[calc(100dvh-1rem)] max-h-[760px] w-full max-w-6xl overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl shadow-slate-300/50 sm:h-[calc(100dvh-2rem)] sm:rounded-[32px]"
     >
-      <div className="grid h-full grid-cols-1 lg:grid-cols-2">
+      <div className="grid h-full grid-cols-1 lg:grid-cols-2"> 
 
-
-
-        
         <aside className="relative hidden overflow-hidden border-l border-slate-200 bg-gradient-to-br from-blue-100 via-slate-50 to-emerald-50 p-9 lg:flex lg:flex-col lg:justify-between">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-blue-300/25 blur-3xl" />
@@ -476,12 +512,16 @@ export default function AuthForm({
             <div className="absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-emerald-200/25 blur-3xl" />
           </div>
 
+          {/* Back */}
+
           <Link
             href={backHref}
-            className="relative z-10 w-fit rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm hover:text-blue-700"
+            className="relative z-10 w-fit rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:border-blue-300 hover:text-blue-700"
           >
             بازگشت
           </Link>
+
+          {/* Copy */}
 
           <div className="relative z-10">
             <span className="rounded-full border border-blue-300 bg-blue-100 px-4 py-2 text-sm font-black text-blue-800">
@@ -501,6 +541,8 @@ export default function AuthForm({
               کنید.
             </p>
           </div>
+
+          {/* Features */}
 
           <div className="relative z-10 grid gap-2.5">
             {[
@@ -524,6 +566,9 @@ export default function AuthForm({
           </div>
         </aside>
 
+        {/* ==========================================================
+         * Form Side
+         * ======================================================== */}
 
         <section
           className={`relative flex h-full min-h-0 flex-col justify-center overflow-hidden ${
@@ -532,6 +577,7 @@ export default function AuthForm({
               : 'p-5 sm:p-8 lg:p-10'
           }`}
         >
+ 
           <div
             className={`flex items-center justify-between lg:hidden ${
               isRegister
@@ -550,8 +596,8 @@ export default function AuthForm({
               دادیار
             </span>
           </div>
+  
 
-          {/* Heading */}
 
           <div
             className={
@@ -601,7 +647,6 @@ export default function AuthForm({
             </p>
           </div>
 
-          {/* Selected plan */}
 
           {selectedPlan && (
             <div
@@ -620,6 +665,7 @@ export default function AuthForm({
           )}
 
 
+
           <div
             className={`flex rounded-2xl border border-slate-200 bg-slate-100 p-1 ${
               isRegister
@@ -634,7 +680,10 @@ export default function AuthForm({
                   'login'
                 )
               }
-              className={`flex-1 rounded-xl px-3 font-black transition ${
+              disabled={
+                isLoading
+              }
+              className={`flex-1 rounded-xl px-3 font-black transition disabled:opacity-60 ${
                 isRegister
                   ? 'py-2 text-sm'
                   : 'py-3 text-base'
@@ -642,7 +691,7 @@ export default function AuthForm({
                 activeTab ===
                 'login'
                   ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600'
+                  : 'text-slate-600 hover:text-slate-950'
               }`}
             >
               ورود
@@ -655,7 +704,10 @@ export default function AuthForm({
                   'register'
                 )
               }
-              className={`flex-1 rounded-xl px-3 font-black transition ${
+              disabled={
+                isLoading
+              }
+              className={`flex-1 rounded-xl px-3 font-black transition disabled:opacity-60 ${
                 isRegister
                   ? 'py-2 text-sm'
                   : 'py-3 text-base'
@@ -663,18 +715,27 @@ export default function AuthForm({
                 activeTab ===
                 'register'
                   ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600'
+                  : 'text-slate-600 hover:text-slate-950'
               }`}
             >
               ثبت‌نام
             </button>
           </div>
 
+
+
+
           {error && (
-            <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+            <div
+              role="alert"
+              className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700"
+            >
               {error}
             </div>
           )}
+
+
+
 
 
           {!isRegister ? (
@@ -685,7 +746,10 @@ export default function AuthForm({
                 )
               }
               className="space-y-5"
+              noValidate
             >
+
+
               <div>
                 <label
                   htmlFor="login-identifier"
@@ -705,7 +769,12 @@ export default function AuthForm({
                         clearError,
                     }
                   )}
+                  type="text"
                   dir="ltr"
+                  autoComplete="username"
+                  disabled={
+                    isLoginSubmitting
+                  }
                   className={
                     inputClassName
                   }
@@ -716,7 +785,11 @@ export default function AuthForm({
                   .formState
                   .errors
                   .identifier && (
-                  <p className={errorClassName}>
+                  <p
+                    className={
+                      errorClassName
+                    }
+                  >
                     {
                       loginForm
                         .formState
@@ -728,15 +801,30 @@ export default function AuthForm({
                 )}
               </div>
 
+              {/* Password */}
+
               <div>
-                <label
-                  htmlFor="login-password"
-                  className={
-                    labelClassName
-                  }
-                >
-                  رمز عبور
-                </label>
+                <div className="mb-1.5 flex items-center justify-between gap-3">
+                  <label
+                    htmlFor="login-password"
+                    className="text-sm font-black text-slate-800 sm:text-base"
+                  >
+                    رمز عبور
+                  </label>
+
+                  <Link
+                    href={
+                      forgotPasswordHref
+                    }
+                    className="inline-flex items-center gap-1.5 text-xs font-black text-blue-700 transition hover:text-blue-800 sm:text-sm"
+                  >
+                    <KeyRound
+                      size={15}
+                    />
+
+                    رمز عبور را فراموش کرده‌اید؟
+                  </Link>
+                </div>
 
                 <div className="relative">
                   <input
@@ -754,6 +842,10 @@ export default function AuthForm({
                         : 'password'
                     }
                     dir="ltr"
+                    autoComplete="current-password"
+                    disabled={
+                      isLoginSubmitting
+                    }
                     className={`${inputClassName} pr-14`}
                     placeholder="••••••••"
                   />
@@ -766,7 +858,15 @@ export default function AuthForm({
                           !value
                       )
                     }
-                    className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-blue-700"
+                    disabled={
+                      isLoginSubmitting
+                    }
+                    className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-blue-700 disabled:opacity-50"
+                    aria-label={
+                      showLoginPassword
+                        ? 'مخفی کردن رمز عبور'
+                        : 'نمایش رمز عبور'
+                    }
                   >
                     {showLoginPassword ? (
                       <EyeOff
@@ -784,7 +884,11 @@ export default function AuthForm({
                   .formState
                   .errors
                   .password && (
-                  <p className={errorClassName}>
+                  <p
+                    className={
+                      errorClassName
+                    }
+                  >
                     {
                       loginForm
                         .formState
@@ -796,12 +900,14 @@ export default function AuthForm({
                 )}
               </div>
 
+              {/* Login Button */}
+
               <button
                 type="submit"
                 disabled={
                   isLoginSubmitting
                 }
-                className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-600 to-blue-700 text-base font-black text-white shadow-lg shadow-blue-200 transition hover:from-blue-700 hover:to-blue-800 disabled:opacity-60"
+                className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-600 to-blue-700 text-base font-black text-white shadow-lg shadow-blue-200 transition hover:from-blue-700 hover:to-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <LogIn
                   size={20}
@@ -813,6 +919,9 @@ export default function AuthForm({
               </button>
             </form>
           ) : (
+            
+
+
 
             <form
               onSubmit={
@@ -821,9 +930,12 @@ export default function AuthForm({
                 )
               }
               className="space-y-2.5 sm:space-y-3"
+              noValidate
             >
+              {/* Names */}
+
               <div className="grid grid-cols-2 gap-2.5">
-                <div>
+                <div className="min-w-0">
                   <label
                     htmlFor="signup-first-name"
                     className={
@@ -842,14 +954,38 @@ export default function AuthForm({
                           clearError,
                       }
                     )}
+                    type="text"
+                    autoComplete="given-name"
+                    disabled={
+                      isSignupSubmitting
+                    }
                     className={
                       inputClassName
                     }
                     placeholder="نام"
                   />
+
+                  {signupForm
+                    .formState
+                    .errors
+                    .firstName && (
+                    <p
+                      className={
+                        errorClassName
+                      }
+                    >
+                      {
+                        signupForm
+                          .formState
+                          .errors
+                          .firstName
+                          .message
+                      }
+                    </p>
+                  )}
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <label
                     htmlFor="signup-last-name"
                     className={
@@ -868,13 +1004,39 @@ export default function AuthForm({
                           clearError,
                       }
                     )}
+                    type="text"
+                    autoComplete="family-name"
+                    disabled={
+                      isSignupSubmitting
+                    }
                     className={
                       inputClassName
                     }
                     placeholder="نام خانوادگی"
                   />
+
+                  {signupForm
+                    .formState
+                    .errors
+                    .lastName && (
+                    <p
+                      className={
+                        errorClassName
+                      }
+                    >
+                      {
+                        signupForm
+                          .formState
+                          .errors
+                          .lastName
+                          .message
+                      }
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {/* Email */}
 
               <div>
                 <label
@@ -895,13 +1057,39 @@ export default function AuthForm({
                         clearError,
                     }
                   )}
+                  type="email"
                   dir="ltr"
+                  autoComplete="email"
+                  disabled={
+                    isSignupSubmitting
+                  }
                   className={
                     inputClassName
                   }
                   placeholder="example@gmail.com"
                 />
+
+                {signupForm
+                  .formState
+                  .errors
+                  .email && (
+                  <p
+                    className={
+                      errorClassName
+                    }
+                  >
+                    {
+                      signupForm
+                        .formState
+                        .errors
+                        .email
+                        .message
+                    }
+                  </p>
+                )}
               </div>
+
+              {/* Phone */}
 
               <div>
                 <label
@@ -922,14 +1110,40 @@ export default function AuthForm({
                         clearError,
                     }
                   )}
-                  dir="ltr"
+                  type="tel"
                   inputMode="numeric"
+                  dir="ltr"
+                  autoComplete="tel"
+                  disabled={
+                    isSignupSubmitting
+                  }
                   className={
                     inputClassName
                   }
                   placeholder="09123456789"
                 />
+
+                {signupForm
+                  .formState
+                  .errors
+                  .phone && (
+                  <p
+                    className={
+                      errorClassName
+                    }
+                  >
+                    {
+                      signupForm
+                        .formState
+                        .errors
+                        .phone
+                        .message
+                    }
+                  </p>
+                )}
               </div>
+
+              {/* Password */}
 
               <div>
                 <label
@@ -957,6 +1171,10 @@ export default function AuthForm({
                         : 'password'
                     }
                     dir="ltr"
+                    autoComplete="new-password"
+                    disabled={
+                      isSignupSubmitting
+                    }
                     className={`${inputClassName} pr-14`}
                     placeholder="حداقل ۶ کاراکتر"
                   />
@@ -969,7 +1187,15 @@ export default function AuthForm({
                           !value
                       )
                     }
-                    className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-blue-700"
+                    disabled={
+                      isSignupSubmitting
+                    }
+                    className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-blue-700 disabled:opacity-50"
+                    aria-label={
+                      showSignupPassword
+                        ? 'مخفی کردن رمز عبور'
+                        : 'نمایش رمز عبور'
+                    }
                   >
                     {showSignupPassword ? (
                       <EyeOff
@@ -982,14 +1208,35 @@ export default function AuthForm({
                     )}
                   </button>
                 </div>
+
+                {signupForm
+                  .formState
+                  .errors
+                  .password && (
+                  <p
+                    className={
+                      errorClassName
+                    }
+                  >
+                    {
+                      signupForm
+                        .formState
+                        .errors
+                        .password
+                        .message
+                    }
+                  </p>
+                )}
               </div>
+
+
 
               <button
                 type="submit"
                 disabled={
                   isSignupSubmitting
                 }
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-blue-600 to-blue-700 text-sm font-black text-white shadow-lg shadow-blue-200 sm:h-14 sm:rounded-2xl sm:text-base"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-blue-600 to-blue-700 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:from-blue-700 hover:to-blue-800 disabled:cursor-not-allowed disabled:opacity-60 sm:h-14 sm:rounded-2xl sm:text-base"
               >
                 <UserPlus
                   size={20}
@@ -1001,6 +1248,9 @@ export default function AuthForm({
               </button>
             </form>
           )}
+
+
+
 
           <div
             className={`text-center font-semibold text-slate-700 ${
@@ -1022,7 +1272,10 @@ export default function AuthForm({
                     : 'register'
                 )
               }
-              className="font-black text-blue-700"
+              disabled={
+                isLoading
+              }
+              className="font-black text-blue-700 transition hover:text-blue-800 disabled:opacity-50"
             >
               {isRegister
                 ? 'وارد شوید'
