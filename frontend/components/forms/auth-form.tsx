@@ -61,21 +61,17 @@ import {
   type SubscriptionPlanKey,
 } from '@/lib/subscription-plans'
 
-/*
-|--------------------------------------------------------------------------
-| Validation
-|--------------------------------------------------------------------------
-*/
-
 const EMAIL_PATTERN =
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const MOBILE_PATTERN =
   /^09\d{9}$/
 
+const SIGNUP_PASSWORD_MIN_LENGTH = 8
+const PASSWORD_MAX_BYTES = 72
+
 function normalizeDigits(
-  value:
-    string
+  value: string
 ): string {
   const persianDigits =
     '۰۱۲۳۴۵۶۷۸۹'
@@ -104,11 +100,15 @@ function normalizeDigits(
     )
 }
 
-/*
-|--------------------------------------------------------------------------
-| Password Login
-|--------------------------------------------------------------------------
-*/
+function getUtf8ByteLength(
+  value: string
+): number {
+  return new TextEncoder()
+    .encode(value)
+    .byteLength
+}
+
+
 
 const loginSchema =
   z.object({
@@ -135,19 +135,23 @@ const loginSchema =
         ),
 
     password:
-      z
-        .string()
+      z.string()
         .min(
-          6,
-          'رمز عبور باید حداقل ۶ کاراکتر باشد'
+          1,
+          'رمز عبور را وارد کنید'
+        )
+        .refine(
+          (value) =>
+            getUtf8ByteLength(
+              value
+            ) <=
+            PASSWORD_MAX_BYTES,
+          'رمز عبور نباید بیشتر از ۷۲ بایت باشد'
         ),
   })
 
-/*
-|--------------------------------------------------------------------------
-| OTP Identifier
-|--------------------------------------------------------------------------
-*/
+
+
 
 const otpIdentifierSchema =
   z.object({
@@ -174,12 +178,6 @@ const otpIdentifierSchema =
         ),
   })
 
-/*
-|--------------------------------------------------------------------------
-| Signup
-|--------------------------------------------------------------------------
-*/
-
 const signupSchema =
   z
     .object({
@@ -190,6 +188,10 @@ const signupSchema =
           .min(
             2,
             'نام باید حداقل ۲ کاراکتر باشد'
+          )
+          .max(
+            100,
+            'نام نمی‌تواند بیشتر از ۱۰۰ کاراکتر باشد'
           ),
 
       lastName:
@@ -199,6 +201,10 @@ const signupSchema =
           .min(
             2,
             'نام خانوادگی باید حداقل ۲ کاراکتر باشد'
+          )
+          .max(
+            100,
+            'نام خانوادگی نمی‌تواند بیشتر از ۱۰۰ کاراکتر باشد'
           ),
 
       email:
@@ -228,15 +234,23 @@ const signupSchema =
                 )
               ),
 
-            'شماره همراه معتبر نیست'
+            'شماره همراه باید با 09 شروع شود و 11 رقم باشد'
           ),
 
       password:
         z
           .string()
           .min(
-            6,
-            'رمز عبور باید حداقل ۶ کاراکتر باشد'
+            SIGNUP_PASSWORD_MIN_LENGTH,
+            'رمز عبور باید حداقل ۸ کاراکتر باشد'
+          )
+          .refine(
+            (value) =>
+              getUtf8ByteLength(
+                value
+              ) <=
+              PASSWORD_MAX_BYTES,
+            'رمز عبور نباید بیشتر از ۷۲ بایت باشد'
           ),
     })
     .superRefine(
@@ -244,9 +258,17 @@ const signupSchema =
         data,
         context
       ) => {
+        const email =
+          data.email.trim()
+
+        const phone =
+          normalizeDigits(
+            data.phone
+          ).trim()
+
         if (
-          !data.email &&
-          !data.phone
+          !email &&
+          !phone
         ) {
           context.addIssue({
             code:
@@ -263,6 +285,7 @@ const signupSchema =
         }
       }
     )
+
 
 type LoginFormData =
   z.infer<
@@ -285,20 +308,17 @@ type LoginMethod =
 
 interface AuthFormProps {
   defaultTab?:
-    'login' | 'register'
+  'login' | 'register'
 
   userType?:
-    'lawyer' | 'client'
+  'lawyer' | 'client'
 
   selectedPlanKey?:
-    SubscriptionPlanKey
+  SubscriptionPlanKey
 }
 
-/*
-|--------------------------------------------------------------------------
-| UI
-|--------------------------------------------------------------------------
-*/
+
+
 
 const inputClassName =
   'h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:text-slate-400 hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60 sm:h-14 sm:rounded-2xl sm:text-base'
@@ -309,11 +329,8 @@ const labelClassName =
 const errorClassName =
   'mt-1 text-xs font-bold text-red-600 sm:text-sm'
 
-/*
-|--------------------------------------------------------------------------
-| Countdown
-|--------------------------------------------------------------------------
-*/
+
+
 
 function formatCountdown(
   seconds:
@@ -322,7 +339,7 @@ function formatCountdown(
   const minutes =
     Math.floor(
       seconds /
-        60
+      60
     )
 
   const remaining =
@@ -335,36 +352,33 @@ function formatCountdown(
       2,
       '0'
     )}:${remaining
-    .toString()
-    .padStart(
-      2,
-      '0'
-    )}`
+      .toString()
+      .padStart(
+        2,
+        '0'
+      )}`
 }
 
-/*
-|--------------------------------------------------------------------------
-| Component
-|--------------------------------------------------------------------------
-*/
+
+
+
 
 export default function AuthForm({
   defaultTab =
-    'login',
+  'login',
 
   userType =
-    'lawyer',
+  'lawyer',
 
   selectedPlanKey,
 }: AuthFormProps) {
   const router =
     useRouter()
 
-  /*
-  |--------------------------------------------------------------------------
-  | Auth Store
-  |--------------------------------------------------------------------------
-  */
+ 
+
+
+
 
   const login =
     useAuthStore(
@@ -396,11 +410,8 @@ export default function AuthForm({
         state.clearError
     )
 
-  /*
-  |--------------------------------------------------------------------------
-  | Main Tabs
-  |--------------------------------------------------------------------------
-  */
+
+
 
   const [
     activeTab,
@@ -412,11 +423,9 @@ export default function AuthForm({
       defaultTab
     )
 
-  /*
-  |--------------------------------------------------------------------------
-  | Login Method
-  |--------------------------------------------------------------------------
-  */
+ 
+    
+
 
   const [
     loginMethod,
@@ -426,11 +435,9 @@ export default function AuthForm({
       'password'
     )
 
-  /*
-  |--------------------------------------------------------------------------
-  | Password Visibility
-  |--------------------------------------------------------------------------
-  */
+
+
+
 
   const [
     showLoginPassword,
@@ -444,11 +451,9 @@ export default function AuthForm({
   ] =
     useState(false)
 
-  /*
-  |--------------------------------------------------------------------------
-  | OTP State
-  |--------------------------------------------------------------------------
-  */
+
+
+
 
   const [
     otpChallenge,
@@ -500,24 +505,20 @@ export default function AuthForm({
       0
     )
 
-  /*
-  |--------------------------------------------------------------------------
-  | Plan
-  |--------------------------------------------------------------------------
-  */
+ 
+
+
 
   const selectedPlan =
     selectedPlanKey
       ? getSubscriptionPlan(
-          selectedPlanKey
-        )
+        selectedPlanKey
+      )
       : undefined
 
-  /*
-  |--------------------------------------------------------------------------
-  | Forms
-  |--------------------------------------------------------------------------
-  */
+
+
+
 
   const loginForm =
     useForm<LoginFormData>({
@@ -573,11 +574,8 @@ export default function AuthForm({
       },
     })
 
-  /*
-  |--------------------------------------------------------------------------
-  | OTP Timer
-  |--------------------------------------------------------------------------
-  */
+
+
 
   useEffect(() => {
     if (
@@ -593,7 +591,7 @@ export default function AuthForm({
             (current) =>
               Math.max(
                 current -
-                  1,
+                1,
                 0
               )
           )
@@ -602,7 +600,7 @@ export default function AuthForm({
             (current) =>
               Math.max(
                 current -
-                  1,
+                1,
                 0
               )
           )
@@ -619,15 +617,14 @@ export default function AuthForm({
     otpChallenge,
   ])
 
-  /*
-  |--------------------------------------------------------------------------
-  | Helpers
-  |--------------------------------------------------------------------------
-  */
+ 
+
+
+
 
   const userTitle =
     userType ===
-    'lawyer'
+      'lawyer'
       ? 'وکلا'
       : 'موکلین'
 
@@ -645,7 +642,7 @@ export default function AuthForm({
       if (
         !selectedPlanKey ||
         typeof window ===
-          'undefined'
+        'undefined'
       ) {
         return
       }
@@ -656,11 +653,10 @@ export default function AuthForm({
       )
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Reset OTP State
-  |--------------------------------------------------------------------------
-  */
+  
+
+
+
 
   const resetOtpFlow =
     () => {
@@ -685,11 +681,10 @@ export default function AuthForm({
       )
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Change Main Tab
-  |--------------------------------------------------------------------------
-  */
+
+
+
+
 
   const changeTab =
     (
@@ -711,11 +706,10 @@ export default function AuthForm({
       }
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Change Login Method
-  |--------------------------------------------------------------------------
-  */
+ 
+
+
+
 
   const changeLoginMethod =
     (
@@ -737,11 +731,10 @@ export default function AuthForm({
       }
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Password Login
-  |--------------------------------------------------------------------------
-  */
+ 
+
+
+
 
   const handlePasswordLogin =
     async (
@@ -769,11 +762,8 @@ export default function AuthForm({
       }
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Signup
-  |--------------------------------------------------------------------------
-  */
+  
+
 
   const handleSignup =
     async (
@@ -795,20 +785,20 @@ export default function AuthForm({
 
           ...(data.email
             ? {
-                email:
-                  data.email
-                    .trim()
-                    .toLowerCase(),
-              }
+              email:
+                data.email
+                  .trim()
+                  .toLowerCase(),
+            }
             : {}),
 
           ...(data.phone
             ? {
-                phone:
-                  normalizeDigits(
-                    data.phone
-                  ).trim(),
-              }
+              phone:
+                normalizeDigits(
+                  data.phone
+                ).trim(),
+            }
             : {}),
         })
 
@@ -822,11 +812,9 @@ export default function AuthForm({
       }
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Request OTP
-  |--------------------------------------------------------------------------
-  */
+  
+
+
 
   const handleRequestOtp =
     async (
@@ -863,8 +851,8 @@ export default function AuthForm({
           challenge.resendAfter
         )
       } catch (
-        error:
-          unknown
+      error:
+        unknown
       ) {
         setOtpError(
           getLoginOtpErrorMessage(
@@ -879,11 +867,9 @@ export default function AuthForm({
       }
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Verify OTP
-  |--------------------------------------------------------------------------
-  */
+  
+
+
 
   const handleVerifyOtp =
     async () => {
@@ -933,8 +919,8 @@ export default function AuthForm({
           '/dashboard'
         )
       } catch (
-        error:
-          unknown
+      error:
+        unknown
       ) {
         setOtpError(
           getLoginOtpErrorMessage(
@@ -949,18 +935,16 @@ export default function AuthForm({
       }
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Resend OTP
-  |--------------------------------------------------------------------------
-  */
+ 
+
+
 
   const handleResendOtp =
     async () => {
       if (
         !otpChallenge ||
         resendSeconds >
-          0
+        0
       ) {
         return
       }
@@ -995,8 +979,8 @@ export default function AuthForm({
           challenge.resendAfter
         )
       } catch (
-        error:
-          unknown
+      error:
+        unknown
       ) {
         setOtpError(
           getLoginOtpErrorMessage(
@@ -1011,11 +995,7 @@ export default function AuthForm({
       }
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Loading
-  |--------------------------------------------------------------------------
-  */
+
 
   const passwordLoginLoading =
     loginForm.formState
@@ -1027,11 +1007,8 @@ export default function AuthForm({
       .isSubmitting ||
     isLoading
 
-  /*
-  |--------------------------------------------------------------------------
-  | Render
-  |--------------------------------------------------------------------------
-  */
+  
+
 
   return (
     <div
@@ -1039,9 +1016,8 @@ export default function AuthForm({
       className="relative mx-auto h-[calc(100dvh-1rem)] max-h-[760px] w-full max-w-6xl overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl shadow-slate-300/50 sm:h-[calc(100dvh-2rem)] sm:rounded-[32px]"
     >
       <div className="grid h-full grid-cols-1 lg:grid-cols-2">
-        {/* ==========================================================
-         * Brand Side
-         * ======================================================== */}
+
+
 
         <aside className="relative hidden overflow-hidden border-l border-slate-200 bg-gradient-to-br from-blue-100 via-slate-50 to-emerald-50 p-9 lg:flex lg:flex-col lg:justify-between">
           <div className="pointer-events-none absolute inset-0">
@@ -1097,25 +1073,22 @@ export default function AuthForm({
           </div>
         </aside>
 
-        {/* ==========================================================
-         * Form Side
-         * ======================================================== */}
+
+
 
         <section
-          className={`relative flex h-full min-h-0 flex-col justify-center overflow-hidden ${
-            isRegister
+          className={`relative flex h-full min-h-0 flex-col justify-center overflow-hidden ${isRegister
               ? 'p-3 sm:p-5 lg:p-6'
               : 'p-5 sm:p-8 lg:p-10'
-          }`}
+            }`}
         >
           {/* Mobile */}
 
           <div
-            className={`flex items-center justify-between lg:hidden ${
-              isRegister
+            className={`flex items-center justify-between lg:hidden ${isRegister
                 ? 'mb-2'
                 : 'mb-5'
-            }`}
+              }`}
           >
             <Link
               href={backHref}
@@ -1139,11 +1112,10 @@ export default function AuthForm({
             }
           >
             <div
-              className={`flex items-center justify-center rounded-2xl bg-blue-100 text-blue-700 ${
-                isRegister
+              className={`flex items-center justify-center rounded-2xl bg-blue-100 text-blue-700 ${isRegister
                   ? 'mb-5 h-10 w-10'
                   : 'mb-4 h-12 w-12'
-              }`}
+                }`}
             >
               <ShieldCheck
                 size={
@@ -1155,11 +1127,10 @@ export default function AuthForm({
             </div>
 
             <h2
-              className={`font-black text-slate-950 ${
-                isRegister
+              className={`font-black text-slate-950 ${isRegister
                   ? 'text-2xl'
                   : 'text-2xl sm:text-3xl'
-              }`}
+                }`}
             >
               {isRegister
                 ? `ثبت‌نام ${userTitle}`
@@ -1167,11 +1138,10 @@ export default function AuthForm({
             </h2>
 
             <p
-              className={`font-semibold text-slate-700 ${
-                isRegister
+              className={`font-semibold text-slate-700 ${isRegister
                   ? 'mt-1 text-xs sm:text-sm'
                   : 'mt-2 text-sm sm:text-base'
-              }`}
+                }`}
             >
               {isRegister
                 ? 'اطلاعات زیر را برای ساخت حساب تکمیل کنید.'
@@ -1183,11 +1153,10 @@ export default function AuthForm({
 
           {selectedPlan && (
             <div
-              className={`rounded-xl border border-blue-200 bg-blue-50 px-3 font-bold text-blue-800 ${
-                isRegister
+              className={`rounded-xl border border-blue-200 bg-blue-50 px-3 font-bold text-blue-800 ${isRegister
                   ? 'mb-2 py-1.5 text-xs'
                   : 'mb-3 py-2 text-sm'
-              }`}
+                }`}
             >
               پلن انتخابی:
               {' '}
@@ -1200,11 +1169,10 @@ export default function AuthForm({
           {/* Main Auth Tabs */}
 
           <div
-            className={`flex rounded-2xl border border-slate-200 bg-slate-100 p-1 ${
-              isRegister
+            className={`flex rounded-2xl border border-slate-200 bg-slate-100 p-1 ${isRegister
                 ? 'mb-3'
                 : 'mb-4'
-            }`}
+              }`}
           >
             <button
               type="button"
@@ -1213,16 +1181,14 @@ export default function AuthForm({
                   'login'
                 )
               }
-              className={`flex-1 rounded-xl px-3 font-black transition ${
-                isRegister
+              className={`flex-1 rounded-xl px-3 font-black transition ${isRegister
                   ? 'py-2 text-sm'
                   : 'py-3 text-base'
-              } ${
-                activeTab ===
-                'login'
+                } ${activeTab ===
+                  'login'
                   ? 'bg-white text-blue-700 shadow-sm'
                   : 'text-slate-600'
-              }`}
+                }`}
             >
               ورود
             </button>
@@ -1234,24 +1200,19 @@ export default function AuthForm({
                   'register'
                 )
               }
-              className={`flex-1 rounded-xl px-3 font-black transition ${
-                isRegister
+              className={`flex-1 rounded-xl px-3 font-black transition ${isRegister
                   ? 'py-2 text-sm'
                   : 'py-3 text-base'
-              } ${
-                activeTab ===
-                'register'
+                } ${activeTab ===
+                  'register'
                   ? 'bg-white text-blue-700 shadow-sm'
                   : 'text-slate-600'
-              }`}
+                }`}
             >
               ثبت‌نام
             </button>
           </div>
 
-          {/* ========================================================
-           * LOGIN
-           * ====================================================== */}
 
           {!isRegister && (
             <>
@@ -1265,12 +1226,11 @@ export default function AuthForm({
                       'password'
                     )
                   }
-                  className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-black transition ${
-                    loginMethod ===
-                    'password'
+                  className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-black transition ${loginMethod ===
+                      'password'
                       ? 'border-blue-300 bg-blue-50 text-blue-700'
                       : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                  }`}
+                    }`}
                 >
                   <LockKeyhole
                     size={17}
@@ -1286,12 +1246,11 @@ export default function AuthForm({
                       'otp'
                     )
                   }
-                  className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-black transition ${
-                    loginMethod ===
-                    'otp'
+                  className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-black transition ${loginMethod ===
+                      'otp'
                       ? 'border-blue-300 bg-blue-50 text-blue-700'
                       : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                  }`}
+                    }`}
                 >
                   <Smartphone
                     size={17}
@@ -1306,27 +1265,24 @@ export default function AuthForm({
               {loginMethod ===
                 'password' &&
                 authError && (
-                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
-                  {authError}
-                </div>
-              )}
+                  <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+                    {authError}
+                  </div>
+                )}
 
               {/* OTP Error */}
 
               {loginMethod ===
                 'otp' &&
                 otpError && (
-                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
-                  {otpError}
-                </div>
-              )}
+                  <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+                    {otpError}
+                  </div>
+                )}
 
-              {/* ====================================================
-               * PASSWORD LOGIN
-               * ================================================== */}
 
               {loginMethod ===
-              'password' ? (
+                'password' ? (
                 <form
                   onSubmit={
                     loginForm.handleSubmit(
@@ -1370,20 +1326,20 @@ export default function AuthForm({
                       .formState
                       .errors
                       .identifier && (
-                      <p
-                        className={
-                          errorClassName
-                        }
-                      >
-                        {
-                          loginForm
-                            .formState
-                            .errors
-                            .identifier
-                            .message
-                        }
-                      </p>
-                    )}
+                        <p
+                          className={
+                            errorClassName
+                          }
+                        >
+                          {
+                            loginForm
+                              .formState
+                              .errors
+                              .identifier
+                              .message
+                          }
+                        </p>
+                      )}
                   </div>
 
                   <div>
@@ -1446,20 +1402,20 @@ export default function AuthForm({
                       .formState
                       .errors
                       .password && (
-                      <p
-                        className={
-                          errorClassName
-                        }
-                      >
-                        {
-                          loginForm
-                            .formState
-                            .errors
-                            .password
-                            .message
-                        }
-                      </p>
-                    )}
+                        <p
+                          className={
+                            errorClassName
+                          }
+                        >
+                          {
+                            loginForm
+                              .formState
+                              .errors
+                              .password
+                              .message
+                          }
+                        </p>
+                      )}
                   </div>
 
                   <button
@@ -1479,9 +1435,9 @@ export default function AuthForm({
                   </button>
                 </form>
               ) : (
-                /* ==================================================
-                 * OTP LOGIN
-                 * ================================================== */
+
+
+                
 
                 <>
                   {!otpChallenge ? (
@@ -1531,20 +1487,20 @@ export default function AuthForm({
                           .formState
                           .errors
                           .identifier && (
-                          <p
-                            className={
-                              errorClassName
-                            }
-                          >
-                            {
-                              otpIdentifierForm
-                                .formState
-                                .errors
-                                .identifier
-                                .message
-                            }
-                          </p>
-                        )}
+                            <p
+                              className={
+                                errorClassName
+                              }
+                            >
+                              {
+                                otpIdentifierForm
+                                  .formState
+                                  .errors
+                                  .identifier
+                                  .message
+                              }
+                            </p>
+                          )}
                       </div>
 
                       <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
@@ -1642,10 +1598,10 @@ export default function AuthForm({
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                         <span className="text-xs font-bold text-slate-500 sm:text-sm">
                           {otpExpiresIn >
-                          0
+                            0
                             ? `اعتبار کد: ${formatCountdown(
-                                otpExpiresIn
-                              )}`
+                              otpExpiresIn
+                            )}`
                             : 'کد منقضی شده است'}
                         </span>
 
@@ -1657,7 +1613,7 @@ export default function AuthForm({
                           disabled={
                             otpLoading ||
                             resendSeconds >
-                              0
+                            0
                           }
                           className="inline-flex items-center gap-1.5 text-xs font-black text-blue-700 disabled:text-slate-400 sm:text-sm"
                         >
@@ -1671,10 +1627,10 @@ export default function AuthForm({
                           />
 
                           {resendSeconds >
-                          0
+                            0
                             ? `ارسال مجدد ${formatCountdown(
-                                resendSeconds
-                              )}`
+                              resendSeconds
+                            )}`
                             : 'ارسال مجدد'}
                         </button>
                       </div>
@@ -1687,7 +1643,7 @@ export default function AuthForm({
                         disabled={
                           otpLoading ||
                           otpCode.length !==
-                            LOGIN_OTP_LENGTH
+                          LOGIN_OTP_LENGTH
                         }
                         className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-600 to-blue-700 text-base font-black text-white shadow-lg shadow-blue-200 transition disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -1730,9 +1686,6 @@ export default function AuthForm({
             </>
           )}
 
-          {/* ========================================================
-           * REGISTER
-           * ====================================================== */}
 
           {isRegister && (
             <>
@@ -1752,6 +1705,7 @@ export default function AuthForm({
                 noValidate
               >
                 <div className="grid grid-cols-2 gap-2.5">
+                  {/* First Name */}
                   <div>
                     <label
                       htmlFor="signup-first-name"
@@ -1771,13 +1725,36 @@ export default function AuthForm({
                             clearAuthError,
                         }
                       )}
+                      autoComplete="given-name"
+                      disabled={
+                        signupLoading
+                      }
                       className={
                         inputClassName
                       }
                       placeholder="نام"
                     />
+                    {signupForm
+                      .formState
+                      .errors
+                      .firstName && (
+                        <p
+                          className={
+                            errorClassName
+                          }
+                        >
+                          {
+                            signupForm
+                              .formState
+                              .errors
+                              .firstName
+                              .message
+                          }
+                        </p>
+                      )}
                   </div>
 
+                  {/* Last Name */}
                   <div>
                     <label
                       htmlFor="signup-last-name"
@@ -1797,14 +1774,37 @@ export default function AuthForm({
                             clearAuthError,
                         }
                       )}
+                      autoComplete="family-name"
+                      disabled={
+                        signupLoading
+                      }
                       className={
                         inputClassName
-                      }
-                      placeholder="نام خانوادگی"
+                      } placeholder="نام خانوادگی"
                     />
+
+                    {signupForm
+                      .formState
+                      .errors
+                      .lastName && (
+                        <p
+                          className={
+                            errorClassName
+                          }
+                        >
+                          {
+                            signupForm
+                              .formState
+                              .errors
+                              .lastName
+                              .message
+                          }
+                        </p>
+                      )}
                   </div>
                 </div>
 
+                {/* Email */}
                 <div>
                   <label
                     htmlFor="signup-email"
@@ -1825,13 +1825,37 @@ export default function AuthForm({
                       }
                     )}
                     dir="ltr"
+                    type="email" autoComplete="email"
+                    disabled={
+                      signupLoading
+                    }
                     className={
                       inputClassName
                     }
                     placeholder="example@gmail.com"
                   />
+
+                  {signupForm
+                    .formState
+                    .errors
+                    .email && (
+                      <p
+                        className={
+                          errorClassName
+                        }
+                      >
+                        {
+                          signupForm
+                            .formState
+                            .errors
+                            .email
+                            .message
+                        }
+                      </p>
+                    )}
                 </div>
 
+                {/* Phone */}
                 <div>
                   <label
                     htmlFor="signup-phone"
@@ -1852,14 +1876,39 @@ export default function AuthForm({
                       }
                     )}
                     dir="ltr"
+                    type="tel"
                     inputMode="numeric"
+                    autoComplete="tel"
+                    disabled={
+                      signupLoading
+                    }
                     className={
                       inputClassName
                     }
                     placeholder="09123456789"
                   />
+
+                  {signupForm
+                    .formState
+                    .errors
+                    .phone && (
+                      <p
+                        className={
+                          errorClassName
+                        }
+                      >
+                        {
+                          signupForm
+                            .formState
+                            .errors
+                            .phone
+                            .message
+                        }
+                      </p>
+                    )}
                 </div>
 
+                {/* Password */}
                 <div>
                   <label
                     htmlFor="signup-password"
@@ -1868,9 +1917,7 @@ export default function AuthForm({
                     }
                   >
                     رمز عبور
-                  </label>
-
-                  <div className="relative">
+                  </label> <div className="relative">
                     <input
                       id="signup-password"
                       {...signupForm.register(
@@ -1886,8 +1933,12 @@ export default function AuthForm({
                           : 'password'
                       }
                       dir="ltr"
+                      autoComplete="new-password"
+                      disabled={
+                        signupLoading
+                      }
                       className={`${inputClassName} pr-14`}
-                      placeholder="حداقل ۶ کاراکتر"
+                      placeholder="حداقل ۸ کاراکتر"
                     />
 
                     <button
@@ -1898,7 +1949,15 @@ export default function AuthForm({
                             !current
                         )
                       }
-                      className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-blue-700"
+                      disabled={
+                        signupLoading
+                      }
+                      aria-label={
+                        showSignupPassword
+                          ? 'مخفی کردن رمز عبور'
+                          : 'نمایش رمز عبور'
+                      }
+                      className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {showSignupPassword ? (
                         <EyeOff
@@ -1911,6 +1970,25 @@ export default function AuthForm({
                       )}
                     </button>
                   </div>
+
+                  {signupForm
+                    .formState
+                    .errors
+                    .password && (
+                      <p
+                        className={
+                          errorClassName
+                        }
+                      >
+                        {
+                          signupForm
+                            .formState
+                            .errors
+                            .password
+                            .message
+                        }
+                      </p>
+                    )}
                 </div>
 
                 <button
@@ -1918,30 +1996,39 @@ export default function AuthForm({
                   disabled={
                     signupLoading
                   }
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-blue-600 to-blue-700 text-sm font-black text-white shadow-lg shadow-blue-200 transition disabled:opacity-60 sm:h-14 sm:rounded-2xl sm:text-base"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-blue-600 to-blue-700 text-sm font-black text-white shadow-lg shadow-blue-200 transition disabled:cursor-not-allowed disabled:opacity-60 sm:h-14 sm:rounded-2xl sm:text-base"
                 >
-                  <UserPlus
-                    size={20}
-                  />
+                  {signupLoading ? (
+                    <>
+                      <LoaderCircle
+                        size={20}
+                        className="animate-spin"
+                      />
 
-                  {signupLoading
-                    ? 'در حال ثبت‌نام...'
-                    : `ثبت‌نام ${userTitle}`}
+                      در حال ثبت‌نام...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus
+                        size={20}
+                      />
+                      {`ثبت‌نام ${userTitle}`}
+                    </>
+                  )}
                 </button>
               </form>
             </>
           )}
 
-          {/* ========================================================
-           * Bottom Switch
-           * ====================================================== */}
+
+
+
 
           <div
-            className={`text-center font-semibold text-slate-700 ${
-              isRegister
+            className={`text-center font-semibold text-slate-700 ${isRegister
                 ? 'mt-2 text-xs sm:text-sm'
                 : 'mt-5 text-sm sm:text-base'
-            }`}
+              }`}
           >
             {isRegister
               ? 'قبلاً حساب ساخته‌اید؟ '
