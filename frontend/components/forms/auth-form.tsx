@@ -1,21 +1,27 @@
 'use client'
 
 import {
+  useEffect,
   useState,
 } from 'react'
-
-import Link from 'next/link'
 
 import {
   useRouter,
 } from 'next/navigation'
 
+import Link from 'next/link'
+
 import {
   Eye,
   EyeOff,
   KeyRound,
+  LoaderCircle,
+  LockKeyhole,
   LogIn,
+  MailCheck,
+  RefreshCw,
   ShieldCheck,
+  Smartphone,
   UserPlus,
 } from 'lucide-react'
 
@@ -31,16 +37,35 @@ import {
   zodResolver,
 } from '@hookform/resolvers/zod'
 
+import OtpCodeInput from '@/components/forms/OtpCodeInput'
+
 import {
   useAuthStore,
 } from '@/store/auth.store'
+
+import {
+  completeOtpAuthentication,
+} from '@/features/auth/auth-session'
+
+import {
+  LOGIN_OTP_LENGTH,
+  getLoginOtpErrorMessage,
+  requestLoginOtp,
+  resendLoginOtp,
+  verifyLoginOtp,
+  type LoginOtpChallenge,
+} from '@/features/auth/api/otp-login.api'
 
 import {
   getSubscriptionPlan,
   type SubscriptionPlanKey,
 } from '@/lib/subscription-plans'
 
-
+/*
+|--------------------------------------------------------------------------
+| Validation
+|--------------------------------------------------------------------------
+*/
 
 const EMAIL_PATTERN =
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -79,6 +104,12 @@ function normalizeDigits(
     )
 }
 
+/*
+|--------------------------------------------------------------------------
+| Password Login
+|--------------------------------------------------------------------------
+*/
+
 const loginSchema =
   z.object({
     identifier:
@@ -112,6 +143,43 @@ const loginSchema =
         ),
   })
 
+/*
+|--------------------------------------------------------------------------
+| OTP Identifier
+|--------------------------------------------------------------------------
+*/
+
+const otpIdentifierSchema =
+  z.object({
+    identifier:
+      z
+        .string()
+        .trim()
+        .min(
+          1,
+          'ایمیل یا شماره همراه را وارد کنید'
+        )
+        .refine(
+          (value) =>
+            EMAIL_PATTERN.test(
+              value
+            ) ||
+            MOBILE_PATTERN.test(
+              normalizeDigits(
+                value
+              )
+            ),
+
+          'ایمیل یا شماره همراه معتبر نیست'
+        ),
+  })
+
+/*
+|--------------------------------------------------------------------------
+| Signup
+|--------------------------------------------------------------------------
+*/
+
 const signupSchema =
   z
     .object({
@@ -139,8 +207,7 @@ const signupSchema =
           .trim()
           .refine(
             (value) =>
-              value ===
-                '' ||
+              value === '' ||
               EMAIL_PATTERN.test(
                 value
               ),
@@ -154,8 +221,7 @@ const signupSchema =
           .trim()
           .refine(
             (value) =>
-              value ===
-                '' ||
+              value === '' ||
               MOBILE_PATTERN.test(
                 normalizeDigits(
                   value
@@ -203,10 +269,19 @@ type LoginFormData =
     typeof loginSchema
   >
 
+type OtpIdentifierFormData =
+  z.infer<
+    typeof otpIdentifierSchema
+  >
+
 type SignupFormData =
   z.infer<
     typeof signupSchema
   >
+
+type LoginMethod =
+  | 'password'
+  | 'otp'
 
 interface AuthFormProps {
   defaultTab?:
@@ -219,6 +294,11 @@ interface AuthFormProps {
     SubscriptionPlanKey
 }
 
+/*
+|--------------------------------------------------------------------------
+| UI
+|--------------------------------------------------------------------------
+*/
 
 const inputClassName =
   'h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-950 outline-none transition placeholder:text-slate-400 hover:border-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60 sm:h-14 sm:rounded-2xl sm:text-base'
@@ -229,7 +309,44 @@ const labelClassName =
 const errorClassName =
   'mt-1 text-xs font-bold text-red-600 sm:text-sm'
 
+/*
+|--------------------------------------------------------------------------
+| Countdown
+|--------------------------------------------------------------------------
+*/
 
+function formatCountdown(
+  seconds:
+    number
+): string {
+  const minutes =
+    Math.floor(
+      seconds /
+        60
+    )
+
+  const remaining =
+    seconds %
+    60
+
+  return `${minutes
+    .toString()
+    .padStart(
+      2,
+      '0'
+    )}:${remaining
+    .toString()
+    .padStart(
+      2,
+      '0'
+    )}`
+}
+
+/*
+|--------------------------------------------------------------------------
+| Component
+|--------------------------------------------------------------------------
+*/
 
 export default function AuthForm({
   defaultTab =
@@ -243,7 +360,11 @@ export default function AuthForm({
   const router =
     useRouter()
 
-  
+  /*
+  |--------------------------------------------------------------------------
+  | Auth Store
+  |--------------------------------------------------------------------------
+  */
 
   const login =
     useAuthStore(
@@ -263,19 +384,23 @@ export default function AuthForm({
         state.isLoading
     )
 
-  const error =
+  const authError =
     useAuthStore(
       (state) =>
         state.error
     )
 
-  const clearError =
+  const clearAuthError =
     useAuthStore(
       (state) =>
         state.clearError
     )
 
-  
+  /*
+  |--------------------------------------------------------------------------
+  | Main Tabs
+  |--------------------------------------------------------------------------
+  */
 
   const [
     activeTab,
@@ -287,23 +412,99 @@ export default function AuthForm({
       defaultTab
     )
 
+  /*
+  |--------------------------------------------------------------------------
+  | Login Method
+  |--------------------------------------------------------------------------
+  */
+
+  const [
+    loginMethod,
+    setLoginMethod,
+  ] =
+    useState<LoginMethod>(
+      'password'
+    )
+
+  /*
+  |--------------------------------------------------------------------------
+  | Password Visibility
+  |--------------------------------------------------------------------------
+  */
+
   const [
     showLoginPassword,
     setShowLoginPassword,
   ] =
-    useState(
-      false
-    )
+    useState(false)
 
   const [
     showSignupPassword,
     setShowSignupPassword,
   ] =
-    useState(
-      false
+    useState(false)
+
+  /*
+  |--------------------------------------------------------------------------
+  | OTP State
+  |--------------------------------------------------------------------------
+  */
+
+  const [
+    otpChallenge,
+    setOtpChallenge,
+  ] =
+    useState<
+      LoginOtpChallenge | null
+    >(
+      null
     )
 
-  
+  const [
+    otpCode,
+    setOtpCode,
+  ] =
+    useState(
+      ''
+    )
+
+  const [
+    otpLoading,
+    setOtpLoading,
+  ] =
+    useState(false)
+
+  const [
+    otpError,
+    setOtpError,
+  ] =
+    useState<
+      string | null
+    >(
+      null
+    )
+
+  const [
+    otpExpiresIn,
+    setOtpExpiresIn,
+  ] =
+    useState(
+      0
+    )
+
+  const [
+    resendSeconds,
+    setResendSeconds,
+  ] =
+    useState(
+      0
+    )
+
+  /*
+  |--------------------------------------------------------------------------
+  | Plan
+  |--------------------------------------------------------------------------
+  */
 
   const selectedPlan =
     selectedPlanKey
@@ -312,15 +513,11 @@ export default function AuthForm({
         )
       : undefined
 
-  
-
-  const title =
-    userType ===
-    'lawyer'
-      ? 'وکلا'
-      : 'موکلین'
-
- 
+  /*
+  |--------------------------------------------------------------------------
+  | Forms
+  |--------------------------------------------------------------------------
+  */
 
   const loginForm =
     useForm<LoginFormData>({
@@ -334,6 +531,19 @@ export default function AuthForm({
           '',
 
         password:
+          '',
+      },
+    })
+
+  const otpIdentifierForm =
+    useForm<OtpIdentifierFormData>({
+      resolver:
+        zodResolver(
+          otpIdentifierSchema
+        ),
+
+      defaultValues: {
+        identifier:
           '',
       },
     })
@@ -363,7 +573,72 @@ export default function AuthForm({
       },
     })
 
-  
+  /*
+  |--------------------------------------------------------------------------
+  | OTP Timer
+  |--------------------------------------------------------------------------
+  */
+
+  useEffect(() => {
+    if (
+      !otpChallenge
+    ) {
+      return
+    }
+
+    const timer =
+      window.setInterval(
+        () => {
+          setOtpExpiresIn(
+            (current) =>
+              Math.max(
+                current -
+                  1,
+                0
+              )
+          )
+
+          setResendSeconds(
+            (current) =>
+              Math.max(
+                current -
+                  1,
+                0
+              )
+          )
+        },
+        1000
+      )
+
+    return () => {
+      window.clearInterval(
+        timer
+      )
+    }
+  }, [
+    otpChallenge,
+  ])
+
+  /*
+  |--------------------------------------------------------------------------
+  | Helpers
+  |--------------------------------------------------------------------------
+  */
+
+  const userTitle =
+    userType ===
+    'lawyer'
+      ? 'وکلا'
+      : 'موکلین'
+
+  const isRegister =
+    activeTab ===
+    'register'
+
+  const backHref =
+    selectedPlanKey
+      ? `/launch?plan=${selectedPlanKey}`
+      : '/launch'
 
   const rememberSelectedPlan =
     () => {
@@ -381,28 +656,99 @@ export default function AuthForm({
       )
     }
 
- 
+  /*
+  |--------------------------------------------------------------------------
+  | Reset OTP State
+  |--------------------------------------------------------------------------
+  */
+
+  const resetOtpFlow =
+    () => {
+      setOtpChallenge(
+        null
+      )
+
+      setOtpCode(
+        ''
+      )
+
+      setOtpError(
+        null
+      )
+
+      setOtpExpiresIn(
+        0
+      )
+
+      setResendSeconds(
+        0
+      )
+    }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Change Main Tab
+  |--------------------------------------------------------------------------
+  */
 
   const changeTab =
     (
       tab:
         'login' | 'register'
     ) => {
-      clearError()
+      clearAuthError()
+      setOtpError(null)
 
       setActiveTab(
         tab
       )
+
+      if (
+        tab ===
+        'register'
+      ) {
+        resetOtpFlow()
+      }
     }
 
- 
+  /*
+  |--------------------------------------------------------------------------
+  | Change Login Method
+  |--------------------------------------------------------------------------
+  */
 
-  const handleLogin =
+  const changeLoginMethod =
+    (
+      method:
+        LoginMethod
+    ) => {
+      clearAuthError()
+      setOtpError(null)
+
+      setLoginMethod(
+        method
+      )
+
+      if (
+        method ===
+        'password'
+      ) {
+        resetOtpFlow()
+      }
+    }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Password Login
+  |--------------------------------------------------------------------------
+  */
+
+  const handlePasswordLogin =
     async (
       data:
         LoginFormData
     ) => {
-      clearError()
+      clearAuthError()
 
       try {
         await login({
@@ -419,18 +765,22 @@ export default function AuthForm({
           '/dashboard'
         )
       } catch {
-       
+        // auth.store exposes error.
       }
     }
 
-  
+  /*
+  |--------------------------------------------------------------------------
+  | Signup
+  |--------------------------------------------------------------------------
+  */
 
   const handleSignup =
     async (
       data:
         SignupFormData
     ) => {
-      clearError()
+      clearAuthError()
 
       try {
         await signup({
@@ -468,42 +818,230 @@ export default function AuthForm({
           '/dashboard'
         )
       } catch {
-    
+        // auth.store exposes error.
       }
     }
 
-  
-  const isRegister =
-    activeTab ===
-    'register'
+  /*
+  |--------------------------------------------------------------------------
+  | Request OTP
+  |--------------------------------------------------------------------------
+  */
 
-  const isLoginSubmitting =
+  const handleRequestOtp =
+    async (
+      data:
+        OtpIdentifierFormData
+    ) => {
+      setOtpError(
+        null
+      )
+
+      setOtpLoading(
+        true
+      )
+
+      try {
+        const challenge =
+          await requestLoginOtp(
+            data.identifier
+          )
+
+        setOtpChallenge(
+          challenge
+        )
+
+        setOtpCode(
+          ''
+        )
+
+        setOtpExpiresIn(
+          challenge.expiresIn
+        )
+
+        setResendSeconds(
+          challenge.resendAfter
+        )
+      } catch (
+        error:
+          unknown
+      ) {
+        setOtpError(
+          getLoginOtpErrorMessage(
+            error,
+            'ارسال کد ورود ناموفق بود.'
+          )
+        )
+      } finally {
+        setOtpLoading(
+          false
+        )
+      }
+    }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Verify OTP
+  |--------------------------------------------------------------------------
+  */
+
+  const handleVerifyOtp =
+    async () => {
+      if (
+        !otpChallenge
+      ) {
+        return
+      }
+
+      if (
+        otpCode.length !==
+        LOGIN_OTP_LENGTH
+      ) {
+        setOtpError(
+          `کد ${LOGIN_OTP_LENGTH.toLocaleString(
+            'fa-IR'
+          )} رقمی را کامل وارد کنید.`
+        )
+
+        return
+      }
+
+      setOtpError(
+        null
+      )
+
+      setOtpLoading(
+        true
+      )
+
+      try {
+        const session =
+          await verifyLoginOtp(
+            otpChallenge.challengeId,
+            otpCode
+          )
+
+        completeOtpAuthentication(
+          session
+        )
+
+        rememberSelectedPlan()
+
+        resetOtpFlow()
+
+        router.replace(
+          '/dashboard'
+        )
+      } catch (
+        error:
+          unknown
+      ) {
+        setOtpError(
+          getLoginOtpErrorMessage(
+            error,
+            'کد ورود اشتباه یا منقضی شده است.'
+          )
+        )
+      } finally {
+        setOtpLoading(
+          false
+        )
+      }
+    }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Resend OTP
+  |--------------------------------------------------------------------------
+  */
+
+  const handleResendOtp =
+    async () => {
+      if (
+        !otpChallenge ||
+        resendSeconds >
+          0
+      ) {
+        return
+      }
+
+      setOtpError(
+        null
+      )
+
+      setOtpLoading(
+        true
+      )
+
+      try {
+        const challenge =
+          await resendLoginOtp(
+            otpChallenge.challengeId
+          )
+
+        setOtpChallenge(
+          challenge
+        )
+
+        setOtpCode(
+          ''
+        )
+
+        setOtpExpiresIn(
+          challenge.expiresIn
+        )
+
+        setResendSeconds(
+          challenge.resendAfter
+        )
+      } catch (
+        error:
+          unknown
+      ) {
+        setOtpError(
+          getLoginOtpErrorMessage(
+            error,
+            'ارسال مجدد کد ورود ناموفق بود.'
+          )
+        )
+      } finally {
+        setOtpLoading(
+          false
+        )
+      }
+    }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Loading
+  |--------------------------------------------------------------------------
+  */
+
+  const passwordLoginLoading =
     loginForm.formState
       .isSubmitting ||
     isLoading
 
-  const isSignupSubmitting =
+  const signupLoading =
     signupForm.formState
       .isSubmitting ||
     isLoading
 
-  const backHref =
-    selectedPlanKey
-      ? `/launch?plan=${selectedPlanKey}`
-      : '/launch'
+  /*
+  |--------------------------------------------------------------------------
+  | Render
+  |--------------------------------------------------------------------------
+  */
 
-  const forgotPasswordHref =
-    selectedPlanKey
-      ? `/forgot-password?plan=${selectedPlanKey}`
-      : '/forgot-password'
-
-   
   return (
     <div
       dir="rtl"
       className="relative mx-auto h-[calc(100dvh-1rem)] max-h-[760px] w-full max-w-6xl overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl shadow-slate-300/50 sm:h-[calc(100dvh-2rem)] sm:rounded-[32px]"
     >
-      <div className="grid h-full grid-cols-1 lg:grid-cols-2"> 
+      <div className="grid h-full grid-cols-1 lg:grid-cols-2">
+        {/* ==========================================================
+         * Brand Side
+         * ======================================================== */}
 
         <aside className="relative hidden overflow-hidden border-l border-slate-200 bg-gradient-to-br from-blue-100 via-slate-50 to-emerald-50 p-9 lg:flex lg:flex-col lg:justify-between">
           <div className="pointer-events-none absolute inset-0">
@@ -512,16 +1050,12 @@ export default function AuthForm({
             <div className="absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-emerald-200/25 blur-3xl" />
           </div>
 
-          {/* Back */}
-
           <Link
             href={backHref}
-            className="relative z-10 w-fit rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:border-blue-300 hover:text-blue-700"
+            className="relative z-10 w-fit rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:text-blue-700"
           >
             بازگشت
           </Link>
-
-          {/* Copy */}
 
           <div className="relative z-10">
             <span className="rounded-full border border-blue-300 bg-blue-100 px-4 py-2 text-sm font-black text-blue-800">
@@ -530,25 +1064,22 @@ export default function AuthForm({
 
             <h1 className="mt-7 text-4xl font-black leading-[1.4] text-slate-950 xl:text-5xl">
               {isRegister
-                ? `ساخت حساب ${title}`
-                : `ورود ${title} به دادیار`}
+                ? `ساخت حساب ${userTitle}`
+                : `ورود ${userTitle} به دادیار`}
             </h1>
 
             <p className="mt-5 max-w-md text-base font-semibold leading-8 text-slate-700">
-              پرونده‌ها، موکلین، قراردادها
-              و گزارش‌های مالی دفترتان را
-              در یک محیط یکپارچه مدیریت
-              کنید.
+              با رمز عبور یا کد یک‌بارمصرف
+              وارد حساب خود شوید و دفترتان
+              را مدیریت کنید.
             </p>
           </div>
 
-          {/* Features */}
-
           <div className="relative z-10 grid gap-2.5">
             {[
-              'مدیریت پرونده‌ها و موکلین',
-              'مدیریت اطلاعات مالی',
-              'پیگیری امور دفتر',
+              'ورود امن با رمز عبور',
+              'ورود سریع با کد یک‌بارمصرف',
+              'مدیریت پرونده‌ها و امور مالی',
             ].map(
               (item) => (
                 <div
@@ -577,7 +1108,8 @@ export default function AuthForm({
               : 'p-5 sm:p-8 lg:p-10'
           }`}
         >
- 
+          {/* Mobile */}
+
           <div
             className={`flex items-center justify-between lg:hidden ${
               isRegister
@@ -596,21 +1128,21 @@ export default function AuthForm({
               دادیار
             </span>
           </div>
-  
 
+          {/* Heading */}
 
           <div
             className={
               isRegister
                 ? 'mb-3'
-                : 'mb-6'
+                : 'mb-5'
             }
           >
             <div
               className={`flex items-center justify-center rounded-2xl bg-blue-100 text-blue-700 ${
                 isRegister
                   ? 'mb-5 h-10 w-10'
-                  : 'mb-5 h-12 w-12'
+                  : 'mb-4 h-12 w-12'
               }`}
             >
               <ShieldCheck
@@ -630,8 +1162,8 @@ export default function AuthForm({
               }`}
             >
               {isRegister
-                ? `ثبت‌نام ${title}`
-                : `ورود ${title}`}
+                ? `ثبت‌نام ${userTitle}`
+                : `ورود ${userTitle}`}
             </h2>
 
             <p
@@ -643,17 +1175,18 @@ export default function AuthForm({
             >
               {isRegister
                 ? 'اطلاعات زیر را برای ساخت حساب تکمیل کنید.'
-                : 'ایمیل یا شماره همراه و رمز عبور خود را وارد کنید.'}
+                : 'روش ورود دلخواه خود را انتخاب کنید.'}
             </p>
           </div>
 
+          {/* Selected Plan */}
 
           {selectedPlan && (
             <div
               className={`rounded-xl border border-blue-200 bg-blue-50 px-3 font-bold text-blue-800 ${
                 isRegister
                   ? 'mb-2 py-1.5 text-xs'
-                  : 'mb-4 py-2.5 text-sm'
+                  : 'mb-3 py-2 text-sm'
               }`}
             >
               پلن انتخابی:
@@ -664,13 +1197,13 @@ export default function AuthForm({
             </div>
           )}
 
-
+          {/* Main Auth Tabs */}
 
           <div
             className={`flex rounded-2xl border border-slate-200 bg-slate-100 p-1 ${
               isRegister
                 ? 'mb-3'
-                : 'mb-6'
+                : 'mb-4'
             }`}
           >
             <button
@@ -680,10 +1213,7 @@ export default function AuthForm({
                   'login'
                 )
               }
-              disabled={
-                isLoading
-              }
-              className={`flex-1 rounded-xl px-3 font-black transition disabled:opacity-60 ${
+              className={`flex-1 rounded-xl px-3 font-black transition ${
                 isRegister
                   ? 'py-2 text-sm'
                   : 'py-3 text-base'
@@ -691,7 +1221,7 @@ export default function AuthForm({
                 activeTab ===
                 'login'
                   ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-950'
+                  : 'text-slate-600'
               }`}
             >
               ورود
@@ -704,10 +1234,7 @@ export default function AuthForm({
                   'register'
                 )
               }
-              disabled={
-                isLoading
-              }
-              className={`flex-1 rounded-xl px-3 font-black transition disabled:opacity-60 ${
+              className={`flex-1 rounded-xl px-3 font-black transition ${
                 isRegister
                   ? 'py-2 text-sm'
                   : 'py-3 text-base'
@@ -715,548 +1242,705 @@ export default function AuthForm({
                 activeTab ===
                 'register'
                   ? 'bg-white text-blue-700 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-950'
+                  : 'text-slate-600'
               }`}
             >
               ثبت‌نام
             </button>
           </div>
 
+          {/* ========================================================
+           * LOGIN
+           * ====================================================== */}
 
+          {!isRegister && (
+            <>
+              {/* Login Method */}
 
-
-          {error && (
-            <div
-              role="alert"
-              className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700"
-            >
-              {error}
-            </div>
-          )}
-
-
-
-
-
-          {!isRegister ? (
-            <form
-              onSubmit={
-                loginForm.handleSubmit(
-                  handleLogin
-                )
-              }
-              className="space-y-5"
-              noValidate
-            >
-
-
-              <div>
-                <label
-                  htmlFor="login-identifier"
-                  className={
-                    labelClassName
+              <div className="mb-5 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    changeLoginMethod(
+                      'password'
+                    )
                   }
+                  className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-black transition ${
+                    loginMethod ===
+                    'password'
+                      ? 'border-blue-300 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
                 >
-                  ایمیل یا شماره همراه
-                </label>
+                  <LockKeyhole
+                    size={17}
+                  />
 
-                <input
-                  id="login-identifier"
-                  {...loginForm.register(
-                    'identifier',
-                    {
-                      onChange:
-                        clearError,
-                    }
-                  )}
-                  type="text"
-                  dir="ltr"
-                  autoComplete="username"
-                  disabled={
-                    isLoginSubmitting
-                  }
-                  className={
-                    inputClassName
-                  }
-                  placeholder="example@gmail.com یا 09123456789"
-                />
+                  ورود با رمز
+                </button>
 
-                {loginForm
-                  .formState
-                  .errors
-                  .identifier && (
-                  <p
-                    className={
-                      errorClassName
-                    }
-                  >
-                    {
-                      loginForm
-                        .formState
-                        .errors
-                        .identifier
-                        .message
-                    }
-                  </p>
-                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    changeLoginMethod(
+                      'otp'
+                    )
+                  }
+                  className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-black transition ${
+                    loginMethod ===
+                    'otp'
+                      ? 'border-blue-300 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Smartphone
+                    size={17}
+                  />
+
+                  کد یک‌بارمصرف
+                </button>
               </div>
 
-              {/* Password */}
+              {/* Password Error */}
 
-              <div>
-                <div className="mb-1.5 flex items-center justify-between gap-3">
+              {loginMethod ===
+                'password' &&
+                authError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+                  {authError}
+                </div>
+              )}
+
+              {/* OTP Error */}
+
+              {loginMethod ===
+                'otp' &&
+                otpError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+                  {otpError}
+                </div>
+              )}
+
+              {/* ====================================================
+               * PASSWORD LOGIN
+               * ================================================== */}
+
+              {loginMethod ===
+              'password' ? (
+                <form
+                  onSubmit={
+                    loginForm.handleSubmit(
+                      handlePasswordLogin
+                    )
+                  }
+                  className="space-y-5"
+                  noValidate
+                >
+                  <div>
+                    <label
+                      htmlFor="login-identifier"
+                      className={
+                        labelClassName
+                      }
+                    >
+                      ایمیل یا شماره همراه
+                    </label>
+
+                    <input
+                      id="login-identifier"
+                      {...loginForm.register(
+                        'identifier',
+                        {
+                          onChange:
+                            clearAuthError,
+                        }
+                      )}
+                      dir="ltr"
+                      autoComplete="username"
+                      disabled={
+                        passwordLoginLoading
+                      }
+                      className={
+                        inputClassName
+                      }
+                      placeholder="example@gmail.com یا 09123456789"
+                    />
+
+                    {loginForm
+                      .formState
+                      .errors
+                      .identifier && (
+                      <p
+                        className={
+                          errorClassName
+                        }
+                      >
+                        {
+                          loginForm
+                            .formState
+                            .errors
+                            .identifier
+                            .message
+                        }
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="login-password"
+                      className={
+                        labelClassName
+                      }
+                    >
+                      رمز عبور
+                    </label>
+
+                    <div className="relative">
+                      <input
+                        id="login-password"
+                        {...loginForm.register(
+                          'password',
+                          {
+                            onChange:
+                              clearAuthError,
+                          }
+                        )}
+                        type={
+                          showLoginPassword
+                            ? 'text'
+                            : 'password'
+                        }
+                        dir="ltr"
+                        autoComplete="current-password"
+                        disabled={
+                          passwordLoginLoading
+                        }
+                        className={`${inputClassName} pr-14`}
+                        placeholder="••••••••"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowLoginPassword(
+                            (current) =>
+                              !current
+                          )
+                        }
+                        className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-blue-700"
+                      >
+                        {showLoginPassword ? (
+                          <EyeOff
+                            size={20}
+                          />
+                        ) : (
+                          <Eye
+                            size={20}
+                          />
+                        )}
+                      </button>
+                    </div>
+
+                    {loginForm
+                      .formState
+                      .errors
+                      .password && (
+                      <p
+                        className={
+                          errorClassName
+                        }
+                      >
+                        {
+                          loginForm
+                            .formState
+                            .errors
+                            .password
+                            .message
+                        }
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={
+                      passwordLoginLoading
+                    }
+                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-600 to-blue-700 text-base font-black text-white shadow-lg shadow-blue-200 transition disabled:opacity-60"
+                  >
+                    <LogIn
+                      size={20}
+                    />
+
+                    {passwordLoginLoading
+                      ? 'در حال ورود...'
+                      : `ورود ${userTitle}`}
+                  </button>
+                </form>
+              ) : (
+                /* ==================================================
+                 * OTP LOGIN
+                 * ================================================== */
+
+                <>
+                  {!otpChallenge ? (
+                    <form
+                      onSubmit={
+                        otpIdentifierForm.handleSubmit(
+                          handleRequestOtp
+                        )
+                      }
+                      className="space-y-5"
+                      noValidate
+                    >
+                      <div>
+                        <label
+                          htmlFor="otp-identifier"
+                          className={
+                            labelClassName
+                          }
+                        >
+                          ایمیل یا شماره همراه
+                        </label>
+
+                        <input
+                          id="otp-identifier"
+                          {...otpIdentifierForm.register(
+                            'identifier',
+                            {
+                              onChange:
+                                () =>
+                                  setOtpError(
+                                    null
+                                  ),
+                            }
+                          )}
+                          dir="ltr"
+                          autoComplete="username"
+                          disabled={
+                            otpLoading
+                          }
+                          className={
+                            inputClassName
+                          }
+                          placeholder="example@gmail.com یا 09123456789"
+                        />
+
+                        {otpIdentifierForm
+                          .formState
+                          .errors
+                          .identifier && (
+                          <p
+                            className={
+                              errorClassName
+                            }
+                          >
+                            {
+                              otpIdentifierForm
+                                .formState
+                                .errors
+                                .identifier
+                                .message
+                            }
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+                        <div className="flex items-start gap-3">
+                          <MailCheck
+                            size={19}
+                            className="mt-0.5 shrink-0 text-blue-700"
+                          />
+
+                          <p className="text-sm font-semibold leading-6 text-slate-700">
+                            یک کد یک‌بارمصرف
+                            برای شما ارسال
+                            می‌شود و بدون نیاز
+                            به رمز عبور وارد
+                            حساب خواهید شد.
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={
+                          otpLoading
+                        }
+                        className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-600 to-blue-700 text-base font-black text-white shadow-lg shadow-blue-200 transition disabled:opacity-60"
+                      >
+                        {otpLoading ? (
+                          <>
+                            <LoaderCircle
+                              size={20}
+                              className="animate-spin"
+                            />
+
+                            در حال ارسال...
+                          </>
+                        ) : (
+                          <>
+                            <Smartphone
+                              size={20}
+                            />
+
+                            دریافت کد ورود
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  ) : (
+                    <div>
+                      <div className="text-center">
+                        <h3 className="text-xl font-black text-slate-950">
+                          کد ورود را وارد کنید
+                        </h3>
+
+                        <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+                          کد به
+                          {' '}
+                          <span
+                            dir="ltr"
+                            className="font-black text-slate-900"
+                          >
+                            {
+                              otpChallenge.destination
+                            }
+                          </span>
+                          {' '}
+                          ارسال شده است.
+                        </p>
+                      </div>
+
+                      <div className="mt-6">
+                        <OtpCodeInput
+                          value={
+                            otpCode
+                          }
+                          onChange={(
+                            value
+                          ) => {
+                            setOtpCode(
+                              value
+                            )
+
+                            setOtpError(
+                              null
+                            )
+                          }}
+                          length={
+                            LOGIN_OTP_LENGTH
+                          }
+                          disabled={
+                            otpLoading
+                          }
+                        />
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                        <span className="text-xs font-bold text-slate-500 sm:text-sm">
+                          {otpExpiresIn >
+                          0
+                            ? `اعتبار کد: ${formatCountdown(
+                                otpExpiresIn
+                              )}`
+                            : 'کد منقضی شده است'}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleResendOtp()
+                          }}
+                          disabled={
+                            otpLoading ||
+                            resendSeconds >
+                              0
+                          }
+                          className="inline-flex items-center gap-1.5 text-xs font-black text-blue-700 disabled:text-slate-400 sm:text-sm"
+                        >
+                          <RefreshCw
+                            size={15}
+                            className={
+                              otpLoading
+                                ? 'animate-spin'
+                                : ''
+                            }
+                          />
+
+                          {resendSeconds >
+                          0
+                            ? `ارسال مجدد ${formatCountdown(
+                                resendSeconds
+                              )}`
+                            : 'ارسال مجدد'}
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleVerifyOtp()
+                        }}
+                        disabled={
+                          otpLoading ||
+                          otpCode.length !==
+                            LOGIN_OTP_LENGTH
+                        }
+                        className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-600 to-blue-700 text-base font-black text-white shadow-lg shadow-blue-200 transition disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {otpLoading ? (
+                          <>
+                            <LoaderCircle
+                              size={20}
+                              className="animate-spin"
+                            />
+
+                            در حال ورود...
+                          </>
+                        ) : (
+                          <>
+                            <KeyRound
+                              size={20}
+                            />
+
+                            ورود با کد
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={
+                          resetOtpFlow
+                        }
+                        disabled={
+                          otpLoading
+                        }
+                        className="mt-3 w-full text-center text-sm font-black text-slate-600 transition hover:text-blue-700"
+                      >
+                        تغییر ایمیل یا شماره همراه
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {/* ========================================================
+           * REGISTER
+           * ====================================================== */}
+
+          {isRegister && (
+            <>
+              {authError && (
+                <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+                  {authError}
+                </div>
+              )}
+
+              <form
+                onSubmit={
+                  signupForm.handleSubmit(
+                    handleSignup
+                  )
+                }
+                className="space-y-2.5 sm:space-y-3"
+                noValidate
+              >
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div>
+                    <label
+                      htmlFor="signup-first-name"
+                      className={
+                        labelClassName
+                      }
+                    >
+                      نام
+                    </label>
+
+                    <input
+                      id="signup-first-name"
+                      {...signupForm.register(
+                        'firstName',
+                        {
+                          onChange:
+                            clearAuthError,
+                        }
+                      )}
+                      className={
+                        inputClassName
+                      }
+                      placeholder="نام"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="signup-last-name"
+                      className={
+                        labelClassName
+                      }
+                    >
+                      نام خانوادگی
+                    </label>
+
+                    <input
+                      id="signup-last-name"
+                      {...signupForm.register(
+                        'lastName',
+                        {
+                          onChange:
+                            clearAuthError,
+                        }
+                      )}
+                      className={
+                        inputClassName
+                      }
+                      placeholder="نام خانوادگی"
+                    />
+                  </div>
+                </div>
+
+                <div>
                   <label
-                    htmlFor="login-password"
-                    className="text-sm font-black text-slate-800 sm:text-base"
+                    htmlFor="signup-email"
+                    className={
+                      labelClassName
+                    }
+                  >
+                    ایمیل
+                  </label>
+
+                  <input
+                    id="signup-email"
+                    {...signupForm.register(
+                      'email',
+                      {
+                        onChange:
+                          clearAuthError,
+                      }
+                    )}
+                    dir="ltr"
+                    className={
+                      inputClassName
+                    }
+                    placeholder="example@gmail.com"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="signup-phone"
+                    className={
+                      labelClassName
+                    }
+                  >
+                    شماره همراه
+                  </label>
+
+                  <input
+                    id="signup-phone"
+                    {...signupForm.register(
+                      'phone',
+                      {
+                        onChange:
+                          clearAuthError,
+                      }
+                    )}
+                    dir="ltr"
+                    inputMode="numeric"
+                    className={
+                      inputClassName
+                    }
+                    placeholder="09123456789"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="signup-password"
+                    className={
+                      labelClassName
+                    }
                   >
                     رمز عبور
                   </label>
 
-                  <Link
-                    href={
-                      forgotPasswordHref
-                    }
-                    className="inline-flex items-center gap-1.5 text-xs font-black text-blue-700 transition hover:text-blue-800 sm:text-sm"
-                  >
-                    <KeyRound
-                      size={15}
+                  <div className="relative">
+                    <input
+                      id="signup-password"
+                      {...signupForm.register(
+                        'password',
+                        {
+                          onChange:
+                            clearAuthError,
+                        }
+                      )}
+                      type={
+                        showSignupPassword
+                          ? 'text'
+                          : 'password'
+                      }
+                      dir="ltr"
+                      className={`${inputClassName} pr-14`}
+                      placeholder="حداقل ۶ کاراکتر"
                     />
 
-                    رمز عبور را فراموش کرده‌اید؟
-                  </Link>
-                </div>
-
-                <div className="relative">
-                  <input
-                    id="login-password"
-                    {...loginForm.register(
-                      'password',
-                      {
-                        onChange:
-                          clearError,
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowSignupPassword(
+                          (current) =>
+                            !current
+                        )
                       }
-                    )}
-                    type={
-                      showLoginPassword
-                        ? 'text'
-                        : 'password'
-                    }
-                    dir="ltr"
-                    autoComplete="current-password"
-                    disabled={
-                      isLoginSubmitting
-                    }
-                    className={`${inputClassName} pr-14`}
-                    placeholder="••••••••"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowLoginPassword(
-                        (value) =>
-                          !value
-                      )
-                    }
-                    disabled={
-                      isLoginSubmitting
-                    }
-                    className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-blue-700 disabled:opacity-50"
-                    aria-label={
-                      showLoginPassword
-                        ? 'مخفی کردن رمز عبور'
-                        : 'نمایش رمز عبور'
-                    }
-                  >
-                    {showLoginPassword ? (
-                      <EyeOff
-                        size={20}
-                      />
-                    ) : (
-                      <Eye
-                        size={20}
-                      />
-                    )}
-                  </button>
-                </div>
-
-                {loginForm
-                  .formState
-                  .errors
-                  .password && (
-                  <p
-                    className={
-                      errorClassName
-                    }
-                  >
-                    {
-                      loginForm
-                        .formState
-                        .errors
-                        .password
-                        .message
-                    }
-                  </p>
-                )}
-              </div>
-
-              {/* Login Button */}
-
-              <button
-                type="submit"
-                disabled={
-                  isLoginSubmitting
-                }
-                className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-600 to-blue-700 text-base font-black text-white shadow-lg shadow-blue-200 transition hover:from-blue-700 hover:to-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <LogIn
-                  size={20}
-                />
-
-                {isLoginSubmitting
-                  ? 'در حال ورود...'
-                  : `ورود ${title}`}
-              </button>
-            </form>
-          ) : (
-            
-
-
-
-            <form
-              onSubmit={
-                signupForm.handleSubmit(
-                  handleSignup
-                )
-              }
-              className="space-y-2.5 sm:space-y-3"
-              noValidate
-            >
-              {/* Names */}
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="min-w-0">
-                  <label
-                    htmlFor="signup-first-name"
-                    className={
-                      labelClassName
-                    }
-                  >
-                    نام
-                  </label>
-
-                  <input
-                    id="signup-first-name"
-                    {...signupForm.register(
-                      'firstName',
-                      {
-                        onChange:
-                          clearError,
-                      }
-                    )}
-                    type="text"
-                    autoComplete="given-name"
-                    disabled={
-                      isSignupSubmitting
-                    }
-                    className={
-                      inputClassName
-                    }
-                    placeholder="نام"
-                  />
-
-                  {signupForm
-                    .formState
-                    .errors
-                    .firstName && (
-                    <p
-                      className={
-                        errorClassName
-                      }
+                      className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-blue-700"
                     >
-                      {
-                        signupForm
-                          .formState
-                          .errors
-                          .firstName
-                          .message
-                      }
-                    </p>
-                  )}
+                      {showSignupPassword ? (
+                        <EyeOff
+                          size={20}
+                        />
+                      ) : (
+                        <Eye
+                          size={20}
+                        />
+                      )}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="min-w-0">
-                  <label
-                    htmlFor="signup-last-name"
-                    className={
-                      labelClassName
-                    }
-                  >
-                    نام خانوادگی
-                  </label>
-
-                  <input
-                    id="signup-last-name"
-                    {...signupForm.register(
-                      'lastName',
-                      {
-                        onChange:
-                          clearError,
-                      }
-                    )}
-                    type="text"
-                    autoComplete="family-name"
-                    disabled={
-                      isSignupSubmitting
-                    }
-                    className={
-                      inputClassName
-                    }
-                    placeholder="نام خانوادگی"
+                <button
+                  type="submit"
+                  disabled={
+                    signupLoading
+                  }
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-blue-600 to-blue-700 text-sm font-black text-white shadow-lg shadow-blue-200 transition disabled:opacity-60 sm:h-14 sm:rounded-2xl sm:text-base"
+                >
+                  <UserPlus
+                    size={20}
                   />
 
-                  {signupForm
-                    .formState
-                    .errors
-                    .lastName && (
-                    <p
-                      className={
-                        errorClassName
-                      }
-                    >
-                      {
-                        signupForm
-                          .formState
-                          .errors
-                          .lastName
-                          .message
-                      }
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Email */}
-
-              <div>
-                <label
-                  htmlFor="signup-email"
-                  className={
-                    labelClassName
-                  }
-                >
-                  ایمیل
-                </label>
-
-                <input
-                  id="signup-email"
-                  {...signupForm.register(
-                    'email',
-                    {
-                      onChange:
-                        clearError,
-                    }
-                  )}
-                  type="email"
-                  dir="ltr"
-                  autoComplete="email"
-                  disabled={
-                    isSignupSubmitting
-                  }
-                  className={
-                    inputClassName
-                  }
-                  placeholder="example@gmail.com"
-                />
-
-                {signupForm
-                  .formState
-                  .errors
-                  .email && (
-                  <p
-                    className={
-                      errorClassName
-                    }
-                  >
-                    {
-                      signupForm
-                        .formState
-                        .errors
-                        .email
-                        .message
-                    }
-                  </p>
-                )}
-              </div>
-
-              {/* Phone */}
-
-              <div>
-                <label
-                  htmlFor="signup-phone"
-                  className={
-                    labelClassName
-                  }
-                >
-                  شماره همراه
-                </label>
-
-                <input
-                  id="signup-phone"
-                  {...signupForm.register(
-                    'phone',
-                    {
-                      onChange:
-                        clearError,
-                    }
-                  )}
-                  type="tel"
-                  inputMode="numeric"
-                  dir="ltr"
-                  autoComplete="tel"
-                  disabled={
-                    isSignupSubmitting
-                  }
-                  className={
-                    inputClassName
-                  }
-                  placeholder="09123456789"
-                />
-
-                {signupForm
-                  .formState
-                  .errors
-                  .phone && (
-                  <p
-                    className={
-                      errorClassName
-                    }
-                  >
-                    {
-                      signupForm
-                        .formState
-                        .errors
-                        .phone
-                        .message
-                    }
-                  </p>
-                )}
-              </div>
-
-              {/* Password */}
-
-              <div>
-                <label
-                  htmlFor="signup-password"
-                  className={
-                    labelClassName
-                  }
-                >
-                  رمز عبور
-                </label>
-
-                <div className="relative">
-                  <input
-                    id="signup-password"
-                    {...signupForm.register(
-                      'password',
-                      {
-                        onChange:
-                          clearError,
-                      }
-                    )}
-                    type={
-                      showSignupPassword
-                        ? 'text'
-                        : 'password'
-                    }
-                    dir="ltr"
-                    autoComplete="new-password"
-                    disabled={
-                      isSignupSubmitting
-                    }
-                    className={`${inputClassName} pr-14`}
-                    placeholder="حداقل ۶ کاراکتر"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowSignupPassword(
-                        (value) =>
-                          !value
-                      )
-                    }
-                    disabled={
-                      isSignupSubmitting
-                    }
-                    className="absolute right-2.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-blue-700 disabled:opacity-50"
-                    aria-label={
-                      showSignupPassword
-                        ? 'مخفی کردن رمز عبور'
-                        : 'نمایش رمز عبور'
-                    }
-                  >
-                    {showSignupPassword ? (
-                      <EyeOff
-                        size={20}
-                      />
-                    ) : (
-                      <Eye
-                        size={20}
-                      />
-                    )}
-                  </button>
-                </div>
-
-                {signupForm
-                  .formState
-                  .errors
-                  .password && (
-                  <p
-                    className={
-                      errorClassName
-                    }
-                  >
-                    {
-                      signupForm
-                        .formState
-                        .errors
-                        .password
-                        .message
-                    }
-                  </p>
-                )}
-              </div>
-
-
-
-              <button
-                type="submit"
-                disabled={
-                  isSignupSubmitting
-                }
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-blue-600 to-blue-700 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:from-blue-700 hover:to-blue-800 disabled:cursor-not-allowed disabled:opacity-60 sm:h-14 sm:rounded-2xl sm:text-base"
-              >
-                <UserPlus
-                  size={20}
-                />
-
-                {isSignupSubmitting
-                  ? 'در حال ثبت‌نام...'
-                  : `ثبت‌نام ${title}`}
-              </button>
-            </form>
+                  {signupLoading
+                    ? 'در حال ثبت‌نام...'
+                    : `ثبت‌نام ${userTitle}`}
+                </button>
+              </form>
+            </>
           )}
 
-
-
+          {/* ========================================================
+           * Bottom Switch
+           * ====================================================== */}
 
           <div
             className={`text-center font-semibold text-slate-700 ${
               isRegister
                 ? 'mt-2 text-xs sm:text-sm'
-                : 'mt-6 text-sm sm:text-base'
+                : 'mt-5 text-sm sm:text-base'
             }`}
           >
             {isRegister
@@ -1272,10 +1956,7 @@ export default function AuthForm({
                     : 'register'
                 )
               }
-              disabled={
-                isLoading
-              }
-              className="font-black text-blue-700 transition hover:text-blue-800 disabled:opacity-50"
+              className="font-black text-blue-700 transition hover:text-blue-800"
             >
               {isRegister
                 ? 'وارد شوید'

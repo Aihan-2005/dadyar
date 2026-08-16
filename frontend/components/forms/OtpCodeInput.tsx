@@ -22,12 +22,13 @@ interface OtpCodeInputProps {
 
   disabled?:
     boolean
-
-  autoFocus?:
-    boolean
 }
 
-
+/*
+|--------------------------------------------------------------------------
+| Normalize
+|--------------------------------------------------------------------------
+*/
 
 function normalizeDigits(
   value:
@@ -64,6 +65,12 @@ function normalizeDigits(
     )
 }
 
+/*
+|--------------------------------------------------------------------------
+| Component
+|--------------------------------------------------------------------------
+*/
+
 export default function OtpCodeInput({
   value,
   onChange,
@@ -71,44 +78,48 @@ export default function OtpCodeInput({
     6,
   disabled =
     false,
-  autoFocus =
-    true,
 }: OtpCodeInputProps) {
-  const inputRefs =
+  const refs =
     useRef<
       Array<
         HTMLInputElement | null
       >
     >([])
 
- 
+  /*
+  |--------------------------------------------------------------------------
+  | Focus
+  |--------------------------------------------------------------------------
+  */
 
-
-  const focusIndex =
+  const focus =
     (
       index:
         number
     ) => {
       const safeIndex =
-        Math.min(
-          Math.max(
-            index,
-            0
-          ),
-          length - 1
+        Math.max(
+          0,
+          Math.min(
+            length - 1,
+            index
+          )
         )
 
-      inputRefs.current[
-        safeIndex
-      ]?.focus()
+      const input =
+        refs.current[
+          safeIndex
+        ]
 
-      inputRefs.current[
-        safeIndex
-      ]?.select()
+      input?.focus()
+      input?.select()
     }
 
-
-
+  /*
+  |--------------------------------------------------------------------------
+  | Change
+  |--------------------------------------------------------------------------
+  */
 
   const handleChange =
     (
@@ -123,66 +134,27 @@ export default function OtpCodeInput({
           event.target.value
         )
 
-      if (
-        digits.length ===
-        0
-      ) {
-        const nextValue =
-          value.slice(
-            0,
-            index
-          ) +
-          value.slice(
-            index + 1
-          )
-
-        onChange(
-          nextValue.slice(
-            0,
-            length
-          )
-        )
-
-        return
-      }
-
-   
-
-
+      /*
+       * Mobile OTP autofill can put all digits
+       * into the first field.
+       */
       if (
         digits.length >
         1
       ) {
-        const prefix =
-          value.slice(
-            0,
-            index
-          )
-
-        const suffix =
-          value.slice(
-            index +
-              digits.length
-          )
-
-        const nextValue =
-          (
-            prefix +
-            digits +
-            suffix
-          ).slice(
+        const next =
+          digits.slice(
             0,
             length
           )
 
         onChange(
-          nextValue
+          next
         )
 
-        focusIndex(
+        focus(
           Math.min(
-            index +
-              digits.length,
+            next.length,
             length - 1
           )
         )
@@ -190,97 +162,69 @@ export default function OtpCodeInput({
         return
       }
 
-      const nextValue =
-        (
-          value.slice(
-            0,
-            index
-          ) +
-          digits[0] +
-          value.slice(
-            index + 1
-          )
-        ).slice(
-          0,
-          length
+      if (
+        digits.length ===
+        0
+      ) {
+        const chars =
+          value
+            .padEnd(
+              length,
+              ' '
+            )
+            .split('')
+
+        chars[index] =
+          ' '
+
+        onChange(
+          chars
+            .join('')
+            .trimEnd()
         )
 
+        return
+      }
+
+      const chars =
+        value
+          .padEnd(
+            length,
+            ' '
+          )
+          .split('')
+
+      chars[index] =
+        digits[0]
+
       onChange(
-        nextValue
+        chars
+          .join('')
+          .replace(
+            /\s/g,
+            ''
+          )
+          .slice(
+            0,
+            length
+          )
       )
 
       if (
         index <
         length - 1
       ) {
-        focusIndex(
+        focus(
           index + 1
         )
       }
     }
 
-  
-
-
-  const handlePaste =
-    (
-      index:
-        number,
-
-      event:
-        ClipboardEvent<HTMLInputElement>
-    ) => {
-      event.preventDefault()
-
-      const pastedDigits =
-        normalizeDigits(
-          event.clipboardData.getData(
-            'text'
-          )
-        ).slice(
-          0,
-          length - index
-        )
-
-      if (
-        pastedDigits.length ===
-        0
-      ) {
-        return
-      }
-
-      const nextValue =
-        (
-          value.slice(
-            0,
-            index
-          ) +
-          pastedDigits +
-          value.slice(
-            index +
-              pastedDigits.length
-          )
-        ).slice(
-          0,
-          length
-        )
-
-      onChange(
-        nextValue
-      )
-
-      focusIndex(
-        Math.min(
-          index +
-            pastedDigits.length,
-          length - 1
-        )
-      )
-    }
-
- 
-
-    
+  /*
+  |--------------------------------------------------------------------------
+  | Backspace
+  |--------------------------------------------------------------------------
+  */
 
   const handleKeyDown =
     (
@@ -292,36 +236,28 @@ export default function OtpCodeInput({
     ) => {
       if (
         event.key ===
-        'Backspace'
+          'Backspace' &&
+        !value[index] &&
+        index >
+          0
       ) {
-        if (
-          !value[index] &&
-          index >
-            0
-        ) {
-          event.preventDefault()
+        event.preventDefault()
 
-          const previousIndex =
-            index - 1
+        const chars =
+          value.split('')
 
-          const nextValue =
-            value.slice(
-              0,
-              previousIndex
-            ) +
-            value.slice(
-              previousIndex +
-                1
-            )
+        chars.splice(
+          index - 1,
+          1
+        )
 
-          onChange(
-            nextValue
-          )
+        onChange(
+          chars.join('')
+        )
 
-          focusIndex(
-            previousIndex
-          )
-        }
+        focus(
+          index - 1
+        )
 
         return
       }
@@ -332,7 +268,7 @@ export default function OtpCodeInput({
       ) {
         event.preventDefault()
 
-        focusIndex(
+        focus(
           index - 1
         )
 
@@ -345,10 +281,49 @@ export default function OtpCodeInput({
       ) {
         event.preventDefault()
 
-        focusIndex(
+        focus(
           index + 1
         )
       }
+    }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Paste
+  |--------------------------------------------------------------------------
+  */
+
+  const handlePaste =
+    (
+      event:
+        ClipboardEvent<HTMLInputElement>
+    ) => {
+      event.preventDefault()
+
+      const digits =
+        normalizeDigits(
+          event.clipboardData.getData(
+            'text'
+          )
+        ).slice(
+          0,
+          length
+        )
+
+      if (!digits) {
+        return
+      }
+
+      onChange(
+        digits
+      )
+
+      focus(
+        Math.min(
+          digits.length,
+          length - 1
+        )
+      )
     }
 
   return (
@@ -368,13 +343,17 @@ export default function OtpCodeInput({
               index
             }
             ref={(
-              element
+              input
             ) => {
-              inputRefs.current[
+              refs.current[
                 index
               ] =
-                element
+                input
             }}
+            value={
+              value[index] ??
+              ''
+            }
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
@@ -385,30 +364,19 @@ export default function OtpCodeInput({
                 ? 'one-time-code'
                 : 'off'
             }
-            autoFocus={
-              autoFocus &&
-              index ===
-                0
-            }
             disabled={
               disabled
             }
-            value={
-              value[index] ??
-              ''
-            }
+            aria-label={`رقم ${(
+              index +
+              1
+            ).toLocaleString(
+              'fa-IR'
+            )} کد ورود`}
             onChange={(
               event
             ) =>
               handleChange(
-                index,
-                event
-              )
-            }
-            onPaste={(
-              event
-            ) =>
-              handlePaste(
                 index,
                 event
               )
@@ -421,13 +389,10 @@ export default function OtpCodeInput({
                 event
               )
             }
-            aria-label={`رقم ${(
-              index +
-              1
-            ).toLocaleString(
-              'fa-IR'
-            )} کد تأیید`}
-            className="h-13 min-w-0 flex-1 rounded-xl border border-slate-300 bg-white text-center text-xl font-black text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 sm:h-14 sm:max-w-14 sm:text-2xl"
+            onPaste={
+              handlePaste
+            }
+            className="h-13 min-w-0 flex-1 rounded-xl border border-slate-300 bg-white text-center text-xl font-black text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100 sm:h-14 sm:max-w-14 sm:text-2xl"
           />
         )
       )}
