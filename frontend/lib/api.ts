@@ -32,7 +32,6 @@ type RefreshResponseData = {
   accessToken: string
   accessTokenExpiresIn: number
 }
-
 type AuthBridge = {
   getAccessToken:
     () => string | null
@@ -40,7 +39,9 @@ type AuthBridge = {
   setAccessToken:
     (
       accessToken: string
-    ) => void  clearSession:
+    ) => void
+
+  clearSession:
     () => void
 }
 
