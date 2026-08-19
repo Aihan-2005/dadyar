@@ -18,8 +18,16 @@ import type {
   ApiUpdateClientRequest,
 } from './types'
 
+
+
+
+
+
+
+
 function clean(
-  value?: string | null
+  value?:
+    string | null
 ): string {
   return (
     value?.trim() ||
@@ -28,24 +36,36 @@ function clean(
 }
 
 function optional(
-  value?: string | null
+  value?:
+    string | null
 ): string | undefined {
   return (
-    clean(value) ||
+    clean(
+      value
+    ) ||
     undefined
   )
 }
 
+
+
+
+
+
 function normalizedDigits(
-  value?: string | null
+  value?:
+    string | null
 ): string {
   return normalizeDigits(
-    clean(value)
+    clean(
+      value
+    )
   )
 }
 
 function optionalDigits(
-  value?: string | null
+  value?:
+    string | null
 ): string | undefined {
   return (
     normalizedDigits(
@@ -55,8 +75,53 @@ function optionalDigits(
   )
 }
 
+
+
+function normalizePersonalPassword(
+  value?:
+    string | null
+): string | undefined {
+  if (
+    value ===
+      undefined ||
+    value ===
+      null
+  ) {
+    return undefined
+  }
+
+  const password =
+    value.trim()
+
+  if (!password) {
+    return undefined
+  }
+
+  if (
+    password.length <
+    6
+  ) {
+    throw new Error(
+      'رمز شخصی باید حداقل ۶ کاراکتر باشد.'
+    )
+  }
+
+  if (
+    password.length >
+    64
+  ) {
+    throw new Error(
+      'رمز شخصی نمی‌تواند بیشتر از ۶۴ کاراکتر باشد.'
+    )
+  }
+
+  return password
+}
+
+
 function toBirthdayIso(
-  value?: string
+  value?:
+    string
 ): string | undefined {
   if (
     !value?.trim()
@@ -87,15 +152,23 @@ function toBirthdayIso(
   return parsed.toISOString()
 }
 
+
+
+
+
+
 function toJalaliDate(
-  value?: string
+  value?:
+    string
 ): string | undefined {
   if (!value) {
     return undefined
   }
 
   const date =
-    new Date(value)
+    new Date(
+      value
+    )
 
   if (
     Number.isNaN(
@@ -155,6 +228,10 @@ function toJalaliDate(
 }
 
 
+
+
+
+
 export function fromApiClient(
   source:
     ApiClientRecord
@@ -180,6 +257,7 @@ export function fromApiClient(
     nationalId:
       source.nationalId,
 
+   
     landlineNumber:
       source.homeNumber,
 
@@ -191,13 +269,17 @@ export function fromApiClient(
     address:
       source.homeAddress,
 
+    description:
+      source.description,
+
     createdAt:
       source.createdAt,
 
     updatedAt:
       source.updatedAt,
 
-    caseIds: [],
+    caseIds:
+      [],
   }
 }
 
@@ -225,6 +307,11 @@ export function toCreateClientApiRequest(
   const homeNumber =
     optionalDigits(
       source.landlineNumber
+    )
+
+  const personalPassword =
+    normalizePersonalPassword(
+      source.personalPassword
     )
 
   if (!fullName) {
@@ -261,6 +348,7 @@ export function toCreateClientApiRequest(
 
     nationalId,
 
+   
     homeNumber,
 
     birthday:
@@ -277,8 +365,16 @@ export function toCreateClientApiRequest(
       optional(
         source.representative
       ),
+
+    description:
+      optional(
+        source.description
+      ),
+
+    personalPassword,
   }
 }
+
 
 export function toUpdateClientApiRequest(
   source:
@@ -286,6 +382,10 @@ export function toUpdateClientApiRequest(
 ): ApiUpdateClientRequest {
   const result:
     ApiUpdateClientRequest = {}
+
+  
+
+
 
   if (
     source.fullName !==
@@ -305,6 +405,9 @@ export function toUpdateClientApiRequest(
     result.fullName =
       fullName
   }
+
+ 
+
 
   if (
     source.phoneNumber !==
@@ -328,6 +431,10 @@ export function toUpdateClientApiRequest(
     result.phone =
       phone
   }
+
+
+
+
 
   if (
     source.nationalId !==
@@ -354,6 +461,10 @@ export function toUpdateClientApiRequest(
       null
   }
 
+ 
+
+
+
   if (
     source.landlineNumber !==
     undefined
@@ -364,6 +475,10 @@ export function toUpdateClientApiRequest(
       ) ||
       null
   }
+
+  
+
+
 
   if (
     source.birthDate !==
@@ -377,6 +492,9 @@ export function toUpdateClientApiRequest(
           null
         : null
   }
+
+
+
 
   if (
     source.address !==
@@ -398,6 +516,38 @@ export function toUpdateClientApiRequest(
         source.representative
       ) ||
       null
+  }
+
+  
+
+  if (
+    source.description !==
+    undefined
+  ) {
+    result.description =
+      clean(
+        source.description
+      ) ||
+      null
+  }
+
+  
+
+  if (
+    source.personalPassword !==
+    undefined
+  ) {
+    const personalPassword =
+      normalizePersonalPassword(
+        source.personalPassword
+      )
+
+    if (
+      personalPassword
+    ) {
+      result.personalPassword =
+        personalPassword
+    }
   }
 
   return result

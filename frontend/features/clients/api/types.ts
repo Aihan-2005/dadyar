@@ -1,3 +1,5 @@
+
+
 export interface ApiClientRecord {
   _id: string
 
@@ -7,6 +9,8 @@ export interface ApiClientRecord {
 
   nationalId?: string
 
+
+
   homeNumber?: string
 
   birthday?: string
@@ -15,10 +19,15 @@ export interface ApiClientRecord {
 
   represent?: string
 
+  description?: string
+
   createdAt: string
 
   updatedAt: string
 }
+
+
+
 
 export interface ApiCreateClientRequest {
   fullName: string
@@ -27,6 +36,7 @@ export interface ApiCreateClientRequest {
 
   nationalId?: string
 
+  
   homeNumber?: string
 
   birthday?: string
@@ -34,7 +44,17 @@ export interface ApiCreateClientRequest {
   homeAddress?: string
 
   represent?: string
+
+  description?: string
+
+ 
+
+  personalPassword?: string
 }
+
+
+
+
 
 export interface ApiUpdateClientRequest {
   fullName?: string
@@ -44,6 +64,9 @@ export interface ApiUpdateClientRequest {
   nationalId?:
     | string
     | null
+
+
+
 
   homeNumber?:
     | string
@@ -60,7 +83,18 @@ export interface ApiUpdateClientRequest {
   represent?:
     | string
     | null
+
+  description?:
+    | string
+    | null
+
+  
+
+
+  personalPassword?: string
 }
+
+
 
 export interface ApiEnvelope<T> {
   success: boolean
@@ -69,6 +103,8 @@ export interface ApiEnvelope<T> {
 
   message?: string
 }
+
+
 
 export interface ApiPagination {
   page: number
@@ -79,6 +115,8 @@ export interface ApiPagination {
 
   totalPages: number
 }
+
+
 
 export interface ApiClientListEnvelope {
   success: boolean

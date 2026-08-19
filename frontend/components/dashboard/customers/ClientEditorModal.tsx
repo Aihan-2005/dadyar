@@ -3,10 +3,15 @@
 import {
   useEffect,
   useState,
+  type FormEvent,
+  type ReactNode,
 } from 'react'
 
 import {
   AlertCircle,
+  Eye,
+  EyeOff,
+  KeyRound,
   Loader2,
   X,
 } from 'lucide-react'
@@ -25,8 +30,10 @@ import {
   normalizeDigits,
 } from '@/features/finance/utils/number'
 
+
 interface Props {
-  open: boolean
+  open:
+    boolean
 
   client?:
     Client
@@ -46,22 +53,54 @@ interface Props {
   ) => Promise<void>
 }
 
+
+
+
 const EMPTY_FORM:
   CreateClientPayload = {
-    fullName: '',
+    fullName:
+      '',
 
-    phoneNumber: '',
+    phoneNumber:
+      '',
 
-    nationalId: '',
+    nationalId:
+      '',
 
-    landlineNumber: '',
+    personalPassword:
+      '',
 
-    birthDate: '',
+    birthDate:
+      '',
 
-    representative: '',
+    representative:
+      '',
 
-    address: '',
+    address:
+      '',
+
+    description:
+      '',
   }
+
+  
+
+
+
+const PERSONAL_PASSWORD_MIN_LENGTH =
+  6
+
+const PERSONAL_PASSWORD_MAX_LENGTH =
+  64
+
+const ADDRESS_MAX_LENGTH =
+  500
+
+const DESCRIPTION_MAX_LENGTH =
+  1000
+
+
+  
 
 export function ClientEditorModal({
   open,
@@ -83,9 +122,21 @@ export function ClientEditorModal({
     validationError,
     setValidationError,
   ] =
-    useState<string | null>(
+    useState<
+      string | null
+    >(
       null
     )
+
+  const [
+    showPersonalPassword,
+    setShowPersonalPassword,
+  ] =
+    useState(
+      false
+    )
+
+
 
   useEffect(() => {
     if (!open) {
@@ -96,6 +147,13 @@ export function ClientEditorModal({
       null
     )
 
+    setShowPersonalPassword(
+      false
+    )
+
+    /*
+     * Create
+     */
     if (!client) {
       setForm({
         ...EMPTY_FORM,
@@ -103,6 +161,8 @@ export function ClientEditorModal({
 
       return
     }
+
+  
 
     setForm({
       fullName:
@@ -115,8 +175,7 @@ export function ClientEditorModal({
         client.nationalId ??
         '',
 
-      landlineNumber:
-        client.landlineNumber ??
+      personalPassword:
         '',
 
       birthDate:
@@ -130,11 +189,18 @@ export function ClientEditorModal({
       address:
         client.address ??
         '',
+
+      description:
+        client.description ??
+        '',
     })
   }, [
     client,
     open,
   ])
+
+
+
 
   useEffect(() => {
     if (!open) {
@@ -160,20 +226,26 @@ export function ClientEditorModal({
       handleKeyDown
     )
 
-    return () =>
+    return () => {
       window.removeEventListener(
         'keydown',
         handleKeyDown
       )
+    }
   }, [
     isSaving,
     onClose,
     open,
   ])
 
+
+
+
   if (!open) {
     return null
   }
+
+
 
   const age =
     getClientAge(
@@ -185,10 +257,14 @@ export function ClientEditorModal({
       form.birthDate
     )
 
+
+
   const update = <
     K extends keyof CreateClientPayload,
   >(
-    key: K,
+    key:
+      K,
+
     value:
       CreateClientPayload[K]
   ) => {
@@ -208,12 +284,19 @@ export function ClientEditorModal({
     )
   }
 
+  
+
+
   const handleSubmit =
     async (
       event:
-        React.FormEvent<HTMLFormElement>
+        FormEvent<HTMLFormElement>
     ) => {
       event.preventDefault()
+
+      setValidationError(
+        null
+      )
 
       const fullName =
         form.fullName.trim()
@@ -226,8 +309,35 @@ export function ClientEditorModal({
       const nationalId =
         normalizeDigits(
           form.nationalId ??
-          ''
+            ''
         ).trim()
+
+      const personalPassword =
+        form.personalPassword
+          ?.trim() ??
+        ''
+
+      const birthDate =
+        normalizeDigits(
+          form.birthDate ??
+            ''
+        ).trim()
+
+      const representative =
+        form.representative
+          ?.trim() ??
+        ''
+
+      const address =
+        form.address
+          ?.trim() ??
+        ''
+
+      const description =
+        form.description
+          ?.trim() ??
+        ''
+
 
       if (!fullName) {
         setValidationError(
@@ -236,6 +346,8 @@ export function ClientEditorModal({
 
         return
       }
+
+    
 
       if (
         !/^09\d{9}$/.test(
@@ -248,6 +360,10 @@ export function ClientEditorModal({
 
         return
       }
+
+   
+      
+
 
       if (
         nationalId &&
@@ -262,6 +378,80 @@ export function ClientEditorModal({
         return
       }
 
+  
+
+      if (
+        !client &&
+        !personalPassword
+      ) {
+        setValidationError(
+          'رمز شخصی برای موکل جدید الزامی است.'
+        )
+
+        return
+      }
+
+      if (
+        personalPassword &&
+        personalPassword.length <
+          PERSONAL_PASSWORD_MIN_LENGTH
+      ) {
+        setValidationError(
+          `رمز شخصی باید حداقل ${PERSONAL_PASSWORD_MIN_LENGTH.toLocaleString(
+            'fa-IR'
+          )} کاراکتر باشد.`
+        )
+
+        return
+      }
+
+      if (
+        personalPassword.length >
+        PERSONAL_PASSWORD_MAX_LENGTH
+      ) {
+        setValidationError(
+          `رمز شخصی نمی‌تواند بیشتر از ${PERSONAL_PASSWORD_MAX_LENGTH.toLocaleString(
+            'fa-IR'
+          )} کاراکتر باشد.`
+        )
+
+        return
+      }
+
+ 
+      if (
+        address.length >
+        ADDRESS_MAX_LENGTH
+      ) {
+        setValidationError(
+          `آدرس نمی‌تواند بیشتر از ${ADDRESS_MAX_LENGTH.toLocaleString(
+            'fa-IR'
+          )} کاراکتر باشد.`
+        )
+
+        return
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | Description
+      |--------------------------------------------------------------------------
+      */
+
+      if (
+        description.length >
+        DESCRIPTION_MAX_LENGTH
+      ) {
+        setValidationError(
+          `توضیحات نمی‌تواند بیشتر از ${DESCRIPTION_MAX_LENGTH.toLocaleString(
+            'fa-IR'
+          )} کاراکتر باشد.`
+        )
+
+        return
+      }
+
+   
       await onSubmit({
         fullName,
 
@@ -272,31 +462,29 @@ export function ClientEditorModal({
           nationalId ||
           undefined,
 
-        landlineNumber:
-          normalizeDigits(
-            form.landlineNumber ??
-            ''
-          ).trim() ||
+        personalPassword:
+          personalPassword ||
           undefined,
 
         birthDate:
-          normalizeDigits(
-            form.birthDate ??
-            ''
-          ).trim() ||
+          birthDate ||
           undefined,
 
         representative:
-          form.representative
-            ?.trim() ||
+          representative ||
           undefined,
 
         address:
-          form.address
-            ?.trim() ||
+          address ||
+          undefined,
+
+        description:
+          description ||
           undefined,
       })
     }
+
+  
 
   return (
     <div
@@ -314,10 +502,11 @@ export function ClientEditorModal({
         className="max-h-[95vh] w-full max-w-3xl overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl"
         onMouseDown={(
           event
-        ) =>
+        ) => {
           event.stopPropagation()
-        }
+        }}
       >
+
         <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-zinc-100 bg-white px-5 py-4 sm:px-6">
           <div>
             <h2
@@ -329,8 +518,9 @@ export function ClientEditorModal({
                 : 'افزودن موکل جدید'}
             </h2>
 
-            <p className="mt-1 text-xs leading-5 text-zinc-500">
-              اطلاعات این فرم مستقیماً در حساب کاربری شما در سرور ذخیره می‌شود.
+            <p className="mt-1 text-xs font-medium leading-5 text-zinc-500">
+              اطلاعات این فرم در پروفایل
+              موکل ذخیره می‌شود.
             </p>
           </div>
 
@@ -351,15 +541,21 @@ export function ClientEditorModal({
           </button>
         </header>
 
+
         <form
           onSubmit={
             handleSubmit
           }
           className="space-y-6 p-5 sm:p-7"
         >
+          {/* Error */}
+
           {(validationError ||
             error) && (
-            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+            >
               <AlertCircle
                 size={18}
                 className="mt-0.5 shrink-0"
@@ -372,7 +568,10 @@ export function ClientEditorModal({
             </div>
           )}
 
+
           <div className="grid gap-4 sm:grid-cols-2">
+            {/* Full Name */}
+
             <Field
               label="نام و نام خانوادگی"
               required
@@ -387,14 +586,17 @@ export function ClientEditorModal({
                 ) =>
                   update(
                     'fullName',
-                    event.target
-                      .value
+                    event.target.value
                   )
                 }
+                autoComplete="name"
                 placeholder="مثال: علی رضایی"
-                className={inputClass}
+                className={
+                  inputClass
+                }
               />
             </Field>
+
 
             <Field
               label="شماره موبایل"
@@ -410,9 +612,9 @@ export function ClientEditorModal({
                 ) =>
                   update(
                     'phoneNumber',
+
                     normalizeDigits(
-                      event.target
-                        .value
+                      event.target.value
                     ).slice(
                       0,
                       11
@@ -420,11 +622,15 @@ export function ClientEditorModal({
                   )
                 }
                 inputMode="tel"
+                autoComplete="tel"
                 dir="ltr"
                 placeholder="09123456789"
-                className={inputClass}
+                className={
+                  inputClass
+                }
               />
             </Field>
+
 
             <Field label="کد ملی">
               <input
@@ -437,9 +643,9 @@ export function ClientEditorModal({
                 ) =>
                   update(
                     'nationalId',
+
                     normalizeDigits(
-                      event.target
-                        .value
+                      event.target.value
                     ).slice(
                       0,
                       10
@@ -449,33 +655,87 @@ export function ClientEditorModal({
                 inputMode="numeric"
                 dir="ltr"
                 placeholder="1234567890"
-                className={inputClass}
+                className={
+                  inputClass
+                }
               />
             </Field>
 
-            <Field label="شماره تماس ثابت">
-              <input
-                value={
-                  form.landlineNumber ??
-                  ''
-                }
-                onChange={(
-                  event
-                ) =>
-                  update(
-                    'landlineNumber',
-                    normalizeDigits(
-                      event.target
-                        .value
+
+            <Field
+              label="رمز شخصی"
+              required={
+                !client
+              }
+              hint={
+                client
+                  ? 'برای عدم تغییر رمز، این فیلد را خالی بگذارید.'
+                  : 'حداقل ۶ کاراکتر'
+              }
+            >
+              <div className="relative">
+                <input
+                  value={
+                    form.personalPassword ??
+                    ''
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    update(
+                      'personalPassword',
+                      event.target.value
                     )
-                  )
-                }
-                inputMode="tel"
-                dir="ltr"
-                placeholder="02112345678"
-                className={inputClass}
-              />
+                  }
+                  type={
+                    showPersonalPassword
+                      ? 'text'
+                      : 'password'
+                  }
+                  dir="ltr"
+                  autoComplete="new-password"
+                  maxLength={
+                    PERSONAL_PASSWORD_MAX_LENGTH
+                  }
+                  placeholder={
+                    client
+                      ? 'فقط در صورت تغییر رمز وارد کنید'
+                      : 'رمز شخصی موکل'
+                  }
+                  className={`${inputClass} pl-12`}
+                />
+
+                <button
+                  type="button"
+                  aria-label={
+                    showPersonalPassword
+                      ? 'مخفی کردن رمز شخصی'
+                      : 'نمایش رمز شخصی'
+                  }
+                  onClick={() =>
+                    setShowPersonalPassword(
+                      (
+                        current
+                      ) =>
+                        !current
+                    )
+                  }
+                  className="absolute left-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-800"
+                >
+                  {showPersonalPassword ? (
+                    <EyeOff
+                      size={18}
+                    />
+                  ) : (
+                    <Eye
+                      size={18}
+                    />
+                  )}
+                </button>
+              </div>
             </Field>
+
+            {/* Birth Date */}
 
             <Field label="تاریخ تولد شمسی">
               <input
@@ -488,19 +748,22 @@ export function ClientEditorModal({
                 ) =>
                   update(
                     'birthDate',
+
                     normalizeDigits(
-                      event.target
-                        .value
+                      event.target.value
                     )
                   )
                 }
                 inputMode="numeric"
                 dir="ltr"
                 placeholder="1384/09/09"
-                className={inputClass}
+                className={
+                  inputClass
+                }
               />
 
-              {age !== null && (
+              {age !==
+                null && (
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                   <span
                     className={
@@ -509,10 +772,12 @@ export function ClientEditorModal({
                         : 'font-medium text-emerald-700'
                     }
                   >
-                    سن محاسبه‌شده:{' '}
+                    سن محاسبه‌شده:
+                    {' '}
                     {age.toLocaleString(
                       'fa-IR'
-                    )}{' '}
+                    )}
+                    {' '}
                     سال
                   </span>
 
@@ -525,6 +790,7 @@ export function ClientEditorModal({
               )}
             </Field>
 
+
             <Field label="نماینده">
               <input
                 value={
@@ -536,19 +802,36 @@ export function ClientEditorModal({
                 ) =>
                   update(
                     'representative',
-                    event.target
-                      .value
+                    event.target.value
                   )
                 }
                 placeholder="در صورت وجود"
-                className={inputClass}
+                className={
+                  inputClass
+                }
               />
             </Field>
 
+           
+
             <div className="sm:col-span-2">
-              <Field label="آدرس">
+              <Field
+                label="آدرس"
+                hint={`${(
+                  form.address?.length ??
+                  0
+                ).toLocaleString(
+                  'fa-IR'
+                )} / ${ADDRESS_MAX_LENGTH.toLocaleString(
+                  'fa-IR'
+                )}`}
+              >
                 <textarea
-                  rows={4}
+                
+                  rows={2}
+                  maxLength={
+                    ADDRESS_MAX_LENGTH
+                  }
                   value={
                     form.address ??
                     ''
@@ -558,20 +841,83 @@ export function ClientEditorModal({
                   ) =>
                     update(
                       'address',
-                      event.target
-                        .value
+                      event.target.value
                     )
                   }
                   placeholder="آدرس موکل..."
-                  className={`${inputClass} resize-none`}
+                  className={`${textareaClass} min-h-[76px]`}
+                />
+              </Field>
+            </div>
+
+
+            <div className="sm:col-span-2">
+              <Field
+                label="توضیحات"
+                hint={`${(
+                  form.description
+                    ?.length ??
+                  0
+                ).toLocaleString(
+                  'fa-IR'
+                )} / ${DESCRIPTION_MAX_LENGTH.toLocaleString(
+                  'fa-IR'
+                )}`}
+              >
+                <textarea
+                  rows={3}
+                  maxLength={
+                    DESCRIPTION_MAX_LENGTH
+                  }
+                  value={
+                    form.description ??
+                    ''
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    update(
+                      'description',
+                      event.target.value
+                    )
+                  }
+                  placeholder="توضیحات تکمیلی درباره موکل..."
+                  className={`${textareaClass} min-h-[92px]`}
                 />
               </Field>
             </div>
           </div>
 
-          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs leading-6 text-blue-700">
-            «سمت در پرونده» مانند خواهان یا خوانده هنگام اتصال موکل به پرونده ثبت می‌شود و جزو پروفایل ثابت موکل نیست.
+         
+
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+            <div className="flex items-start gap-3">
+              <KeyRound
+  size={18}
+  className="mt-0.5 shrink-0 text-blue-700"
+/>
+
+              <p className="text-xs font-medium leading-6 text-blue-800">
+                رمز شخصی فقط برای احراز هویت
+                موکل استفاده می‌شود و نباید
+                بعد از ذخیره از سرور به
+                فرانت‌اند برگردانده شود.
+              </p>
+            </div>
           </div>
+
+          {/* Existing note */}
+
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs font-medium leading-6 text-indigo-700">
+            «سمت در پرونده» مانند خواهان یا
+            خوانده هنگام اتصال موکل به
+            پرونده ثبت می‌شود و جزو پروفایل
+            ثابت موکل نیست.
+          </div>
+
+          {/* ========================================================
+           * Footer
+           * ====================================================== */}
 
           <footer className="flex flex-col gap-3 border-t border-zinc-100 pt-5 sm:flex-row">
             <button
@@ -614,34 +960,60 @@ export function ClientEditorModal({
   )
 }
 
+/*
+|--------------------------------------------------------------------------
+| Field
+|--------------------------------------------------------------------------
+*/
+
 function Field({
   label,
-  required = false,
+  required =
+    false,
+  hint,
   children,
 }: {
-  label: string
+  label:
+    string
 
-  required?: boolean
+  required?:
+    boolean
+
+  hint?:
+    string
 
   children:
-    React.ReactNode
+    ReactNode
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-zinc-800">
-        {label}
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="text-sm font-medium text-zinc-800">
+          {label}
 
-        {required && (
-          <span className="mr-1 text-red-500">
-            *
+          {required && (
+            <span className="mr-1 text-red-500">
+              *
+            </span>
+          )}
+        </span>
+
+        {hint && (
+          <span className="text-[11px] font-medium text-zinc-400">
+            {hint}
           </span>
         )}
-      </span>
+      </div>
 
       {children}
     </label>
   )
 }
 
+
+
 const inputClass =
   'w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10'
+
+const textareaClass =
+  'w-full resize-none rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm leading-6 text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10'

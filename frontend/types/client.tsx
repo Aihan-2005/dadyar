@@ -5,11 +5,12 @@ export interface Client {
 
   phoneNumber: string
 
- 
+  
   phone?: string
 
   nationalId?: string
 
+ 
   landlineNumber?: string
 
   birthDate?: string
@@ -18,18 +19,20 @@ export interface Client {
 
   address?: string
 
+  description?: string
+
   createdAt: string
+
   updatedAt: string
 
- 
   caseIds?: string[]
 
-  
   role?: string
-
 
   isMinor?: boolean
 }
+
+
 
 export interface CreateClientPayload {
   fullName: string
@@ -38,17 +41,25 @@ export interface CreateClientPayload {
 
   nationalId?: string
 
+
   landlineNumber?: string
+
+  
+  personalPassword?: string
 
   birthDate?: string
 
   representative?: string
 
   address?: string
+
+  description?: string
 }
 
 export type UpdateClientPayload =
   Partial<CreateClientPayload>
+
+
 
 export interface ClientPagination {
   page: number
@@ -59,6 +70,8 @@ export interface ClientPagination {
 
   totalPages: number
 }
+
+
 
 export interface ClientListOptions {
   search?: string
