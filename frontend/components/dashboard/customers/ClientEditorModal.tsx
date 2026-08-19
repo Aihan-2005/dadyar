@@ -9,8 +9,6 @@ import {
 
 import {
   AlertCircle,
-  Eye,
-  EyeOff,
   KeyRound,
   Loader2,
   X,
@@ -30,6 +28,7 @@ import {
   normalizeDigits,
 } from '@/features/finance/utils/number'
 
+ 
 
 interface Props {
   open:
@@ -52,9 +51,7 @@ interface Props {
       CreateClientPayload
   ) => Promise<void>
 }
-
-
-
+ 
 
 const EMPTY_FORM:
   CreateClientPayload = {
@@ -83,10 +80,7 @@ const EMPTY_FORM:
       '',
   }
 
-  
-
-
-
+ 
 const PERSONAL_PASSWORD_MIN_LENGTH =
   6
 
@@ -99,8 +93,7 @@ const ADDRESS_MAX_LENGTH =
 const DESCRIPTION_MAX_LENGTH =
   1000
 
-
-  
+ 
 
 export function ClientEditorModal({
   open,
@@ -128,15 +121,7 @@ export function ClientEditorModal({
       null
     )
 
-  const [
-    showPersonalPassword,
-    setShowPersonalPassword,
-  ] =
-    useState(
-      false
-    )
-
-
+ 
 
   useEffect(() => {
     if (!open) {
@@ -147,13 +132,7 @@ export function ClientEditorModal({
       null
     )
 
-    setShowPersonalPassword(
-      false
-    )
-
-    /*
-     * Create
-     */
+    
     if (!client) {
       setForm({
         ...EMPTY_FORM,
@@ -162,8 +141,7 @@ export function ClientEditorModal({
       return
     }
 
-  
-
+   
     setForm({
       fullName:
         client.fullName,
@@ -199,8 +177,7 @@ export function ClientEditorModal({
     open,
   ])
 
-
-
+  
 
   useEffect(() => {
     if (!open) {
@@ -238,14 +215,13 @@ export function ClientEditorModal({
     open,
   ])
 
-
-
+ 
 
   if (!open) {
     return null
   }
 
-
+  
 
   const age =
     getClientAge(
@@ -257,7 +233,7 @@ export function ClientEditorModal({
       form.birthDate
     )
 
-
+   
 
   const update = <
     K extends keyof CreateClientPayload,
@@ -285,7 +261,6 @@ export function ClientEditorModal({
   }
 
   
-
 
   const handleSubmit =
     async (
@@ -338,6 +313,7 @@ export function ClientEditorModal({
           ?.trim() ??
         ''
 
+      
 
       if (!fullName) {
         setValidationError(
@@ -347,7 +323,7 @@ export function ClientEditorModal({
         return
       }
 
-    
+      
 
       if (
         !/^09\d{9}$/.test(
@@ -361,9 +337,7 @@ export function ClientEditorModal({
         return
       }
 
-   
       
-
 
       if (
         nationalId &&
@@ -381,23 +355,12 @@ export function ClientEditorModal({
   
 
       if (
-        !client &&
-        !personalPassword
-      ) {
-        setValidationError(
-          'رمز شخصی برای موکل جدید الزامی است.'
-        )
-
-        return
-      }
-
-      if (
         personalPassword &&
         personalPassword.length <
           PERSONAL_PASSWORD_MIN_LENGTH
       ) {
         setValidationError(
-          `رمز شخصی باید حداقل ${PERSONAL_PASSWORD_MIN_LENGTH.toLocaleString(
+          `رمز شخصی در صورت تعیین باید حداقل ${PERSONAL_PASSWORD_MIN_LENGTH.toLocaleString(
             'fa-IR'
           )} کاراکتر باشد.`
         )
@@ -418,7 +381,8 @@ export function ClientEditorModal({
         return
       }
 
- 
+      
+
       if (
         address.length >
         ADDRESS_MAX_LENGTH
@@ -432,11 +396,7 @@ export function ClientEditorModal({
         return
       }
 
-      /*
-      |--------------------------------------------------------------------------
-      | Description
-      |--------------------------------------------------------------------------
-      */
+     
 
       if (
         description.length >
@@ -452,6 +412,7 @@ export function ClientEditorModal({
       }
 
    
+
       await onSubmit({
         fullName,
 
@@ -485,7 +446,6 @@ export function ClientEditorModal({
     }
 
   
-
   return (
     <div
       className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
@@ -505,8 +465,7 @@ export function ClientEditorModal({
         ) => {
           event.stopPropagation()
         }}
-      >
-
+      > 
         <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-zinc-100 bg-white px-5 py-4 sm:px-6">
           <div>
             <h2
@@ -540,7 +499,7 @@ export function ClientEditorModal({
             />
           </button>
         </header>
-
+ 
 
         <form
           onSubmit={
@@ -568,6 +527,7 @@ export function ClientEditorModal({
             </div>
           )}
 
+          {/* Fields */}
 
           <div className="grid gap-4 sm:grid-cols-2">
             {/* Full Name */}
@@ -597,6 +557,7 @@ export function ClientEditorModal({
               />
             </Field>
 
+            {/* Mobile */}
 
             <Field
               label="شماره موبایل"
@@ -631,6 +592,7 @@ export function ClientEditorModal({
               />
             </Field>
 
+            {/* National ID */}
 
             <Field label="کد ملی">
               <input
@@ -661,78 +623,40 @@ export function ClientEditorModal({
               />
             </Field>
 
+            {/* Personal Password */}
 
             <Field
               label="رمز شخصی"
-              required={
-                !client
-              }
               hint={
                 client
-                  ? 'برای عدم تغییر رمز، این فیلد را خالی بگذارید.'
-                  : 'حداقل ۶ کاراکتر'
+                  ? 'اختیاری؛ فقط برای تغییر رمز مقدار وارد کنید.'
+                  : 'اختیاری؛ در صورت تعیین حداقل ۶ کاراکتر.'
               }
             >
-              <div className="relative">
-                <input
-                  value={
-                    form.personalPassword ??
-                    ''
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    update(
-                      'personalPassword',
-                      event.target.value
-                    )
-                  }
-                  type={
-                    showPersonalPassword
-                      ? 'text'
-                      : 'password'
-                  }
-                  dir="ltr"
-                  autoComplete="new-password"
-                  maxLength={
-                    PERSONAL_PASSWORD_MAX_LENGTH
-                  }
-                  placeholder={
-                    client
-                      ? 'فقط در صورت تغییر رمز وارد کنید'
-                      : 'رمز شخصی موکل'
-                  }
-                  className={`${inputClass} pl-12`}
-                />
-
-                <button
-                  type="button"
-                  aria-label={
-                    showPersonalPassword
-                      ? 'مخفی کردن رمز شخصی'
-                      : 'نمایش رمز شخصی'
-                  }
-                  onClick={() =>
-                    setShowPersonalPassword(
-                      (
-                        current
-                      ) =>
-                        !current
-                    )
-                  }
-                  className="absolute left-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-800"
-                >
-                  {showPersonalPassword ? (
-                    <EyeOff
-                      size={18}
-                    />
-                  ) : (
-                    <Eye
-                      size={18}
-                    />
-                  )}
-                </button>
-              </div>
+              <input
+                value={
+                  form.personalPassword ??
+                  ''
+                }
+                onChange={(
+                  event
+                ) =>
+                  update(
+                    'personalPassword',
+                    event.target.value
+                  )
+                }
+                type="password"
+                dir="ltr"
+                autoComplete="new-password"
+                maxLength={
+                  PERSONAL_PASSWORD_MAX_LENGTH
+                }
+                placeholder="اختیاری"
+                className={
+                  inputClass
+                }
+              />
             </Field>
 
             {/* Birth Date */}
@@ -790,6 +714,7 @@ export function ClientEditorModal({
               )}
             </Field>
 
+            {/* Representative */}
 
             <Field label="نماینده">
               <input
@@ -812,7 +737,7 @@ export function ClientEditorModal({
               />
             </Field>
 
-           
+            {/* Address */}
 
             <div className="sm:col-span-2">
               <Field
@@ -827,7 +752,6 @@ export function ClientEditorModal({
                 )}`}
               >
                 <textarea
-                
                   rows={2}
                   maxLength={
                     ADDRESS_MAX_LENGTH
@@ -850,6 +774,7 @@ export function ClientEditorModal({
               </Field>
             </div>
 
+            {/* Description */}
 
             <div className="sm:col-span-2">
               <Field
@@ -888,25 +813,26 @@ export function ClientEditorModal({
             </div>
           </div>
 
-         
+          {/* Password Info */}
 
           <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
             <div className="flex items-start gap-3">
               <KeyRound
-  size={18}
-  className="mt-0.5 shrink-0 text-blue-700"
-/>
+                size={18}
+                className="mt-0.5 shrink-0 text-blue-700"
+              />
 
               <p className="text-xs font-medium leading-6 text-blue-800">
-                رمز شخصی فقط برای احراز هویت
-                موکل استفاده می‌شود و نباید
-                بعد از ذخیره از سرور به
-                فرانت‌اند برگردانده شود.
+                تعیین رمز شخصی اختیاری است.
+                در صورت تعیین، رمز فقط برای
+                احراز هویت موکل استفاده
+                می‌شود و مقدار اصلی آن بعد
+                از ذخیره از سرور برنمی‌گردد.
               </p>
             </div>
           </div>
 
-          {/* Existing note */}
+          {/* Case Role Info */}
 
           <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs font-medium leading-6 text-indigo-700">
             «سمت در پرونده» مانند خواهان یا
@@ -915,9 +841,7 @@ export function ClientEditorModal({
             ثابت موکل نیست.
           </div>
 
-          {/* ========================================================
-           * Footer
-           * ====================================================== */}
+          {/* Footer */}
 
           <footer className="flex flex-col gap-3 border-t border-zinc-100 pt-5 sm:flex-row">
             <button
@@ -960,11 +884,7 @@ export function ClientEditorModal({
   )
 }
 
-/*
-|--------------------------------------------------------------------------
-| Field
-|--------------------------------------------------------------------------
-*/
+ 
 
 function Field({
   label,
@@ -1010,7 +930,7 @@ function Field({
   )
 }
 
-
+ 
 
 const inputClass =
   'w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10'
