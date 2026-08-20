@@ -32,6 +32,9 @@ export interface Payment {
   paidDate?: DateValue
   paymentDate?: string
 
+  description?: string
+  paymentDescription?: string
+
   isPaid?: boolean
 }
 
@@ -49,10 +52,12 @@ export interface CaseClient {
   name?: string
   phone?: string
   nationalId?: string
+
+  birthDate?: string
+
   role?: string
   representative?: string
 
-  
   feeShareAmount?: MoneyValue
 }
 
@@ -60,14 +65,22 @@ export interface OpposingParty {
   name?: string
   phone?: string
   nationalId?: string
-  role?: string
+
   birthDate?: string
+
+  role?: string
   description?: string
 }
 
 export interface Lawyer {
   name?: string
   phone?: string
+
+  nationalId?: string
+  birthDate?: string
+
+  role?: string
+
   licenseNumber?: string
   licenseExpiry?: string
   licenseIssuePlace?: string
@@ -85,8 +98,15 @@ export interface CashPayment {
   amount?: number
   isPaid?: boolean
 
- 
+  /**
+   * تاریخ سررسید/پرداختی که در فرم پرونده وارد می‌شود.
+   */
   paymentDate?: string
+
+  /**
+   * توضیح همان پرداخت نقدی.
+   */
+  paymentDescription?: string
 
   dueDate?: DateValue
   paidDate?: DateValue
@@ -122,20 +142,26 @@ export interface CourtBranch {
   province?: string
   city?: string
   courtType?: string
+
   branch?: string
   currentBranchNumber?: string
   branchNumber?: string
+
   courtName?: string
+
   archiveNumberBranch?: string
   branchHistory?: BranchHistoryItem[]
 }
 
 export interface Expense {
   id?: string
+
   title?: string
   amount?: number
+
   date?: string
   description?: string
+
   isPaid?: boolean
 }
 
@@ -143,6 +169,9 @@ export interface OtherPerson {
   name?: string
   phone?: string
   nationalId?: string
+
+  birthDate?: string
+
   role?: string
   description?: string
 }
@@ -158,11 +187,24 @@ export interface Case {
   updatedAt: DateValue
   closedAt?: DateValue
 
+  /**
+   * شماره پرونده قضایی.
+   */
   caseNumber?: string
+
   trackingCode?: string
 
+  /**
+   * شماره بایگانی داخلی دفتر وکیل.
+   * این مقدار مستقل از caseNumber است.
+   */
   archiveNumberOffice?: string
+
+  /**
+   * فیلد legacy؛ فعلاً برای سازگاری با داده‌های قبلی نگه داشته شده است.
+   */
   archiveNumberLawyer?: string
+
   archiveNumberBranch?: string
 
   province?: string
@@ -176,14 +218,18 @@ export interface Case {
 
   clients?: CaseClient[]
 
-  
+  /**
+   * فیلدهای legacy پرونده‌های تک‌موکله.
+   */
   clientId?: string
   clientName?: string
   clientPhone?: string
 
   opposingParties?: OpposingParty[]
+
   coLawyers?: Lawyer[]
   opposingLawyers?: Lawyer[]
+
   otherPersons?: OtherPerson[]
 
   subject?: string
@@ -197,6 +243,7 @@ export interface Case {
   paymentType?: PaymentType
 
   contractAmount?: MoneyValue
+
   totalFee?: number
   totalAmount?: number
 
@@ -216,6 +263,12 @@ export interface Case {
   expenses?: Expense[]
 
   nonCashDescription?: string
+
+  /**
+   * ارزش تقریبی مال/تعهد غیرنقدی برای گزارش مالی.
+   */
+  estimatedPrice?: MoneyValue
+
   installmentDescription?: string
 }
 

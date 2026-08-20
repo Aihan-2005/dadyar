@@ -1,6 +1,3 @@
-
-
-
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -291,6 +288,9 @@ caseNumber: z
     1,
     'شماره پرونده الزامی است'
   ),
+
+archiveNumberOffice:
+  optionalTextSchema,
   archiveNumberBranch:
     optionalTextSchema,
 
@@ -947,6 +947,8 @@ const clientsError =
     paymentType: 'cash',
 
     caseNumber: '',
+
+    archiveNumberOffice: '',
 
     cashPayments: [],
 
@@ -2465,6 +2467,11 @@ const formattedCashPayments =
     data.caseNumber
   ),
 
+        archiveNumberOffice:
+          cleanText(
+            data.archiveNumberOffice
+          ) || undefined,
+
 clients:
   cleanedClients,
 
@@ -2644,21 +2651,31 @@ clients:
 
         {/* اطلاعات پایه */}
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-blue-100 pb-3 mb-4">اطلاعات پایه</h2>
+          <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-blue-100 pb-3 mb-4">
+            اطلاعات پایه
+          </h2>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-900 mb-2">عنوان پرونده *</label>
+            <label className="block text-sm font-medium text-zinc-900 mb-2">
+              عنوان پرونده *
+            </label>
             <input
               {...register('title')}
               type="text"
               className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="مثال: پرونده طلاق"
             />
-            {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
+            {errors.title && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.title.message}
+              </p>
+            )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-900 mb-2">وضعیت *</label>
+            <label className="block text-sm font-medium text-zinc-900 mb-2">
+              وضعیت *
+            </label>
             <select
               {...register('status')}
               className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -2671,91 +2688,98 @@ clients:
           </div>
 
           <div>
-  <label className="block text-sm font-medium text-zinc-900 mb-2">
-          شماره بایگانی دفتر وکیل *
-  </label>
-
-  <input
-    {...register(
-      'caseNumber'
-    )}
-    type="text"
-    className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-    placeholder="مثال: 1405/125"
-    dir="ltr"
-  />
-
-  {errors.caseNumber && (
-    <p className="mt-1 text-sm text-red-600">
-      {
-        errors.caseNumber
-          .message
-      }
-    </p>
-  )}
-</div>
+            <label className="block text-sm font-medium text-zinc-900 mb-2">
+              شماره بایگانی دفتر وکیل
+            </label>
+            <input
+              {...register('archiveNumberOffice')}
+              type="text"
+              className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="مثال: 1405/125"
+              dir="ltr"
+            />
+          </div>
         </div>
 
-        {/* مشخصات پرونده  */}
+        {/* مشخصات پرونده */}
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-green-100 pb-3 mb-4">مشخصات پرونده</h2>
+          <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-green-100 pb-3 mb-4">
+            مشخصات پرونده
+          </h2>
 
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 space-y-6">
-            <div className="relative">
-              <label className="block text-sm font-medium text-green-800 mb-2">نوع دادگاه</label>
-              <div>
-<label className="block text-sm font-medium text-green-800 mb-2">
-شماره پرونده
-</label>
-
-<input
- {...register('caseNumber')}
- type="text"
- className="w-full px-4 py-3 border border-green-300 rounded-lg bg-white"
-/>
-
-</div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="relative">
-                <input
-                  type="text"
-                  value={courtTypeInput}
-                  onChange={(event) => handleCourtTypeInputChange(event.target.value)}
-                  onFocus={() => setIsCourtTypeDropdownOpen(true)}
-                  onBlur={() => setTimeout(() => setIsCourtTypeDropdownOpen(false), 200)}
-                  className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                  placeholder="تایپ کنید یا انتخاب کنید"
-                />
-                <button
-                  type="button"
-                  onClick={() => setIsCourtTypeDropdownOpen((prev) => !prev)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2"
-                >
-                  <ChevronDown size={20} className="text-green-500" />
-                </button>
+                <label className="block text-sm font-medium text-green-800 mb-2">
+                  نوع دادگاه
+                </label>
 
-                {isCourtTypeDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-green-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
-                    {filteredCourtTypes.map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => selectCourtType(type)}
-                        className="w-full text-right px-4 py-3 hover:bg-green-50 border-b border-green-100 last:border-b-0"
-                      >
-                        {type}
-                      </button>
-                    ))}
-                    {filteredCourtTypes.length === 0 && (
-                      <div className="px-4 py-3 text-zinc-500">نتیجه‌ای یافت نشد؛ متن تایپ‌شده ذخیره می‌شود.</div>
-                    )}
-                  </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={courtTypeInput}
+                    onChange={(event) => handleCourtTypeInputChange(event.target.value)}
+                    onFocus={() => setIsCourtTypeDropdownOpen(true)}
+                    onBlur={() => setTimeout(() => setIsCourtTypeDropdownOpen(false), 200)}
+                    className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    placeholder="تایپ کنید یا انتخاب کنید"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsCourtTypeDropdownOpen((prev) => !prev)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2"
+                    aria-label="باز کردن فهرست نوع دادگاه"
+                  >
+                    <ChevronDown size={20} className="text-green-500" />
+                  </button>
+
+                  {isCourtTypeDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-green-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
+                      {filteredCourtTypes.map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => selectCourtType(type)}
+                          className="w-full text-right px-4 py-3 hover:bg-green-50 border-b border-green-100 last:border-b-0"
+                        >
+                          {type}
+                        </button>
+                      ))}
+
+                      {filteredCourtTypes.length === 0 && (
+                        <div className="px-4 py-3 text-zinc-500">
+                          نتیجه‌ای یافت نشد؛ متن تایپ‌شده ذخیره می‌شود.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-green-800 mb-2">
+                  شماره پرونده *
+                </label>
+                <input
+                  {...register('caseNumber')}
+                  type="text"
+                  className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                  placeholder="شماره پرونده"
+                  dir="ltr"
+                />
+                {errors.caseNumber && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.caseNumber.message}
+                  </p>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-green-800 mb-2">استان</label>
+                <label className="block text-sm font-medium text-green-800 mb-2">
+                  استان
+                </label>
                 <select
                   value={activeCourtLocation?.province || ''}
                   onChange={(event) => updateActiveCourtLocationField('province', event.target.value)}
@@ -2771,35 +2795,43 @@ clients:
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-green-800 mb-2">شهر/بخش</label>
+                <label className="block text-sm font-medium text-green-800 mb-2">
+                  شهر / بخش
+                </label>
                 <input
                   type="text"
                   value={activeCourtLocation?.city || ''}
                   onChange={(event) => updateActiveCourtLocationField('city', event.target.value)}
                   className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                  placeholder="نام شهر/بخش"
+                  placeholder="نام شهر / بخش"
                 />
               </div>
 
               <div className="relative">
-                <label className="block text-sm font-medium text-green-800 mb-2">شعبه</label>
+                <label className="block text-sm font-medium text-green-800 mb-2">
+                  شعبه
+                </label>
                 <div className="relative">
                   <input
                     type="text"
                     value={activeBranch}
                     onFocus={() => {
-                      if (courtLocationHistory.length > 0) setIsBranchDropdownOpen(true)
+                      if (courtLocationHistory.length > 0) {
+                        setIsBranchDropdownOpen(true)
+                      }
                     }}
                     onBlur={() => setTimeout(() => setIsBranchDropdownOpen(false), 200)}
                     onChange={(event) => updateActiveCourtLocationField('branchNumber', event.target.value)}
                     className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                     placeholder="شماره یا نام شعبه"
                   />
+
                   {courtLocationHistory.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setIsBranchDropdownOpen((prev) => !prev)}
                       className="absolute left-3 top-1/2 -translate-y-1/2"
+                      aria-label="نمایش تاریخچه شعبه"
                     >
                       <ChevronDown size={20} className="text-green-500" />
                     </button>
@@ -2808,8 +2840,11 @@ clients:
                   {isBranchDropdownOpen && courtLocationHistory.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-green-300 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
                       <div className="p-2 border-b border-green-200 bg-green-50">
-                        <p className="text-xs text-green-700 font-medium">تاریخچه اطلاعات شعبه</p>
+                        <p className="text-xs text-green-700 font-medium">
+                          تاریخچه اطلاعات شعبه
+                        </p>
                       </div>
+
                       {courtLocationHistory
                         .slice()
                         .reverse()
@@ -2821,11 +2856,13 @@ clients:
                             className="w-full text-right px-4 py-3 hover:bg-green-50 border-b border-green-100 last:border-b-0"
                           >
                             <span className="block text-sm text-zinc-800">
-                              {location.province || 'استان نامشخص'} / {location.city || 'شهر نامشخص'} / شعبه{' '}
+                              {location.province || 'استان نامشخص'} /{' '}
+                              {location.city || 'شهر نامشخص'} / شعبه{' '}
                               {location.branchNumber || 'ثبت نشده'}
                             </span>
                             <span className="block text-xs text-green-600 mt-1">
-                              بایگانی: {location.archiveNumberBranch || 'ثبت نشده'} - {location.date || 'تاریخ ثبت نشده'}
+                              بایگانی: {location.archiveNumberBranch || 'ثبت نشده'} -{' '}
+                              {location.date || 'تاریخ ثبت نشده'}
                             </span>
                           </button>
                         ))}
@@ -2835,20 +2872,23 @@ clients:
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-green-800 mb-2">شماره بایگانی شعبه</label>
+                <label className="block text-sm font-medium text-green-800 mb-2">
+                  شماره بایگانی شعبه
+                </label>
                 <input
                   type="text"
                   value={activeCourtLocation?.archiveNumberBranch || ''}
                   onChange={(event) => updateActiveCourtLocationField('archiveNumberBranch', event.target.value)}
                   className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                  placeholder="شماره بایگانی"
+                  placeholder="شماره بایگانی شعبه"
                   dir="ltr"
                 />
               </div>
             </div>
 
             <div className="rounded-lg bg-green-100/70 border border-green-200 p-3 text-xs text-green-800 leading-6">
-              استان، شهر، شعبه و شماره بایگانی به صورت یک رکورد واحد ذخیره می‌شوند. برای تغییر این چهار مورد، دکمه زیر را بزنید تا همه با هم در یک رکورد جدید ثبت شوند.
+              استان، شهر / بخش، شعبه و شماره بایگانی شعبه به‌صورت یک رکورد واحد ذخیره می‌شوند.
+              برای تغییر این اطلاعات، دکمه زیر را بزنید تا رکورد جدید ثبت شود.
             </div>
 
             {hasCourtLocationValue(activeCourtLocation) && (
@@ -2864,8 +2904,12 @@ clients:
 
             {courtLocationHistory.length > 0 && (
               <div className="p-3 bg-green-100 rounded-lg">
-                <p className="text-green-700 font-medium text-xs">تعداد تغییرات اطلاعات شعبه: {courtLocationHistory.length}</p>
-                <p className="text-green-600 text-xs mt-1">شعبه فعلی: {activeBranch || 'ثبت نشده'}</p>
+                <p className="text-green-700 font-medium text-xs">
+                  تعداد تغییرات اطلاعات شعبه: {courtLocationHistory.length}
+                </p>
+                <p className="text-green-600 text-xs mt-1">
+                  شعبه فعلی: {activeBranch || 'ثبت نشده'}
+                </p>
               </div>
             )}
           </div>
@@ -3067,13 +3111,13 @@ clients:
 
           <div>
             <label className="text-xs text-blue-700 font-medium block mb-1">
-              نماینده/سمت
+                سمت / نماینده
             </label>
             <input
               {...register(`clients.${index}.representative` as const)}
               type="text"
               className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              placeholder=" /نام نماینده"
+              placeholder="سمت یا نام نماینده"
             />
           </div>
         </div>

@@ -555,6 +555,14 @@ function mapCourtToApi(
     city,
 
     branch,
+
+    archiveNumberBranch:
+      optionalText(
+        source
+          .courtBranch
+          ?.archiveNumberBranch ??
+        source.archiveNumberBranch
+      ),
   }
 }
 
@@ -669,6 +677,11 @@ function getClientPayments(
         amount:
           toFiniteNumber(
             payment.amount
+          ),
+
+        description:
+          optionalText(
+            payment.paymentDescription
           ),
 
         dueDate:
@@ -819,6 +832,12 @@ function mapClientsToApi(
           shares[
             index
           ],
+
+        birthDate:
+          toIsoDate(
+            client.birthDate,
+            'تاریخ تولد موکل'
+          ),
 
         role:
           optionalText(
@@ -1024,6 +1043,17 @@ function mapLawyersToApi(
 
           phone,
 
+          nationalId:
+            normalizeNationalId(
+              lawyer.nationalId
+            ),
+
+          birthDate:
+            toIsoDate(
+              lawyer.birthDate,
+              `تاریخ تولد ${label}`
+            ),
+
           barLicenseNumber:
             optionalText(
               lawyer.licenseNumber
@@ -1097,6 +1127,12 @@ function mapRelatedPeopleToApi(
           nationalId:
             normalizeNationalId(
               person.nationalId
+            ),
+
+          birthDate:
+            toIsoDate(
+              person.birthDate,
+              'تاریخ تولد شخص مرتبط'
             ),
 
           role:
@@ -1224,6 +1260,11 @@ export function toCreateCaseApiRequest(
 
     caseNumber,
 
+    archiveNumberOffice:
+      optionalText(
+        source.archiveNumberOffice
+      ),
+
     value:
       contractAmount,
 
@@ -1247,6 +1288,14 @@ export function toCreateCaseApiRequest(
             source
               .nonCashDescription
           ),
+
+    estimatedPrice:
+      paymentType ===
+      'CASH'
+        ? undefined
+        : toFiniteNumber(
+            source.estimatedPrice
+          ) || undefined,
 
     court:
       mapCourtToApi(
@@ -1302,7 +1351,7 @@ function flattenPayments(
   clientName: string
   payment: ApiCasePaymentRecord
 }> {
-  return source.clients.flatMap(
+  return (source.clients ?? []).flatMap(
     (client) =>
       client.payments.map(
         (payment) => ({
@@ -1414,6 +1463,9 @@ export function fromApiCase(
               payment.dueDate
             ),
 
+          paymentDescription:
+            payment.description,
+
           dueDate:
             payment.dueDate,
         })
@@ -1443,6 +1495,9 @@ export function fromApiCase(
           toJalaliDate(
             payment.dueDate
           ),
+
+        description:
+          payment.description,
 
         dueDate:
           payment.dueDate,
@@ -1489,7 +1544,7 @@ export function fromApiCase(
       )
 
   const clients =
-    source.clients.map(
+    (source.clients ?? []).map(
       (client) => ({
         clientId:
           client.clientId,
@@ -1502,6 +1557,11 @@ export function fromApiCase(
 
         nationalId:
           client.nationalId,
+
+        birthDate:
+          toJalaliDate(
+            client.birthDate
+          ),
 
         role:
           client.role,
@@ -1624,6 +1684,9 @@ export function fromApiCase(
     caseNumber:
       source.caseNumber,
 
+    archiveNumberOffice:
+      source.archiveNumberOffice,
+
     description:
       source.description,
 
@@ -1642,7 +1705,7 @@ export function fromApiCase(
         ?.phone,
 
     opposingParties:
-      source.opposingParties.map(
+      (source.opposingParties ?? []).map(
         (party) => ({
           name:
             party.fullName,
@@ -1667,13 +1730,21 @@ export function fromApiCase(
       ),
 
     coLawyers:
-      source.assistantLawyers.map(
+      (source.assistantLawyers ?? []).map(
         (lawyer) => ({
           name:
             lawyer.fullName,
 
           phone:
             lawyer.phone,
+
+          nationalId:
+            lawyer.nationalId,
+
+          birthDate:
+            toJalaliDate(
+              lawyer.birthDate
+            ),
 
           licenseNumber:
             lawyer.barLicenseNumber,
@@ -1689,13 +1760,21 @@ export function fromApiCase(
       ),
 
     opposingLawyers:
-      source.opposingLawyers.map(
+      (source.opposingLawyers ?? []).map(
         (lawyer) => ({
           name:
             lawyer.fullName,
 
           phone:
             lawyer.phone,
+
+          nationalId:
+            lawyer.nationalId,
+
+          birthDate:
+            toJalaliDate(
+              lawyer.birthDate
+            ),
 
           licenseNumber:
             lawyer.barLicenseNumber,
@@ -1711,7 +1790,7 @@ export function fromApiCase(
       ),
 
     otherPersons:
-      source.relatedPeople.map(
+      (source.relatedPeople ?? []).map(
         (person) => ({
           name:
             person.fullName,
@@ -1721,6 +1800,11 @@ export function fromApiCase(
 
           nationalId:
             person.nationalId,
+
+          birthDate:
+            toJalaliDate(
+              person.birthDate
+            ),
 
           role:
             person.role,
@@ -1766,6 +1850,8 @@ export function fromApiCase(
                 .branch,
 
             archiveNumberBranch:
+              source.court
+                .archiveNumberBranch ??
               activeBranch
                 ?.archiveNumberBranch,
 
@@ -1800,6 +1886,8 @@ export function fromApiCase(
         : undefined,
 
     archiveNumberBranch:
+      source.court
+        ?.archiveNumberBranch ??
       activeBranch
         ?.archiveNumberBranch,
 
@@ -1885,7 +1973,7 @@ export function fromApiCase(
     nonCashPayments,
 
     expenses:
-      source.expenses.map(
+      (source.expenses ?? []).map(
         (expense) => ({
           id:
             expense.expenseId,
@@ -1912,5 +2000,8 @@ export function fromApiCase(
     nonCashDescription:
       source.nonCashDescription ??
       '',
+
+    estimatedPrice:
+      source.estimatedPrice,
   }
 }

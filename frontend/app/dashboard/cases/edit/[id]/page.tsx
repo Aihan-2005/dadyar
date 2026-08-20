@@ -16,6 +16,19 @@ import {
 import type {
   UpdateCasePayload,
 } from '@/types/case'
+
+import {
+  formatDateInput,
+  parseFinanceDate,
+} from '@/features/finance/utils/date'
+
+import {
+  formatMoneyInput,
+  normalizeDigits,
+  toFiniteNumber,
+  toOptionalFiniteNumber,
+} from '@/features/finance/utils/number'
+
 type EditCasePageProps = {
   params: Promise<{ id: string }>
 }
@@ -51,17 +64,24 @@ const optionalPhoneSchema = z
   })
   .optional()
 
-const optionalNumberSchema = z.preprocess((value) => {
-  if (value === '' || value === null || value === undefined) return undefined
-  if (typeof value === 'number' && Number.isNaN(value)) return undefined
-
-  const parsed = Number(value)
-  return Number.isNaN(parsed) ? undefined : parsed
-}, z.number().min(0, 'مبلغ نمی‌تواند منفی باشد').optional())
+const optionalNumberSchema = z.preprocess(
+  (value) =>
+    toOptionalFiniteNumber(value),
+  z
+    .number()
+    .min(
+      0,
+      'مبلغ نمی‌تواند منفی باشد'
+    )
+    .optional()
+)
 
 const lawyerSchema = z.object({
   name: optionalTextSchema,
   phone: optionalPhoneSchema,
+  nationalId: optionalTextSchema,
+  birthDate: optionalTextSchema,
+  role: optionalTextSchema,
   licenseNumber: optionalTextSchema,
   licenseExpiry: optionalTextSchema,
   licenseIssuePlace: optionalTextSchema,
@@ -72,6 +92,7 @@ const clientSchema = z.object({
   name: optionalTextSchema,
   phone: optionalPhoneSchema,
   nationalId: optionalTextSchema,
+  birthDate: optionalTextSchema,
   role: optionalTextSchema,
   representative: optionalTextSchema,
   feeShareAmount: optionalNumberSchema,
@@ -90,6 +111,7 @@ const otherPersonSchema = z.object({
   name: optionalTextSchema,
   phone: optionalPhoneSchema,
   nationalId: optionalTextSchema,
+  birthDate: optionalTextSchema,
   role: optionalTextSchema,
   description: optionalTextSchema,
 })
@@ -114,6 +136,9 @@ const paymentSchema = z.object({
       .optional(),
 
   paymentDate:
+    optionalTextSchema,
+
+  paymentDescription:
     optionalTextSchema,
 })
 
@@ -160,7 +185,13 @@ const caseSchema = z.object({
     .min(
       1,
       'شماره پرونده الزامی است'
-    ), archiveNumberBranch: optionalTextSchema,
+    ),
+
+  archiveNumberOffice:
+    optionalTextSchema,
+
+  archiveNumberBranch:
+    optionalTextSchema,
   province: optionalTextSchema,
   city: optionalTextSchema,
   courtType: optionalTextSchema,
@@ -172,6 +203,7 @@ const caseSchema = z.object({
   paymentType: z.enum(['cash', 'non-cash', 'both']).default('cash'),
   cashPayments: z.array(paymentSchema).optional(),
   nonCashDescription: optionalTextSchema,
+  estimatedPrice: optionalNumberSchema,
   contractAmount: optionalNumberSchema,
   remainingAmount: optionalNumberSchema,
   overdueAmount: optionalNumberSchema,
@@ -300,10 +332,6 @@ function cleanText(value: unknown): string {
   return ''
 }
 
-function toFiniteNumber(value: unknown): number {
-  const num = Number(value)
-  return Number.isFinite(num) ? num : 0
-}
 
 
 function hasText(value: unknown): boolean {
@@ -418,6 +446,7 @@ function createEmptyClient():
     name: '',
     phone: '',
     nationalId: '',
+    birthDate: '',
     role: '',
     representative: '',
     feeShareAmount: undefined,
@@ -439,15 +468,25 @@ function normalizeClients(
         client.nationalId,
       ),
 
+      birthDate: cleanText(
+        client.birthDate,
+      ),
+
       role: cleanText(client.role),
 
-      representative: cleanText(
-        client.representative,
-      ),
+      representative:
+        getFirstTextValue(
+          client.representative,
+          client.role,
+        ),
+
       feeShareAmount:
-        typeof client.feeShareAmount === 'number'
-          ? client.feeShareAmount
-          : undefined,
+        formatMoneyInput(
+          client.feeShareAmount as
+            | string
+            | number
+            | undefined
+        ) || undefined,
     }),
   )
 }
@@ -489,6 +528,18 @@ function normalizeLawyers(
       name: cleanText(lawyer.name),
       phone: cleanText(lawyer.phone),
 
+      nationalId: cleanText(
+        lawyer.nationalId,
+      ),
+
+      birthDate: cleanText(
+        lawyer.birthDate,
+      ),
+
+      role: cleanText(
+        lawyer.role,
+      ),
+
       licenseNumber: cleanText(
         lawyer.licenseNumber,
       ),
@@ -516,6 +567,10 @@ function normalizeOtherPersons(
 
       nationalId: cleanText(
         person.nationalId,
+      ),
+
+      birthDate: cleanText(
+        person.birthDate,
       ),
 
       role: cleanText(person.role),
@@ -557,9 +612,12 @@ function normalizePayments(
         ),
 
       amount:
-        normalizeNumberInput(
-          payment.amount
-        ),
+        formatMoneyInput(
+          payment.amount as
+            | string
+            | number
+            | undefined
+        ) || undefined,
 
       isPaid:
         payment.isPaid ===
@@ -568,6 +626,12 @@ function normalizePayments(
       paymentDate:
         cleanText(
           payment.paymentDate
+        ),
+
+      paymentDescription:
+        cleanText(
+          payment.paymentDescription ??
+          payment.description
         ),
     })
   )
@@ -601,9 +665,12 @@ function normalizeExpenses(
         ),
 
       amount:
-        normalizeNumberInput(
-          expense.amount
-        ),
+        formatMoneyInput(
+          expense.amount as
+            | string
+            | number
+            | undefined
+        ) || undefined,
 
       date:
         cleanText(
@@ -851,6 +918,18 @@ export default function EditCasePage({ params }: EditCasePageProps) {
         state.updateCase
     )
 
+  const fetchCaseById =
+    useCasesStore(
+      (state) =>
+        state.fetchCaseById
+    )
+
+  const isCaseLoading =
+    useCasesStore(
+      (state) =>
+        state.isLoading
+    )
+
   const isCaseSaving =
     useCasesStore(
       (state) =>
@@ -894,7 +973,6 @@ export default function EditCasePage({ params }: EditCasePageProps) {
       (state) =>
         state.error
     )
-  useForm
   //   const caseItem = getCaseById(id)
 
   // const courtBranchData =
@@ -936,6 +1014,33 @@ export default function EditCasePage({ params }: EditCasePageProps) {
   }, [
     fetchAllClients,
   ])
+
+  useEffect(() => {
+    if (
+      getCaseById(id)
+    ) {
+      setDidRequestCase(true)
+      return
+    }
+
+    let isMounted = true
+
+    void fetchCaseById(id)
+      .finally(() => {
+        if (isMounted) {
+          setDidRequestCase(true)
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [
+    fetchCaseById,
+    getCaseById,
+    id,
+  ])
+
   const caseItem =
     getCaseById(id)
 
@@ -994,6 +1099,12 @@ export default function EditCasePage({ params }: EditCasePageProps) {
     caseNumber: cleanText(
       caseRecord.caseNumber,
     ),
+
+    archiveNumberOffice:
+      getFirstTextValue(
+        caseRecord.archiveNumberOffice,
+        caseRecord.archiveNumberLawyer,
+      ),
 
     cashPayments:
       normalizePayments(
@@ -1054,8 +1165,11 @@ export default function EditCasePage({ params }: EditCasePageProps) {
       ),
 
     contractAmount:
-      toFiniteNumber(
-        caseRecord.contractAmount,
+      formatMoneyInput(
+        caseRecord.contractAmount as
+          | string
+          | number
+          | undefined
       ) || undefined,
 
     remainingAmount:
@@ -1066,6 +1180,14 @@ export default function EditCasePage({ params }: EditCasePageProps) {
     overdueAmount:
       toFiniteNumber(
         caseRecord.overdueAmount,
+      ) || undefined,
+
+    estimatedPrice:
+      formatMoneyInput(
+        caseRecord.estimatedPrice as
+          | string
+          | number
+          | undefined
       ) || undefined,
 
     expenses:
@@ -1083,6 +1205,13 @@ export default function EditCasePage({ params }: EditCasePageProps) {
         caseRecord.description,
       ),
   }
+
+  const [
+    didRequestCase,
+    setDidRequestCase,
+  ] = useState(
+    Boolean(caseItem)
+  )
 
   const [
     paymentType,
@@ -1119,6 +1248,7 @@ export default function EditCasePage({ params }: EditCasePageProps) {
     control,
     watch,
     setValue,
+    reset,
 
     formState: {
       errors,
@@ -1132,6 +1262,9 @@ export default function EditCasePage({ params }: EditCasePageProps) {
     resolver:
       zodResolver(caseSchema),
 
+    shouldUnregister:
+      false,
+
     defaultValues:
       formDefaultValues,
 
@@ -1139,6 +1272,34 @@ export default function EditCasePage({ params }: EditCasePageProps) {
 
     reValidateMode: 'onChange',
   })
+
+  useEffect(() => {
+    if (!caseItem) {
+      return
+    }
+
+    reset(
+      formDefaultValues,
+      {
+        keepDefaultValues: false,
+      }
+    )
+
+    setPaymentType(
+      initialPaymentType
+    )
+
+    setCourtTypeInput(
+      initialCourtType
+    )
+
+    setFilteredCourtTypes(
+      COURT_TYPES
+    )
+  }, [
+    caseItem,
+    reset,
+  ])
 
 
 
@@ -1225,10 +1386,14 @@ export default function EditCasePage({ params }: EditCasePageProps) {
       const clientShare = isLastClient ? contractAmount - assignedAmount : baseAmount
       assignedAmount += clientShare
 
-      setValue(`clients.${client.index}.feeShareAmount`, clientShare, {
+      setValue(
+        `clients.${client.index}.feeShareAmount`,
+        formatMoneyInput(clientShare),
+        {
         shouldDirty: true,
-        shouldValidate: true,
-      })
+          shouldValidate: true,
+        }
+      )
     })
   }
   const activeCourtLocationIndex = watchBranchHistory.findIndex((location) => location.isActive)
@@ -1239,53 +1404,98 @@ export default function EditCasePage({ params }: EditCasePageProps) {
     .map((location, index) => ({ location, index }))
     .filter(({ location, index }) => index !== activeCourtLocationIndex && hasCourtLocationValue(location))
 
-  const expensesTotal = watchExpenses.reduce((sum, item) => {
-    return sum + (Number(item.amount) || 0)
-  }, 0)
-
-
-
-  const jalaliToDate = (jalali: string) => {
-    if (!jalali) return null
-
-    const parts = jalali.split('/')
-    if (parts.length !== 3) return null
-
-    const jy = Number(parts[0])
-    const jm = Number(parts[1])
-    const jd = Number(parts[2])
-
-    if (!jy || !jm || !jd) return null
-
-    const gy = jy - 621
-    return new Date(gy, jm - 1, jd)
-  }
+  const expensesTotal =
+    watchExpenses.reduce(
+      (sum, item) =>
+        sum +
+        toFiniteNumber(
+          item.amount
+        ),
+      0
+    )
 
   const today = new Date()
+  today.setHours(
+    0,
+    0,
+    0,
+    0
+  )
 
-  const totalPaid = watchCashPayments.reduce((sum, payment) => {
-    if (payment.isPaid) {
-      return sum + (Number(payment.amount) || 0)
-    }
+  const totalPaid =
+    watchCashPayments.reduce(
+      (sum, payment) => {
+        if (payment.isPaid) {
+          return (
+            sum +
+            toFiniteNumber(
+              payment.amount
+            )
+          )
+        }
 
-    return sum
-  }, 0)
+        return sum
+      },
+      0
+    )
 
-  const overdueTotal = watchCashPayments.reduce((sum, payment) => {
-    if (!payment.isPaid && payment.paymentDate) {
-      const payDate = jalaliToDate(payment.paymentDate)
+  const overdueTotal =
+    watchCashPayments.reduce(
+      (sum, payment) => {
+        if (
+          payment.isPaid ||
+          !payment.paymentDate
+        ) {
+          return sum
+        }
 
-      if (payDate && payDate < today) {
-        return sum + (Number(payment.amount) || 0)
-      }
-    }
+        const payDate =
+          parseFinanceDate(
+            payment.paymentDate
+          )
 
-    return sum
-  }, 0)
+        if (!payDate) {
+          return sum
+        }
 
-  const totalCash = watchCashPayments.reduce((sum, payment) => {
-    return sum + (Number(payment.amount) || 0)
-  }, 0)
+        const normalizedPayDate =
+          new Date(
+            payDate.getTime()
+          )
+
+        normalizedPayDate.setHours(
+          0,
+          0,
+          0,
+          0
+        )
+
+        if (
+          normalizedPayDate.getTime() <
+          today.getTime()
+        ) {
+          return (
+            sum +
+            toFiniteNumber(
+              payment.amount
+            )
+          )
+        }
+
+        return sum
+      },
+      0
+    )
+
+  const totalCash =
+    watchCashPayments.reduce(
+      (sum, payment) =>
+        sum +
+        toFiniteNumber(
+          payment.amount
+        ),
+      0
+    )
 
   useEffect(() => {
     const remaining = Math.max(contractAmount - totalPaid, 0)
@@ -1308,18 +1518,24 @@ export default function EditCasePage({ params }: EditCasePageProps) {
       return
     }
 
-    setValue(`clients.${singleClientIndex}.feeShareAmount`, contractAmount, {
-      shouldDirty: false,
-      shouldValidate: false,
-    })
+    setValue(
+      `clients.${singleClientIndex}.feeShareAmount`,
+      formatMoneyInput(
+        contractAmount
+      ),
+      {
+        shouldDirty: false,
+        shouldValidate: false,
+      }
+    )
   }, [contractAmount, setValue, singleClientCurrentShare, singleClientIndex])
 
-  const setOptionalNumberValue = (value: string) => {
-    if (!value) return undefined
-
-    const numberValue = Number(value)
-    return Number.isNaN(numberValue) ? undefined : numberValue
-  }
+  const setOptionalNumberValue = (
+    value: unknown
+  ) =>
+    toOptionalFiniteNumber(
+      value
+    )
 
   const fillClientFromSavedList = (index: number, savedClientId: string) => {
     setValue(`clients.${index}.clientId`, savedClientId, { shouldDirty: true })
@@ -1328,6 +1544,7 @@ export default function EditCasePage({ params }: EditCasePageProps) {
       setValue(`clients.${index}.name`, '')
       setValue(`clients.${index}.phone`, '')
       setValue(`clients.${index}.nationalId`, '')
+      setValue(`clients.${index}.birthDate`, '')
       setValue(`clients.${index}.role`, '')
       setValue(`clients.${index}.representative`, '')
       return
@@ -1339,14 +1556,15 @@ export default function EditCasePage({ params }: EditCasePageProps) {
     setValue(`clients.${index}.name`, getSavedClientFullName(selectedClient), { shouldDirty: true })
     setValue(`clients.${index}.phone`, selectedClient.phoneNumber || selectedClient.phone || '', { shouldDirty: true })
     setValue(`clients.${index}.nationalId`, selectedClient.nationalId || '', { shouldDirty: true })
+    setValue(`clients.${index}.birthDate`, selectedClient.birthDate || '', { shouldDirty: true })
     setValue(`clients.${index}.role`, selectedClient.role || '', { shouldDirty: true })
-    setValue(`clients.${index}.representative`, selectedClient.representative || '', { shouldDirty: true })
-  }
-
-  const normalizePersianDigits = (value: string) => {
-    return value
-      .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
-      .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    setValue(
+      `clients.${index}.representative`,
+      selectedClient.representative ||
+        selectedClient.role ||
+        '',
+      { shouldDirty: true }
+    )
   }
 
   const getCurrentJalaliDateParts = () => {
@@ -1356,9 +1574,9 @@ export default function EditCasePage({ params }: EditCasePageProps) {
       day: '2-digit',
     }).formatToParts(new Date())
 
-    const year = Number(normalizePersianDigits(parts.find((part) => part.type === 'year')?.value || '0'))
-    const month = Number(normalizePersianDigits(parts.find((part) => part.type === 'month')?.value || '0'))
-    const day = Number(normalizePersianDigits(parts.find((part) => part.type === 'day')?.value || '0'))
+    const year = Number(normalizeDigits(parts.find((part) => part.type === 'year')?.value || '0'))
+    const month = Number(normalizeDigits(parts.find((part) => part.type === 'month')?.value || '0'))
+    const day = Number(normalizeDigits(parts.find((part) => part.type === 'day')?.value || '0'))
 
     return { year, month, day }
   }
@@ -1366,7 +1584,7 @@ export default function EditCasePage({ params }: EditCasePageProps) {
   const getJalaliAge = (birthDate?: string) => {
     if (!birthDate) return null
 
-    const normalizedBirthDate = normalizePersianDigits(birthDate.trim())
+    const normalizedBirthDate = normalizeDigits(birthDate.trim())
     const match = normalizedBirthDate.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/)
 
     if (!match) return null
@@ -1472,6 +1690,17 @@ export default function EditCasePage({ params }: EditCasePageProps) {
   }
 
   if (!caseItem) {
+    if (
+      isCaseLoading ||
+      !didRequestCase
+    ) {
+      return (
+        <div className="max-w-2xl mx-auto text-center py-12 text-zinc-600">
+          در حال دریافت اطلاعات پرونده...
+        </div>
+      )
+    }
+
     return (
       <div className="max-w-2xl mx-auto text-center py-12">
         <h1 className="text-2xl font-bold text-zinc-900">پرونده یافت نشد</h1>
@@ -1515,6 +1744,12 @@ export default function EditCasePage({ params }: EditCasePageProps) {
               cleanText(
                 client.nationalId
               ),
+
+            birthDate:
+              cleanText(
+                client.birthDate
+              ) ||
+              undefined,
 
             role:
               cleanText(
@@ -1560,6 +1795,7 @@ export default function EditCasePage({ params }: EditCasePageProps) {
         name: cleanText(person.name),
         phone: cleanText(person.phone),
         nationalId: cleanText(person.nationalId),
+        birthDate: cleanText(person.birthDate),
         role: cleanText(person.role),
         description: cleanText(person.description),
       }))
@@ -1570,6 +1806,9 @@ export default function EditCasePage({ params }: EditCasePageProps) {
         .map((lawyer) => ({
           name: cleanText(lawyer.name),
           phone: cleanText(lawyer.phone),
+          nationalId: cleanText(lawyer.nationalId),
+          birthDate: cleanText(lawyer.birthDate),
+          role: cleanText(lawyer.role),
           licenseNumber: cleanText(lawyer.licenseNumber),
           licenseExpiry: cleanText(lawyer.licenseExpiry),
           licenseIssuePlace: cleanText(lawyer.licenseIssuePlace),
@@ -1633,6 +1872,12 @@ export default function EditCasePage({ params }: EditCasePageProps) {
             paymentDate:
               cleanText(
                 payment.paymentDate
+              ) ||
+              undefined,
+
+            paymentDescription:
+              cleanText(
+                payment.paymentDescription
               ) ||
               undefined,
           })
@@ -1714,16 +1959,6 @@ export default function EditCasePage({ params }: EditCasePageProps) {
             expense.isPaid
         )
 
-
-
-        .filter(
-          (expense) =>
-            Boolean(expense.title) ||
-            Boolean(expense.description) ||
-            expense.amount > 0 ||
-            Boolean(expense.date) ||
-            expense.isPaid
-        )
     const effectivePaymentType =
       data.paymentType ||
       paymentType ||
@@ -1756,6 +1991,12 @@ export default function EditCasePage({ params }: EditCasePageProps) {
         cleanText(
           data.caseNumber
         ),
+
+      archiveNumberOffice:
+        cleanText(
+          data.archiveNumberOffice
+        ) ||
+        undefined,
 
       clients:
         cleanedClients,
@@ -1853,9 +2094,20 @@ export default function EditCasePage({ params }: EditCasePageProps) {
         cleanedExpenses,
 
       nonCashDescription:
-        cleanText(
-          data.nonCashDescription
-        ),
+        effectivePaymentType ===
+          'cash'
+          ? ''
+          : cleanText(
+              data.nonCashDescription
+            ),
+
+      estimatedPrice:
+        effectivePaymentType ===
+          'cash'
+          ? undefined
+          : toFiniteNumber(
+              data.estimatedPrice
+            ) || undefined,
 
       description:
         cleanText(
@@ -1943,71 +2195,84 @@ export default function EditCasePage({ params }: EditCasePageProps) {
 
           <div>
             <label className="block text-sm font-medium text-zinc-900 mb-2">
-              شماره پرونده *
+              شماره بایگانی دفتر وکیل
             </label>
 
             <input
               {...register(
-                'caseNumber'
+                'archiveNumberOffice'
               )}
               type="text"
               className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="مثال: 1405/125"
+              placeholder="شماره بایگانی داخلی دفتر"
               dir="ltr"
             />
-
-            {errors.caseNumber && (
-              <p className="mt-1 text-sm text-red-600">
-                {
-                  errors.caseNumber
-                    .message
-                }
-              </p>
-            )}
           </div>
         </div>
 
-        {/* شعبه دادگاه */}
+        {/* مشخصات پرونده */}
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-green-100 pb-3 mb-4">شعبه دادگاه</h2>
+          <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-green-100 pb-3 mb-4">مشخصات پرونده</h2>
 
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 space-y-6">
-            <div className="relative">
-              <label className="block text-sm font-medium text-green-800 mb-2">نوع دادگاه</label>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="relative">
-                <input
-                  type="text"
-                  value={courtTypeInput}
-                  onChange={(event) => handleCourtTypeInputChange(event.target.value)}
-                  onFocus={() => setIsCourtTypeDropdownOpen(true)}
-                  onBlur={() => setTimeout(() => setIsCourtTypeDropdownOpen(false), 200)}
-                  className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                  placeholder="تایپ کنید یا انتخاب کنید"
-                />
-                <button
-                  type="button"
-                  onClick={() => setIsCourtTypeDropdownOpen((prev) => !prev)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2"
-                >
-                  <ChevronDown size={20} className="text-green-500" />
-                </button>
+                <label className="block text-sm font-medium text-green-800 mb-2">نوع دادگاه</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={courtTypeInput}
+                    onChange={(event) => handleCourtTypeInputChange(event.target.value)}
+                    onFocus={() => setIsCourtTypeDropdownOpen(true)}
+                    onBlur={() => setTimeout(() => setIsCourtTypeDropdownOpen(false), 200)}
+                    className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    placeholder="تایپ کنید یا انتخاب کنید"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsCourtTypeDropdownOpen((prev) => !prev)}
+                    className="absolute left-3 top-1/2 -translate-y-1/2"
+                  >
+                    <ChevronDown size={20} className="text-green-500" />
+                  </button>
 
-                {isCourtTypeDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-green-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
-                    {filteredCourtTypes.map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => selectCourtType(type)}
-                        className="w-full text-right px-4 py-3 hover:bg-green-50 border-b border-green-100 last:border-b-0"
-                      >
-                        {type}
-                      </button>
-                    ))}
-                    {filteredCourtTypes.length === 0 && (
-                      <div className="px-4 py-3 text-zinc-500">نتیجه‌ای یافت نشد؛ متن تایپ‌شده ذخیره می‌شود.</div>
-                    )}
-                  </div>
+                  {isCourtTypeDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-green-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-20">
+                      {filteredCourtTypes.map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => selectCourtType(type)}
+                          className="w-full text-right px-4 py-3 hover:bg-green-50 border-b border-green-100 last:border-b-0"
+                        >
+                          {type}
+                        </button>
+                      ))}
+                      {filteredCourtTypes.length === 0 && (
+                        <div className="px-4 py-3 text-zinc-500">
+                          نتیجه‌ای یافت نشد؛ متن تایپ‌شده ذخیره می‌شود.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-green-800 mb-2">
+                  شماره پرونده *
+                </label>
+                <input
+                  {...register('caseNumber')}
+                  type="text"
+                  className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                  placeholder="مثال: 1405/125"
+                  dir="ltr"
+                />
+                {errors.caseNumber && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.caseNumber.message}
+                  </p>
                 )}
               </div>
             </div>
@@ -2030,13 +2295,13 @@ export default function EditCasePage({ params }: EditCasePageProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-green-800 mb-2">شهر/بخش</label>
+                <label className="block text-sm font-medium text-green-800 mb-2">شهر / بخش</label>
                 <input
                   type="text"
                   value={activeCourtLocation?.city || ''}
                   onChange={(event) => updateActiveCourtLocationField('city', event.target.value)}
                   className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                  placeholder="نام شهر/بخش"
+                  placeholder="نام شهر / بخش"
                 />
               </div>
 
@@ -2137,295 +2402,443 @@ export default function EditCasePage({ params }: EditCasePageProps) {
               <Users className="text-blue-600" size={20} />
               <h2 className="text-lg font-semibold text-zinc-800">موکلین</h2>
             </div>
-            <button
-              type="button"
-              onClick={() => appendClient({ name: '', phone: '', nationalId: '', role: '', representative: '' })}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-            >
-              <Plus size={16} /> افزودن موکل
-            </button>
-          </div>
 
-          <div className="grid gap-4">
-            {clientFields.map((field, index) => (
-              <div key={field.id} className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-blue-800">موکل {index + 1}</h3>
-                  {clientFields.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeClient(index)}
-                      className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
-                </div>
-                <div className="mb-4">
-                  <label className="text-xs text-blue-700 font-medium block mb-1">
-                    انتخاب از موکلین ثبت‌شده
-                  </label>
-
-                  <select
-                    value={
-                      (
-                        watch(
-                          `clients.${index}.clientId` as any
-                        ) as string
-                      ) ||
-                      ''
-                    }
-                    disabled={
-                      isClientsLoading
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      fillClientFromSavedList(
-                        index,
-                        event.target.value
-                      )
-                    }
-                    className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-zinc-100 disabled:cursor-wait"
-                  >
-                    <option value="">
-                      {isClientsLoading
-                        ? 'در حال دریافت موکلین از سرور...'
-                        : 'ورود دستی اطلاعات موکل'}
-                    </option>
-
-                    {savedClients.map(
-                      (
-                        client
-                      ) => (
-                        <option
-                          key={
-                            client.id
-                          }
-                          value={
-                            client.id
-                          }
-                        >
-                          {
-                            getSavedClientFullName(
-                              client
-                            )
-                          }
-
-                          {client.nationalId
-                            ? ` - ${client.nationalId}`
-                            : ''}
-
-                          {client.phoneNumber
-                            ? ` - ${client.phoneNumber}`
-                            : ''}
-                        </option>
-                      )
-                    )}
-                  </select>
-
-                  {clientsError && (
-                    <p className="mt-1 text-xs text-red-600">
-                      {clientsError}
-                    </p>
-                  )}
-
-                  <p className="mt-1 text-xs text-blue-500">
-                    می‌توانید موکل ثبت‌شده را انتخاب کنید یا اطلاعات را دستی وارد کنید.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-                  <div>
-                    <label className="text-xs text-blue-700 font-medium block mb-1">نام شخص حقیقی/حقوقی</label>
-                    <input
-                      {...register(`clients.${index}.name` as const)}
-                      type="text"
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      placeholder="نام شخص"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-blue-700 font-medium block mb-1">شماره موبایل</label>
-                    <input
-                      {...register(`clients.${index}.phone` as const)}
-                      type="text"
-                      maxLength={11}
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      placeholder="09123456789"
-                      dir="ltr"
-                    />
-                    {errors.clients?.[index]?.phone && (
-                      <p className="mt-1 text-xs text-red-600">{errors.clients[index]?.phone?.message}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-xs text-blue-700 font-medium block mb-1">کد ملی/شناسه ملی</label>
-                    <input
-                      {...register(`clients.${index}.nationalId` as const)}
-                      type="text"
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      placeholder="کد یا شناسه"
-                      dir="ltr"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-blue-700 font-medium block mb-1">سمت</label>
-                    <input
-                      {...register(`clients.${index}.role` as const)}
-                      type="text"
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      placeholder="مثلا خواهان"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-blue-700 font-medium block mb-1">نماینده</label>
-                    <input
-                      {...register(`clients.${index}.representative` as const)}
-                      type="text"
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      placeholder="نام نماینده"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <UserX className="text-zinc-600" size={20} />
-              <h2 className="text-lg font-semibold text-zinc-800">طرف مقابل</h2>
-            </div>
             <button
               type="button"
               onClick={() =>
                 appendClient({
-                  clientId:
-                    '',
+                  clientId: '',
+                  name: '',
+                  phone: '',
+                  nationalId: '',
+                  birthDate: '',
+                  role: '',
+                  representative: '',
+                  feeShareAmount: undefined,
+                })
+              }
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              <Plus size={16} />
+              افزودن موکل
+            </button>
+          </div>
 
-                  name:
-                    '',
+          <div className="grid gap-4">
+            {clientFields.map((field, index) => {
+              const clientBirthDate =
+                watch(
+                  `clients.${index}.birthDate` as const
+                )
 
-                  phone:
-                    '',
+              const clientUnderLegalAge =
+                isUnderLegalAge(
+                  clientBirthDate
+                )
 
-                  nationalId:
-                    '',
+              return (
+                <div
+                  key={field.id}
+                  className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-blue-800">
+                      موکل {index + 1}
+                    </h3>
 
-                  role:
-                    '',
+                    {clientFields.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          removeClient(index)
+                        }
+                        className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
 
-                  representative:
-                    '',
+                  <div className="mb-4">
+                    <label className="text-xs text-blue-700 font-medium block mb-1">
+                      انتخاب از موکلین ثبت‌شده
+                    </label>
 
-                  feeShareAmount:
-                    undefined,
+                    <select
+                      value={
+                        (
+                          watch(
+                            `clients.${index}.clientId` as const
+                          ) as string
+                        ) || ''
+                      }
+                      disabled={
+                        isClientsLoading
+                      }
+                      onChange={(event) =>
+                        fillClientFromSavedList(
+                          index,
+                          event.target.value
+                        )
+                      }
+                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-zinc-100 disabled:cursor-wait"
+                    >
+                      <option value="">
+                        {isClientsLoading
+                          ? 'در حال دریافت موکلین از سرور...'
+                          : 'ورود دستی اطلاعات موکل'}
+                      </option>
+
+                      {savedClients.map(
+                        (client) => (
+                          <option
+                            key={client.id}
+                            value={client.id}
+                          >
+                            {
+                              getSavedClientFullName(
+                                client
+                              )
+                            }
+
+                            {client.nationalId
+                              ? ` - ${client.nationalId}`
+                              : ''}
+
+                            {client.phoneNumber
+                              ? ` - ${client.phoneNumber}`
+                              : ''}
+                          </option>
+                        )
+                      )}
+                    </select>
+
+                    {clientsError && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {clientsError}
+                      </p>
+                    )}
+
+                    <p className="mt-1 text-xs text-blue-500">
+                      می‌توانید موکل ثبت‌شده را انتخاب کنید یا اطلاعات را دستی وارد کنید.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+                    <div>
+                      <label className="text-xs text-blue-700 font-medium block mb-1">
+                        نام شخص حقیقی/حقوقی
+                      </label>
+                      <input
+                        {...register(
+                          `clients.${index}.name` as const
+                        )}
+                        type="text"
+                        className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        placeholder="نام شخص"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-blue-700 font-medium block mb-1">
+                        شماره موبایل
+                      </label>
+                      <input
+                        {...register(
+                          `clients.${index}.phone` as const
+                        )}
+                        type="text"
+                        maxLength={11}
+                        className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        placeholder="09123456789"
+                        dir="ltr"
+                      />
+
+                      {errors.clients?.[index]?.phone && (
+                        <p className="mt-1 text-xs text-red-600">
+                          {
+                            errors.clients[
+                              index
+                            ]?.phone?.message
+                          }
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-blue-700 font-medium block mb-1">
+                        کد ملی / شناسه ملی
+                      </label>
+                      <input
+                        {...register(
+                          `clients.${index}.nationalId` as const
+                        )}
+                        type="text"
+                        className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        placeholder="کد یا شناسه"
+                        dir="ltr"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-blue-700 font-medium block mb-1">
+                        تاریخ تولد
+                      </label>
+                      <input
+                        {...register(
+                          `clients.${index}.birthDate` as const,
+                          {
+                            onChange:
+                              (event) => {
+                                event.target.value =
+                                  formatDateInput(
+                                    event.target.value
+                                  )
+                              },
+                          }
+                        )}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={10}
+                        className={`w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 bg-white ${
+                          clientUnderLegalAge
+                            ? 'border border-amber-400 focus:ring-amber-500'
+                            : 'border border-blue-200 focus:ring-blue-500'
+                        }`}
+                        placeholder="1404/05/20"
+                        dir="ltr"
+                      />
+
+                      {clientUnderLegalAge && (
+                        <p className="mt-1 text-xs font-medium text-amber-600">
+                          این شخص زیر ۱۸ سال است
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-blue-700 font-medium block mb-1">
+                        سمت / نماینده
+                      </label>
+                      <input
+                        {...register(
+                          `clients.${index}.representative` as const
+                        )}
+                        type="text"
+                        className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        placeholder="سمت یا نام نماینده"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* طرف مقابل */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <UserX className="text-zinc-600" size={20} />
+              <h2 className="text-lg font-semibold text-zinc-800">
+                طرف مقابل
+              </h2>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                appendOpposingParty({
+                  name: '',
+                  phone: '',
+                  nationalId: '',
+                  birthDate: '',
+                  role: '',
+                  description: '',
                 })
               }
               className="flex items-center gap-2 px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium"
             >
-              <Plus size={16} /> افزودن طرف مقابل
+              <Plus size={16} />
+              افزودن طرف مقابل
             </button>
           </div>
 
           {opposingPartyFields.length === 0 && (
             <div className="bg-zinc-50 border-2 border-dashed border-zinc-300 rounded-xl p-6 text-center">
-              <UserX className="mx-auto text-zinc-400 mb-2" size={32} />
-              <p className="text-sm text-zinc-500">هیچ طرف مقابلی اضافه نشده است</p>
+              <UserX
+                className="mx-auto text-zinc-400 mb-2"
+                size={32}
+              />
+              <p className="text-sm text-zinc-500">
+                هیچ طرف مقابلی اضافه نشده است
+              </p>
             </div>
           )}
 
           <div className="grid gap-4">
-            {opposingPartyFields.map((field, index) => {
-              const birthDateValue = watch(`opposingParties.${index}.birthDate` as const)
-              const underLegalAge = isUnderLegalAge(birthDateValue)
+            {opposingPartyFields.map(
+              (field, index) => {
+                const birthDateValue =
+                  watch(
+                    `opposingParties.${index}.birthDate` as const
+                  )
 
-              return (
-                <div key={field.id} className="bg-gradient-to-r from-zinc-50 to-slate-50 border border-zinc-200 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-medium text-zinc-800">طرف مقابل {index + 1}</h3>
-                    <button
-                      type="button"
-                      onClick={() => removeOpposingParty(index)}
-                      className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
+                const underLegalAge =
+                  isUnderLegalAge(
+                    birthDateValue
+                  )
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 mb-3">
-                    <div>
-                      <label className="text-xs text-zinc-700 font-medium block mb-1">نام شخص حقیقی/حقوقی</label>
-                      <input
-                        {...register(`opposingParties.${index}.name` as const)}
-                        type="text"
-                        className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
-                        placeholder="نام طرف مقابل"
-                      />
+                return (
+                  <div
+                    key={field.id}
+                    className="bg-gradient-to-r from-zinc-50 to-slate-50 border border-zinc-200 rounded-xl p-4"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-medium text-zinc-800">
+                        طرف مقابل {index + 1}
+                      </h3>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          removeOpposingParty(
+                            index
+                          )
+                        }
+                        className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <X size={16} />
+                      </button>
                     </div>
-                    <div>
-                      <label className="text-xs text-zinc-700 font-medium block mb-1">شماره موبایل</label>
-                      <input
-                        {...register(`opposingParties.${index}.phone` as const)}
-                        type="text"
-                        maxLength={11}
-                        className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
-                        placeholder="09123456789"
-                        dir="ltr"
-                      />
-                      {errors.opposingParties?.[index]?.phone && (
-                        <p className="mt-1 text-xs text-red-600">{errors.opposingParties[index]?.phone?.message}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-xs text-zinc-700 font-medium block mb-1">کد ملی/شناسه ملی</label>
-                      <input
-                        {...register(`opposingParties.${index}.nationalId` as const)}
-                        type="text"
-                        className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
-                        placeholder="کد یا شناسه"
-                        dir="ltr"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-zinc-700 font-medium block mb-1">سمت</label>
-                      <input
-                        {...register(`opposingParties.${index}.role` as const)}
-                        type="text"
-                        className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
-                        placeholder="مثلا خوانده"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-zinc-700 font-medium block mb-1">تاریخ تولد</label>
-                      <input
-                        {...register(`opposingParties.${index}.birthDate` as const)}
-                        type="text"
-                        className={`w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 bg-white ${underLegalAge
-                          ? 'border border-red-400 focus:ring-red-500'
-                          : 'border border-zinc-200 focus:ring-zinc-500'
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 mb-3">
+                      <div>
+                        <label className="text-xs text-zinc-700 font-medium block mb-1">
+                          نام شخص حقیقی/حقوقی
+                        </label>
+                        <input
+                          {...register(
+                            `opposingParties.${index}.name` as const
+                          )}
+                          type="text"
+                          className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
+                          placeholder="نام طرف مقابل"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-zinc-700 font-medium block mb-1">
+                          شماره موبایل
+                        </label>
+                        <input
+                          {...register(
+                            `opposingParties.${index}.phone` as const
+                          )}
+                          type="text"
+                          maxLength={11}
+                          className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
+                          placeholder="09123456789"
+                          dir="ltr"
+                        />
+
+                        {errors.opposingParties?.[
+                          index
+                        ]?.phone && (
+                          <p className="mt-1 text-xs text-red-600">
+                            {
+                              errors.opposingParties[
+                                index
+                              ]?.phone?.message
+                            }
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-zinc-700 font-medium block mb-1">
+                          کد ملی / شناسنامه
+                        </label>
+                        <input
+                          {...register(
+                            `opposingParties.${index}.nationalId` as const
+                          )}
+                          type="text"
+                          className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
+                          placeholder="کد ملی یا شماره شناسنامه"
+                          dir="ltr"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-zinc-700 font-medium block mb-1">
+                          تاریخ تولد
+                        </label>
+                        <input
+                          {...register(
+                            `opposingParties.${index}.birthDate` as const,
+                            {
+                              onChange:
+                                (event) => {
+                                  event.target.value =
+                                    formatDateInput(
+                                      event.target.value
+                                    )
+                                },
+                            }
+                          )}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={10}
+                          className={`w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 bg-white ${
+                            underLegalAge
+                              ? 'border border-amber-400 focus:ring-amber-500'
+                              : 'border border-zinc-200 focus:ring-zinc-500'
                           }`}
-                        placeholder="مثال: 1384/09/09"
-                        dir="ltr"
+                          placeholder="1404/05/20"
+                          dir="ltr"
+                        />
+
+                        {underLegalAge && (
+                          <p className="mt-1 text-xs font-medium text-amber-600">
+                            این شخص زیر ۱۸ سال است
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="text-xs text-zinc-700 font-medium block mb-1">
+                          سمت / نماینده
+                        </label>
+                        <input
+                          {...register(
+                            `opposingParties.${index}.role` as const
+                          )}
+                          type="text"
+                          className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
+                          placeholder="سمت یا نام نماینده"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-zinc-700 font-medium block mb-1">
+                        توضیحات
+                      </label>
+                      <textarea
+                        {...register(
+                          `opposingParties.${index}.description` as const
+                        )}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white resize-none"
+                        placeholder="توضیحات مربوط به طرف مقابل..."
                       />
-                      {underLegalAge && <p className="mt-1 text-xs text-red-600 font-medium">زیر سن قانونی</p>}
                     </div>
                   </div>
-
-                  <div>
-                    <label className="text-xs text-zinc-700 font-medium block mb-1">توضیحات</label>
-                    <textarea
-                      {...register(`opposingParties.${index}.description` as const)}
-                      rows={2}
-                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white resize-none"
-                      placeholder="توضیحات مربوط به طرف مقابل..."
-                    />
-                  </div>
-                </div>
-              )
-            })}
+                )
+              }
+            )}
           </div>
         </div>
 
@@ -2435,7 +2848,18 @@ export default function EditCasePage({ params }: EditCasePageProps) {
             <h2 className="text-lg font-semibold text-zinc-800">وکلای همکار</h2>
             <button
               type="button"
-              onClick={() => appendCoLawyer({ name: '', phone: '', licenseNumber: '', licenseExpiry: '', licenseIssuePlace: '' })}
+              onClick={() =>
+                appendCoLawyer({
+                  name: '',
+                  phone: '',
+                  nationalId: '',
+                  birthDate: '',
+                  role: '',
+                  licenseNumber: '',
+                  licenseExpiry: '',
+                  licenseIssuePlace: '',
+                })
+              }
               className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
             >
               <Plus size={16} /> افزودن وکیل همکار
@@ -2488,6 +2912,40 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">کد ملی</label>
+                    <input
+                      {...register(`coLawyers.${index}.nationalId` as const)}
+                      type="text"
+                      inputMode="numeric"
+                      className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                      placeholder="کد ملی"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">تاریخ تولد</label>
+                    <input
+                      {...register(`coLawyers.${index}.birthDate` as const, {
+                        onChange: (event) => {
+                          event.target.value =
+                            formatDateInput(
+                              event.target.value
+                            )
+                        },
+                      })}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={10}
+                      className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                      placeholder="1404/05/20"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs text-purple-700 font-medium block mb-1">شماره پروانه</label>
@@ -2502,7 +2960,14 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                   <div>
                     <label className="text-xs text-purple-700 font-medium block mb-1">تاریخ اعتبار پروانه</label>
                     <input
-                      {...register(`coLawyers.${index}.licenseExpiry` as const)}
+                      {...register(`coLawyers.${index}.licenseExpiry` as const, {
+                        onChange: (event) => {
+                          event.target.value =
+                            formatDateInput(
+                              event.target.value
+                            )
+                        },
+                      })}
                       type="text"
                       className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
                       placeholder="1405/12/29"
@@ -2530,7 +2995,18 @@ export default function EditCasePage({ params }: EditCasePageProps) {
             <h2 className="text-lg font-semibold text-zinc-800">وکلای طرف مقابل</h2>
             <button
               type="button"
-              onClick={() => appendOpposingLawyer({ name: '', phone: '', licenseNumber: '', licenseExpiry: '', licenseIssuePlace: '' })}
+              onClick={() =>
+                appendOpposingLawyer({
+                  name: '',
+                  phone: '',
+                  nationalId: '',
+                  birthDate: '',
+                  role: '',
+                  licenseNumber: '',
+                  licenseExpiry: '',
+                  licenseIssuePlace: '',
+                })
+              }
               className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
             >
               <Plus size={16} /> افزودن وکیل طرف مقابل
@@ -2583,6 +3059,40 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="text-xs text-orange-700 font-medium block mb-1">کد ملی</label>
+                    <input
+                      {...register(`opposingLawyers.${index}.nationalId` as const)}
+                      type="text"
+                      inputMode="numeric"
+                      className="w-full px-3 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                      placeholder="کد ملی"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-orange-700 font-medium block mb-1">تاریخ تولد</label>
+                    <input
+                      {...register(`opposingLawyers.${index}.birthDate` as const, {
+                        onChange: (event) => {
+                          event.target.value =
+                            formatDateInput(
+                              event.target.value
+                            )
+                        },
+                      })}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={10}
+                      className="w-full px-3 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                      placeholder="1404/05/20"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs text-orange-700 font-medium block mb-1">شماره پروانه</label>
@@ -2597,7 +3107,14 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                   <div>
                     <label className="text-xs text-orange-700 font-medium block mb-1">تاریخ اعتبار پروانه</label>
                     <input
-                      {...register(`opposingLawyers.${index}.licenseExpiry` as const)}
+                      {...register(`opposingLawyers.${index}.licenseExpiry` as const, {
+                        onChange: (event) => {
+                          event.target.value =
+                            formatDateInput(
+                              event.target.value
+                            )
+                        },
+                      })}
                       type="text"
                       className="w-full px-3 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                       placeholder="1405/12/29"
@@ -2630,6 +3147,7 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                   name: '',
                   phone: '',
                   nationalId: '',
+                  birthDate: '',
                   role: '',
                   description: '',
                 })
@@ -2660,7 +3178,7 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 mb-3">
                   <div>
                     <label className="text-xs text-green-700 font-medium block mb-1">نام و نام خانوادگی</label>
                     <input
@@ -2703,6 +3221,26 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                       dir="ltr"
                     />
                   </div>
+
+                  <div>
+                    <label className="text-xs text-green-700 font-medium block mb-1">تاریخ تولد</label>
+                    <input
+                      {...register(`otherPersons.${index}.birthDate` as const, {
+                        onChange: (event) => {
+                          event.target.value =
+                            formatDateInput(
+                              event.target.value
+                            )
+                        },
+                      })}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={10}
+                      className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                      placeholder="1404/05/20"
+                      dir="ltr"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -2730,6 +3268,12 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                 <input
                   {...register('contractAmount', {
                     setValueAs: setOptionalNumberValue,
+                    onChange: (event) => {
+                      event.target.value =
+                        formatMoneyInput(
+                          event.target.value
+                        )
+                    },
                   })}
                   type="text"
                   inputMode="numeric"
@@ -2802,6 +3346,12 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                         <input
                           {...register(`clients.${client.index}.feeShareAmount`, {
                             setValueAs: setOptionalNumberValue,
+                            onChange: (event) => {
+                              event.target.value =
+                                formatMoneyInput(
+                                  event.target.value
+                                )
+                            },
                           })}
                           type="text"
                           inputMode="numeric"
@@ -2933,6 +3483,8 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                         false,
                       paymentDate:
                         '',
+                      paymentDescription:
+                        '',
                     })
                   }
                   className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
@@ -3016,6 +3568,12 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                         <input
                           {...register(`cashPayments.${index}.amount` as const, {
                             setValueAs: setOptionalNumberValue,
+                            onChange: (event) => {
+                              event.target.value =
+                                formatMoneyInput(
+                                  event.target.value
+                                )
+                            },
                           })}
                           type="text"
                           inputMode="numeric"
@@ -3028,9 +3586,18 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                         <label className="text-xs text-green-700 font-medium block mb-1">تاریخ پرداخت (شمسی)</label>
                         <input
                           type="text"
-                          {...register(`cashPayments.${index}.paymentDate` as const)}
+                          {...register(`cashPayments.${index}.paymentDate` as const, {
+                            onChange: (event) => {
+                              event.target.value =
+                                formatDateInput(
+                                  event.target.value
+                                )
+                            },
+                          })}
+                          inputMode="numeric"
+                          maxLength={10}
                           className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                          placeholder="1403/12/15"
+                          placeholder="1404/05/20"
                           dir="ltr"
                         />
                       </div>
@@ -3040,6 +3607,18 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                           <span className="text-sm text-green-800 font-medium">پرداخت شده</span>
                         </label>
                       </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <label className="text-xs text-green-700 font-medium block mb-1">
+                        توضیح
+                      </label>
+                      <textarea
+                        {...register(`cashPayments.${index}.paymentDescription` as const)}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                        placeholder="توضیح مربوط به این پرداخت..."
+                      />
                     </div>
                   </div>
                 ))}
@@ -3053,6 +3632,28 @@ export default function EditCasePage({ params }: EditCasePageProps) {
               <p className="text-sm text-blue-600">
                 در صورتی که پرداخت به صورت غیر نقدی مثل زمین، ملک، خودرو و ... انجام می‌شود، جزئیات را وارد کنید.
               </p>
+              <div>
+                <label className="block text-sm font-medium text-blue-800 mb-2">
+                  حدود قیمت (ریال)
+                </label>
+                <input
+                  {...register('estimatedPrice', {
+                    setValueAs: setOptionalNumberValue,
+                    onChange: (event) => {
+                      event.target.value =
+                        formatMoneyInput(
+                          event.target.value
+                        )
+                    },
+                  })}
+                  type="text"
+                  inputMode="numeric"
+                  className="w-full px-4 py-3 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  placeholder="مثال: 1,000,000,000"
+                  dir="ltr"
+                />
+              </div>
+
               <textarea
                 {...register('nonCashDescription')}
                 rows={6}
@@ -3103,24 +3704,20 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-amber-700 block mb-1">عنوان هزینه</label>
+                    <label className="text-xs font-medium text-amber-700 block mb-1">
+                      عنوان هزینه / توضیحات
+                    </label>
                     <input
                       {...register(`expenses.${index}.title` as const)}
                       type="text"
                       className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      placeholder="مثال: هزینه ارسال مدارک"
+                      placeholder="مثال: هزینه ارسال مدارک - پست پیشتاز"
                     />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-medium text-amber-700 block mb-1">موضوع/توضیح هزینه</label>
                     <input
+                      type="hidden"
                       {...register(`expenses.${index}.description` as const)}
-                      type="text"
-                      className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      placeholder="مثال: پست پیشتاز"
                     />
                   </div>
 
@@ -3129,6 +3726,12 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                     <input
                       {...register(`expenses.${index}.amount` as const, {
                         setValueAs: setOptionalNumberValue,
+                        onChange: (event) => {
+                          event.target.value =
+                            formatMoneyInput(
+                              event.target.value
+                            )
+                        },
                       })}
                       type="text"
                       inputMode="numeric"
@@ -3141,11 +3744,20 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                   <div>
                     <label className="text-xs font-medium text-amber-700 block mb-1">تاریخ هزینه (شمسی)</label>
                     <input
-                      {...register(`expenses.${index}.date` as const)}
+                      {...register(`expenses.${index}.date` as const, {
+                        onChange: (event) => {
+                          event.target.value =
+                            formatDateInput(
+                              event.target.value
+                            )
+                        },
+                      })}
                       type="text"
+                      inputMode="numeric"
+                      maxLength={10}
                       dir="ltr"
                       className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      placeholder="1403/11/01"
+                      placeholder="1404/05/20"
                     />
                   </div>
                 </div>
@@ -3161,9 +3773,9 @@ export default function EditCasePage({ params }: EditCasePageProps) {
           </div>
         </div>
 
-        {/* توضیحات */}
+        {/* توضیحات کلی */}
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-gray-100 pb-3">توضیحات</h2>
+          <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-gray-100 pb-3">توضیحات کلی</h2>
           <textarea
             {...register('description')}
             rows={4}

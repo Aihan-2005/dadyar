@@ -4,6 +4,11 @@ const PERSIAN_DIGITS =
 const ARABIC_DIGITS =
   '٠١٢٣٤٥٦٧٨٩'
 
+const MONEY_SEPARATOR_PATTERN =
+  /[٬,\s]/g
+
+const MONEY_LABEL_PATTERN =
+  /ریال|تومان|ت/g
 
 export function normalizeDigits(
   value: string,
@@ -29,6 +34,94 @@ export function normalizeDigits(
     )
 }
 
+/**
+ * رشته مبلغ را به مقدار عددی خام تبدیل می‌کند.
+ *
+ * مثال‌ها:
+ * ۱,۲۰۰,۰۰۰ تومان -> 1200000
+ * 1٬200٬000 -> 1200000
+ */
+export function normalizeMoneyValue(
+  value: string,
+): string {
+  return normalizeDigits(
+    value,
+  )
+    .replace(
+      MONEY_SEPARATOR_PATTERN,
+      '',
+    )
+    .replace(
+      MONEY_LABEL_PATTERN,
+      '',
+    )
+    .trim()
+}
+
+/**
+ * مخصوص input مبلغ است.
+ * فقط ارقام را نگه می‌دارد و برای نمایش سه‌رقمی جدا می‌کند.
+ *
+ * نکته: با string کار می‌کند تا برای اعداد بزرگ در زمان تایپ
+ * دچار خطای precision جاوااسکریپت نشویم.
+ */
+export function formatMoneyInput(
+  value:
+    | string
+    | number
+    | null
+    | undefined,
+): string {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
+    return ''
+  }
+
+  const normalized =
+    normalizeMoneyValue(
+      String(value),
+    )
+      .replace(
+        /[^\d]/g,
+        '',
+      )
+
+  if (!normalized) {
+    return ''
+  }
+
+  const withoutLeadingZeros =
+    normalized.replace(
+      /^0+(?=\d)/,
+      '',
+    )
+
+  return withoutLeadingZeros.replace(
+    /\B(?=(\d{3})+(?!\d))/g,
+    ',',
+  )
+}
+
+/**
+ * formatter عمومی برای نمایش مبلغ.
+ */
+export function formatMoney(
+  value: unknown,
+): string {
+  const amount =
+    toFiniteNumber(
+      value,
+    )
+
+  return Math.trunc(
+    amount,
+  ).toLocaleString(
+    'en-US',
+  )
+}
 
 export function toFiniteNumber(
   value: unknown,
@@ -42,7 +135,9 @@ export function toFiniteNumber(
   }
 
   if (typeof value === 'number') {
-    return Number.isFinite(value)
+    return Number.isFinite(
+      value,
+    )
       ? value
       : 0
   }
@@ -52,13 +147,9 @@ export function toFiniteNumber(
   }
 
   const normalized =
-    normalizeDigits(value)
-      .replace(/[٬,\s]/g, '')
-      .replace(
-        /ریال|تومان|ت/g,
-        '',
-      )
-      .trim()
+    normalizeMoneyValue(
+      value,
+    )
 
   if (!normalized) {
     return 0
@@ -67,20 +158,64 @@ export function toFiniteNumber(
   const parsed =
     Number(normalized)
 
-  return Number.isFinite(parsed)
+  return Number.isFinite(
+    parsed,
+  )
     ? parsed
     : 0
+}
+
+/**
+ * تفاوتش با toFiniteNumber این است که ورودی خالی را undefined برمی‌گرداند.
+ * برای react-hook-form و فیلدهای اختیاری مناسب‌تر است.
+ */
+export function toOptionalFiniteNumber(
+  value: unknown,
+): number | undefined {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return undefined
+  }
+
+  if (
+    typeof value === 'string' &&
+    normalizeMoneyValue(
+      value,
+    ) === ''
+  ) {
+    return undefined
+  }
+
+  const result =
+    toFiniteNumber(
+      value,
+    )
+
+  return Number.isFinite(
+    result,
+  )
+    ? result
+    : undefined
 }
 
 export function clampPercentage(
   value: number,
 ): number {
-  if (!Number.isFinite(value)) {
+  if (
+    !Number.isFinite(
+      value,
+    )
+  ) {
     return 0
   }
 
   return Math.min(
-    Math.max(value, 0),
+    Math.max(
+      value,
+      0,
+    ),
     100,
   )
 }

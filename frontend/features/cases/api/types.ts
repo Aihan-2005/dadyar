@@ -11,7 +11,6 @@ export interface ApiPagination {
   totalPages: number
 }
 
-
 export type ApiCaseState =
   | 'PENDING'
   | 'IN_PROGRESS'
@@ -38,28 +37,27 @@ export type ApiCourtType =
   | 'CIVIL_COURT'
   | 'APPEAL_COURT'
 
-
 export interface ApiCourt {
   type: ApiCourtType
 
   province: string
-
   city: string
-
   branch: string
 
   branchCode?: string
+
+  /**
+   * شماره بایگانی شعبه.
+   * optional است تا تا زمان آپدیت بک‌اند قرارداد فعلی API نشکند.
+   */
+  archiveNumberBranch?: string
 }
-
-
 
 export interface ApiBranchHistory {
   province?: string
-
   city?: string
 
   branchNumber?: string
-
   archiveNumberBranch?: string
 
   date?: string
@@ -67,15 +65,12 @@ export interface ApiBranchHistory {
   isActive: boolean
 }
 
-
-
 export interface ApiCasePaymentInput {
   paymentId?: string
 
   method: ApiPaymentMethod
 
   amount: number
-
   description?: string
 
   dueDate?: string
@@ -89,7 +84,6 @@ export interface ApiCasePaymentRecord {
   method: ApiPaymentMethod
 
   amount: number
-
   description?: string
 
   dueDate?: string
@@ -97,20 +91,16 @@ export interface ApiCasePaymentRecord {
   isPaid: boolean
 
   createdAt?: string
-
   updatedAt?: string
 }
-
 
 export interface ApiCaseExpenseInput {
   expenseId?: string
 
   title: string
-
   amount: number
 
   description?: string
-
   expenseDate?: string
 
   isPaid: boolean
@@ -120,47 +110,44 @@ export interface ApiCaseExpenseRecord {
   expenseId: string
 
   title: string
-
   amount: number
 
   description?: string
-
   expenseDate?: string
 
   isPaid: boolean
 
   createdAt?: string
-
   updatedAt?: string
 }
-
-
 
 export interface ApiExistingCaseClientInput {
   clientId: string
 
   assignedAmount: number
 
-  role?: string
+  /**
+   * برای سازگاری با بک‌اند فعلی optional است.
+   * در مرحله بک‌اند باید پشتیبانی آن قطعی شود.
+   */
+  birthDate?: string
 
+  role?: string
   represent?: string
 
   payments?: ApiCasePaymentInput[]
 }
 
-
-
 export interface ApiManualCaseClientInput {
   fullName: string
-
   phone: string
 
   nationalId?: string
+  birthDate?: string
 
   assignedAmount: number
 
   role?: string
-
   represent?: string
 
   payments?: ApiCasePaymentInput[]
@@ -170,38 +157,32 @@ export type ApiCaseClientInput =
   | ApiExistingCaseClientInput
   | ApiManualCaseClientInput
 
-
 export interface ApiCaseClientRecord {
   clientId: string
 
   fullName: string
-
   phone: string
 
   nationalId?: string
+  birthDate?: string
 
   assignedAmount: number
 
   role?: string
-
   represent?: string
 
   payments: ApiCasePaymentRecord[]
 }
 
-
-
 export interface ApiOpposingPartyInput {
   fullName: string
 
   phone?: string
-
   nationalId?: string
-
-  role?: string
 
   birthDate?: string
 
+  role?: string
   description?: string
 }
 
@@ -210,17 +191,15 @@ export interface ApiOpposingPartyRecord
   _id?: string
 }
 
-
-
 export interface ApiLawyerContactInput {
   fullName: string
-
   phone: string
 
+  nationalId?: string
+  birthDate?: string
+
   barLicenseNumber?: string
-
   licenseExpiresAt?: string
-
   licensePlaceOfIssue?: string
 }
 
@@ -229,17 +208,14 @@ export interface ApiLawyerContactRecord
   _id?: string
 }
 
-
-
 export interface ApiRelatedPersonInput {
   fullName: string
-
   phone: string
 
   nationalId?: string
+  birthDate?: string
 
   role?: string
-
   description?: string
 }
 
@@ -248,12 +224,18 @@ export interface ApiRelatedPersonRecord
   _id?: string
 }
 
-
-
 export interface ApiCreateCaseRequest {
   title: string
 
+  /**
+   * شماره پرونده قضایی.
+   */
   caseNumber: string
+
+  /**
+   * شماره بایگانی دفتر وکیل.
+   */
+  archiveNumberOffice?: string
 
   value: number
 
@@ -262,11 +244,14 @@ export interface ApiCreateCaseRequest {
   description?: string
 
   paymentType?: ApiCasePaymentType
-
   nonCashDescription?: string
 
-  court?: ApiCourt
+  /**
+   * ارزش تقریبی بخش غیرنقدی.
+   */
+  estimatedPrice?: number
 
+  court?: ApiCourt
   branchHistory?: ApiBranchHistory[]
 
   clients: ApiCaseClientInput[]
@@ -276,12 +261,10 @@ export interface ApiCreateCaseRequest {
   opposingParties?: ApiOpposingPartyInput[]
 
   assistantLawyers?: ApiLawyerContactInput[]
-
   opposingLawyers?: ApiLawyerContactInput[]
 
   relatedPeople?: ApiRelatedPersonInput[]
 }
-
 
 export type ApiUpdateCaseRequest =
   Omit<
@@ -289,14 +272,13 @@ export type ApiUpdateCaseRequest =
     'state'
   >
 
-
-
 export interface ApiCaseRecord {
   _id: string
 
   title: string
 
   caseNumber: string
+  archiveNumberOffice?: string
 
   state: ApiCaseState
 
@@ -305,11 +287,10 @@ export interface ApiCaseRecord {
   description?: string
 
   paymentType?: ApiCasePaymentType
-
   nonCashDescription?: string
+  estimatedPrice?: number
 
   court?: ApiCourt
-
   branchHistory?: ApiBranchHistory[]
 
   clients: ApiCaseClientRecord[]
@@ -319,16 +300,13 @@ export interface ApiCaseRecord {
   opposingParties: ApiOpposingPartyRecord[]
 
   assistantLawyers: ApiLawyerContactRecord[]
-
   opposingLawyers: ApiLawyerContactRecord[]
 
   relatedPeople: ApiRelatedPersonRecord[]
 
   createdAt: string
-
   updatedAt: string
 }
-
 
 export interface ApiCaseListEnvelope {
   success: boolean
@@ -340,10 +318,7 @@ export interface ApiCaseListEnvelope {
   message?: string
 }
 
-
-
 export interface ApiDeleteCaseResult {
   caseId: string
-
   deleted: true
 }
