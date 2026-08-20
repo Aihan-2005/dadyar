@@ -270,12 +270,14 @@ const caseSchema = z.object({
       'عنوان پرونده الزامی است'
     ),
 
-  status: z.enum([
-    'pending',
-    'in-progress',
-    'completed',
-    'archived',
-  ]),
+  status: z
+    .enum([
+      'pending',
+      'in-progress',
+      'completed',
+      'archived',
+    ])
+    .default('pending'),
 
   clients: z
     .array(clientSchema)
@@ -357,237 +359,35 @@ archiveNumberOffice:
     .optional(),
 }).superRefine(
   (data, context) => {
-    const clients =
-      (
-        data.clients ??
-        []
-      )
-        .map(
-          (
-            client,
-            index
-          ) => ({
-            ...client,
-            index,
-
-            identity:
-              client.clientId
-                ?.trim() ||
-              client.name
-                ?.trim() ||
-              '',
-
-            share:
-              toFiniteNumber(
-                client
-                  .feeShareAmount
-              ),
-          })
-        )
-        .filter(
-          (client) =>
-            Boolean(
-              client.identity
-            )
-        )
-
-    const contractAmount =
-      toFiniteNumber(
-        data.contractAmount
-      )
-
-    if (
-      clients.length > 1 &&
-      contractAmount > 0
-    ) {
-      clients.forEach(
-        (client) => {
-          if (
-            client.share <= 0
-          ) {
-            context.addIssue({
-              code:
-                z.ZodIssueCode
-                  .custom,
-
-              path: [
-                'clients',
-                client.index,
-                'feeShareAmount',
-              ],
-
-              message:
-                'سهم حق‌الوکاله این موکل را وارد کنید',
-            })
-          }
-        }
-      )
-
-      const totalShares =
-        clients.reduce(
-          (sum, client) =>
-            sum +
-            client.share,
-          0
-        )
-
-      if (
-        totalShares !==
-        contractAmount
-      ) {
-        context.addIssue({
-          code:
-            z.ZodIssueCode
-              .custom,
-
-          path: [
-            'contractAmount',
-          ],
-
-          message:
-            'مجموع سهم موکلین باید دقیقاً برابر مبلغ کل قرارداد باشد',
-        })
-      }
-    }
-
-    const requiresClientForPayment =
-      clients.length > 1 &&
-      data.paymentType !==
-        'non-cash'
-
-    if (
-      !requiresClientForPayment
-    ) {
-      return
-    }
-
-    const validClientKeys =
-      new Set(
-        clients.map(
-          (client) =>
-            client.identity
-        )
-      )
-
-    const scheduledByClient =
-      new Map<
-        string,
-        number
-      >()
-
-    ;(
-      data.cashPayments ??
-      []
-    ).forEach(
-      (
-        payment,
-        index
-      ) => {
-        const amount =
-          toFiniteNumber(
-            payment.amount
+    /*
+     * در ثبت پرونده جدید فقط سه ورودی اجباری هستند:
+     * 1) عنوان پرونده
+     * 2) شماره پرونده
+     * 3) حداقل یک موکل
+     *
+     * سایر بخش‌ها اختیاری هستند و نباید به خاطر خالی بودن
+     * جلوی ثبت پرونده را بگیرند.
+     */
+    const hasAtLeastOneClient =
+      (data.clients ?? []).some(
+        (client) =>
+          Boolean(
+            client.clientId?.trim() ||
+              client.name?.trim()
           )
+      )
 
-        if (
-          amount <= 0
-        ) {
-          return
-        }
-
-        const paymentClientKey =
-          payment.clientId
-            ?.trim() ||
-          payment.clientName
-            ?.trim() ||
-          ''
-
-        if (
-          !paymentClientKey
-        ) {
-          context.addIssue({
-            code:
-              z.ZodIssueCode
-                .custom,
-
-            path: [
-              'cashPayments',
-              index,
-              'clientId',
-            ],
-
-            message:
-              'موکل مرتبط با این پرداخت را مشخص کنید',
-          })
-
-          return
-        }
-
-        if (
-          !validClientKeys.has(
-            paymentClientKey
-          )
-        ) {
-          context.addIssue({
-            code:
-              z.ZodIssueCode
-                .custom,
-
-            path: [
-              'cashPayments',
-              index,
-              'clientId',
-            ],
-
-            message:
-              'موکل انتخاب‌شده در پرونده وجود ندارد',
-          })
-
-          return
-        }
-
-        scheduledByClient.set(
-          paymentClientKey,
-
-          (
-            scheduledByClient.get(
-              paymentClientKey
-            ) ?? 0
-          ) + amount
-        )
-      }
-    )
-
-    clients.forEach(
-      (client) => {
-        const scheduled =
-          scheduledByClient.get(
-            client.identity
-          ) ?? 0
-
-        if (
-          scheduled >
-          client.share
-        ) {
-          context.addIssue({
-            code:
-              z.ZodIssueCode
-                .custom,
-
-            path: [
-              'clients',
-              client.index,
-              'feeShareAmount',
-            ],
-
-            message:
-              'مجموع اقساط این موکل از سهم حق‌الوکاله او بیشتر است',
-          })
-        }
-      }
-    )
+    if (!hasAtLeastOneClient) {
+      context.addIssue({
+        code:
+          z.ZodIssueCode.custom,
+        path: ['clients'],
+        message:
+          'حداقل یک موکل برای ثبت پرونده الزامی است',
+      })
+    }
   }
 )
-      
 
 type CaseFormInput =
   z.input<typeof caseSchema>
@@ -2775,7 +2575,7 @@ clients:
 
           <div>
             <label className="block text-sm font-medium text-zinc-900 mb-2">
-              وضعیت *
+              وضعیت
             </label>
             <select
               {...register('status')}
@@ -3021,7 +2821,9 @@ clients:
   <div className="flex items-center justify-between">
     <div className="flex items-center gap-2">
       <Users className="text-blue-600" size={20} />
-      <h2 className="text-lg font-semibold text-zinc-800">موکلین</h2>
+      <h2 className="text-lg font-semibold text-zinc-800">
+        موکلین *
+      </h2>
     </div>
 
     <button
@@ -3044,6 +2846,12 @@ clients:
       افزودن موکل
     </button>
   </div>
+
+  {errors.clients?.message && (
+    <p className="text-sm font-medium text-red-600">
+      {errors.clients.message}
+    </p>
+  )}
 
   <div className="grid gap-4">
     {clientFields.map((field, index) => {
