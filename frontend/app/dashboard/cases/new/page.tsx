@@ -21,6 +21,13 @@ import {
   X,
 } from 'lucide-react'
 
+import {
+saveCaseDraft,
+loadCaseDraft,
+clearCaseDraft
+}
+from '@/features/cases/utils/caseDraft'
+
 import { useCasesStore } from '@/store/cases.store'
 import {
   useClientStore,
@@ -164,6 +171,14 @@ const optionalNumberSchema = z.preprocess(
 const lawyerSchema = z.object({
   name: optionalTextSchema,
   phone: optionalPhoneSchema,
+  nationalId:
+optionalTextSchema,
+
+birthDate:
+optionalTextSchema,
+
+role:
+optionalTextSchema,
   licenseNumber: optionalTextSchema,
   licenseExpiry: optionalTextSchema,
   licenseIssuePlace:
@@ -176,6 +191,8 @@ const clientSchema = z.object({
   phone: optionalPhoneSchema,
   nationalId: optionalTextSchema,
   role: optionalTextSchema,
+  birthDate:
+optionalTextSchema,
   representative:
     optionalTextSchema,
 
@@ -195,6 +212,8 @@ const opposingPartySchema = z.object({
 const otherPersonSchema = z.object({
   name: optionalTextSchema,
   phone: optionalPhoneSchema,
+birthDate:
+optionalTextSchema,
   nationalId: optionalTextSchema,
   role: optionalTextSchema,
   description: optionalTextSchema,
@@ -916,6 +935,9 @@ const clientsError =
   CaseFormData
 >({
   resolver: zodResolver(caseSchema),
+   
+  shouldUnregister:false,
+
 
   defaultValues: {
     title: '',
@@ -2650,7 +2672,7 @@ clients:
 
           <div>
   <label className="block text-sm font-medium text-zinc-900 mb-2">
-    شماره پرونده *
+          شماره بایگانی دفتر وکیل *
   </label>
 
   <input
@@ -2674,13 +2696,25 @@ clients:
 </div>
         </div>
 
-        {/* شعبه دادگاه */}
+        {/* مشخصات پرونده  */}
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-green-100 pb-3 mb-4">شعبه دادگاه</h2>
+          <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-green-100 pb-3 mb-4">مشخصات پرونده</h2>
 
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 space-y-6">
             <div className="relative">
               <label className="block text-sm font-medium text-green-800 mb-2">نوع دادگاه</label>
+              <div>
+<label className="block text-sm font-medium text-green-800 mb-2">
+شماره پرونده
+</label>
+
+<input
+ {...register('caseNumber')}
+ type="text"
+ className="w-full px-4 py-3 border border-green-300 rounded-lg bg-white"
+/>
+
+</div>
               <div className="relative">
                 <input
                   type="text"
@@ -2719,7 +2753,7 @@ clients:
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
               <div>
                 <label className="block text-sm font-medium text-green-800 mb-2">استان</label>
                 <select
@@ -2737,13 +2771,13 @@ clients:
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-green-800 mb-2">شهر</label>
+                <label className="block text-sm font-medium text-green-800 mb-2">شهر/بخش</label>
                 <input
                   type="text"
                   value={activeCourtLocation?.city || ''}
                   onChange={(event) => updateActiveCourtLocationField('city', event.target.value)}
                   className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                  placeholder="نام شهر"
+                  placeholder="نام شهر/بخش"
                 />
               </div>
 
@@ -2801,7 +2835,7 @@ clients:
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-green-800 mb-2">شماره بایگانی در شعبه دادگاه</label>
+                <label className="block text-sm font-medium text-green-800 mb-2">شماره بایگانی شعبه</label>
                 <input
                   type="text"
                   value={activeCourtLocation?.archiveNumberBranch || ''}
@@ -3013,28 +3047,33 @@ clients:
               dir="ltr"
             />
           </div>
+          <div>
+
+<label>
+تاریخ تولد
+</label>
+
+<input
+ {...register(
+ `clients.${index}.birthDate`
+ )}
+ placeholder="1400/01/01"
+/>
+
+
+</div>
+
+         
 
           <div>
             <label className="text-xs text-blue-700 font-medium block mb-1">
-              سمت
-            </label>
-            <input
-              {...register(`clients.${index}.role` as const)}
-              type="text"
-              className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              placeholder="مثلا خواهان"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-blue-700 font-medium block mb-1">
-              نماینده
+              نماینده/سمت
             </label>
             <input
               {...register(`clients.${index}.representative` as const)}
               type="text"
               className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              placeholder="نام نماینده"
+              placeholder=" /نام نماینده"
             />
           </div>
         </div>
@@ -3783,7 +3822,7 @@ clients:
   </div>
 
   {(paymentType === 'cash' || paymentType === 'both') && (
-    <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 space-y-4">
+    <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 space-y-2">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <h3 className="font-medium text-green-800 text-lg">پرداخت‌های نقدی</h3>
 

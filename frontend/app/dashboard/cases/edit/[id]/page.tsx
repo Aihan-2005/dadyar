@@ -2030,13 +2030,13 @@ export default function EditCasePage({ params }: EditCasePageProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-green-800 mb-2">شهر</label>
+                <label className="block text-sm font-medium text-green-800 mb-2">شهر/بخش</label>
                 <input
                   type="text"
                   value={activeCourtLocation?.city || ''}
                   onChange={(event) => updateActiveCourtLocationField('city', event.target.value)}
                   className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                  placeholder="نام شهر"
+                  placeholder="نام شهر/بخش"
                 />
               </div>
 
@@ -2094,7 +2094,7 @@ export default function EditCasePage({ params }: EditCasePageProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-green-800 mb-2">شماره بایگانی در شعبه دادگاه</label>
+                <label className="block text-sm font-medium text-green-800 mb-2">شماره بایگانی شعبه</label>
                 <input
                   type="text"
                   value={activeCourtLocation?.archiveNumberBranch || ''}

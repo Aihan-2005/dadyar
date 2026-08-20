@@ -1303,7 +1303,7 @@ export default function CaseDetailPage({
 
           <div>
             <dt className="mb-1 text-sm text-zinc-500">
-              شهر
+              شهر/بخش
             </dt>
 
             <dd className="font-medium text-zinc-900">
