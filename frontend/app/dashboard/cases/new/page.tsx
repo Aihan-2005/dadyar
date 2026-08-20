@@ -33,9 +33,11 @@ import {
 import type { CreateCasePayload } from '@/types/case'
 
 import {
+  formatDateInput,
   parseFinanceDate,
 } from '@/features/finance/utils/date'
 import {
+  formatMoneyInput,
   normalizeDigits,
   toFiniteNumber,
 } from '@/features/finance/utils/number'
@@ -230,6 +232,8 @@ const paymentSchema = z.object({
     .optional()
     .default(false),
   paymentDate: optionalTextSchema,
+  paymentDescription:
+    optionalTextSchema,
 })
 
 
@@ -328,6 +332,9 @@ archiveNumberOffice:
 
   nonCashDescription:
     optionalTextSchema,
+
+  estimatedPrice:
+    optionalNumberSchema,
 
   contractAmount:
     optionalNumberSchema,
@@ -922,6 +929,7 @@ const clientsError =
   control,
   watch,
   setValue,
+  reset,
 
 
   
@@ -958,6 +966,7 @@ const clientsError =
         name: '',
         phone: '',
         nationalId: '',
+        birthDate: '',
         role: '',
         representative: '',
           feeShareAmount:
@@ -994,6 +1003,8 @@ const clientsError =
 
     nonCashDescription: '',
 
+    estimatedPrice: undefined,
+
     contractAmount: undefined,
 
     remainingAmount: undefined,
@@ -1019,6 +1030,64 @@ useEffect(() => {
 }, [
   fetchAllClients,
 ])
+
+useEffect(() => {
+  const draft =
+    loadCaseDraft() as
+      | Partial<CaseFormInput>
+      | null
+
+  if (!draft) {
+    return
+  }
+
+  reset(
+    draft as CaseFormInput,
+    {
+      keepDefaultValues: true,
+    }
+  )
+
+  if (draft.paymentType) {
+    setPaymentType(
+      draft.paymentType
+    )
+  }
+
+  if (
+    typeof draft.courtType ===
+    'string'
+  ) {
+    setCourtTypeInput(
+      draft.courtType
+    )
+
+    setFilteredCourtTypes(
+      COURT_TYPES.filter(
+        (type) =>
+          type.includes(
+            draft.courtType as string
+          )
+      )
+    )
+  }
+}, [
+  reset,
+])
+
+useEffect(() => {
+  const subscription =
+    watch((values) => {
+      saveCaseDraft(values)
+    })
+
+  return () => {
+    subscription.unsubscribe()
+  }
+}, [
+  watch,
+])
+
 
   const {
     fields:
@@ -1121,12 +1190,14 @@ type WatchedCashPayment = {
   amount?: unknown
   isPaid?: boolean
   paymentDate?: string
+  paymentDescription?: string
 }
 
 type WatchedClient = {
   clientId?: string
   name?: string
   feeShareAmount?: unknown
+  birthDate?: string
 }
 
 const watchCashPayments =
@@ -1273,7 +1344,9 @@ const splitFeeEqually = () => {
 
       setValue(
         `clients.${client.index}.feeShareAmount`,
-        clientShare,
+        formatMoneyInput(
+          clientShare
+        ),
         {
           shouldDirty: true,
           shouldValidate: true,
@@ -1569,7 +1642,9 @@ useEffect(() => {
 
   setValue(
     `clients.${singleClientIndex}.feeShareAmount`,
-    contractAmount,
+    formatMoneyInput(
+      contractAmount
+    ),
     {
       shouldDirty: false,
       shouldValidate: false,
@@ -1584,34 +1659,7 @@ useEffect(() => {
 
 
 
-useEffect(() => {
-  if (
-    singleClientIndex === null
-  ) {
-    return
-  }
 
-  if (
-    singleClientCurrentShare ===
-    contractAmount
-  ) {
-    return
-  }
-
-  setValue(
-    `clients.${singleClientIndex}.feeShareAmount`,
-    contractAmount,
-    {
-      shouldDirty: false,
-      shouldValidate: false,
-    }
-  )
-}, [
-  contractAmount,
-  setValue,
-  singleClientCurrentShare,
-  singleClientIndex,
-])
 
 
 
@@ -1654,6 +1702,12 @@ useEffect(() => {
 
       setValue(
         `clients.${index}.nationalId`,
+        ''
+      )
+
+      
+      setValue(
+        `clients.${index}.birthDate`,
         ''
       )
 
@@ -1995,6 +2049,7 @@ useEffect(() => {
   data: CaseFormData
 ) => {
   clearCaseError()
+  saveCaseDraft(data)
 
   const cleanedClients =
       (data.clients ?? [])
@@ -2017,6 +2072,12 @@ useEffect(() => {
           nationalId:
             cleanText(
               client.nationalId
+            ) || undefined,
+
+          
+          birthDate:
+            cleanText(
+              client.birthDate
             ) || undefined,
 
           role:
@@ -2103,6 +2164,12 @@ useEffect(() => {
               person.nationalId
             ) || undefined,
 
+          
+          birthDate:
+            cleanText(
+              person.birthDate
+            ) || undefined,
+
           role:
             cleanText(
               person.role
@@ -2135,6 +2202,22 @@ useEffect(() => {
           phone:
             cleanText(
               lawyer.phone
+            ) || undefined,
+
+          
+          nationalId:
+            cleanText(
+              lawyer.nationalId
+            ) || undefined,
+
+          birthDate:
+            cleanText(
+              lawyer.birthDate
+            ) || undefined,
+
+          role:
+            cleanText(
+              lawyer.role
             ) || undefined,
 
           licenseNumber:
@@ -2276,6 +2359,12 @@ const formattedCashPayments =
               cleanText(
                 payment
                   .paymentDate
+              ) || undefined,
+
+            paymentDescription:
+              cleanText(
+                payment
+                  .paymentDescription
               ) || undefined,
           }
         })
@@ -2571,6 +2660,15 @@ clients:
                 data.nonCashDescription
               ),
 
+        estimatedPrice:
+          selectedPaymentType ===
+          'cash'
+            ? undefined
+            : toFiniteNumber(
+                data.estimatedPrice
+              ) || undefined,
+
+
         description:
           cleanText(
             data.description
@@ -2612,8 +2710,11 @@ clients:
       await addCase(payload)
 
     if (!createdCase) {
+      saveCaseDraft(data)
       return
     }
+
+    clearCaseDraft()
 
     router.push(
       '/dashboard/cases'
@@ -2925,18 +3026,18 @@ clients:
 
     <button
       type="button"
-    onClick={() =>
-  appendClient({
-    clientId: '',
-    name: '',
-    phone: '',
-    nationalId: '',
-    role: '',
-    representative: '',
-    feeShareAmount:
-                  undefined,
-  })
-}
+      onClick={() =>
+        appendClient({
+          clientId: '',
+          name: '',
+          phone: '',
+          nationalId: '',
+          birthDate: '',
+          role: '',
+          representative: '',
+          feeShareAmount: undefined,
+        })
+      }
       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
     >
       <Plus size={16} />
@@ -2945,184 +3046,199 @@ clients:
   </div>
 
   <div className="grid gap-4">
-    {clientFields.map((field, index) => (
-      <div
-        key={field.id}
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4"
-      >
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-blue-800">
-            موکل {index + 1}
-          </h3>
-
-          {clientFields.length > 1 && (
-            <button
-              type="button"
-              onClick={() => removeClient(index)}
-              className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <X size={16} />
-            </button>
-          )}
-        </div>
-
-       <div className="mb-4">
-  <label className="text-xs text-blue-700 font-medium block mb-1">
-    انتخاب از موکلین ثبت‌شده
-  </label>
-
-  <select
-    value={
-      (
+    {clientFields.map((field, index) => {
+      const clientBirthDate =
         watch(
-          `clients.${index}.clientId` as any
-        ) as string
-      ) || ''
-    }
-    disabled={
-      isClientsLoading
-    }
-    onChange={(
-      event
-    ) =>
-      fillClientFromSavedList(
-        index,
-        event.target.value
-      )
-    }
-    className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-zinc-100 disabled:cursor-wait"
-  >
-    <option value="">
-      {isClientsLoading
-        ? 'در حال دریافت موکلین از سرور...'
-        : 'ورود دستی اطلاعات موکل'}
-    </option>
+          `clients.${index}.birthDate` as const
+        )
 
-    {savedClients.map(
-      (
-        client
-      ) => (
-        <option
-          key={
-            client.id
-          }
-          value={
-            client.id
-          }
+      const clientUnderLegalAge =
+        isUnderLegalAge(
+          clientBirthDate
+        )
+
+      return (
+        <div
+          key={field.id}
+          className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4"
         >
-          {
-            getSavedClientFullName(
-              client
-            )
-          }
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-blue-800">
+              موکل {index + 1}
+            </h3>
 
-          {client.nationalId
-            ? ` - ${client.nationalId}`
-            : ''}
-
-          {client.phoneNumber
-            ? ` - ${client.phoneNumber}`
-            : ''}
-        </option>
-      )
-    )}
-  </select>
-
-  {clientsError ? (
-    <p className="mt-1 text-xs font-medium text-red-600">
-      {clientsError}
-    </p>
-  ) : (
-    <p className="mt-1 text-xs text-blue-500">
-      {savedClients.length >
-      0
-        ? `${savedClients.length.toLocaleString(
-            'fa-IR'
-          )} موکل از سرور دریافت شده است.`
-        : isClientsLoading
-          ? 'در حال دریافت اطلاعات از سرور...'
-          : 'می‌توانید اطلاعات موکل را به‌صورت دستی وارد کنید.'}
-    </p>
-  )}
-</div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-          <div>
-            <label className="text-xs text-blue-700 font-medium block mb-1">
-              نام شخص حقیقی/حقوقی
-            </label>
-            <input
-              {...register(`clients.${index}.name` as const)}
-              type="text"
-              className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              placeholder="نام شخص"
-            />
+            {clientFields.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeClient(index)}
+                className="p-1 text-zinc-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
 
-          <div>
+          <div className="mb-4">
             <label className="text-xs text-blue-700 font-medium block mb-1">
-              شماره موبایل
+              انتخاب از موکلین ثبت‌شده
             </label>
-            <input
-              {...register(`clients.${index}.phone` as const)}
-              type="text"
-              maxLength={11}
-              className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              placeholder="09123456789"
-              dir="ltr"
-            />
 
-            {errors.clients?.[index]?.phone && (
-              <p className="mt-1 text-xs text-red-600">
-                {errors.clients[index]?.phone?.message}
+            <select
+              value={
+                (
+                  watch(
+                    `clients.${index}.clientId` as const
+                  ) as string
+                ) || ''
+              }
+              disabled={isClientsLoading}
+              onChange={(event) =>
+                fillClientFromSavedList(
+                  index,
+                  event.target.value
+                )
+              }
+              className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:bg-zinc-100 disabled:cursor-wait"
+            >
+              <option value="">
+                {isClientsLoading
+                  ? 'در حال دریافت موکلین از سرور...'
+                  : 'ورود دستی اطلاعات موکل'}
+              </option>
+
+              {savedClients.map((client) => (
+                <option
+                  key={client.id}
+                  value={client.id}
+                >
+                  {getSavedClientFullName(client)}
+                  {client.nationalId
+                    ? ` - ${client.nationalId}`
+                    : ''}
+                  {client.phoneNumber
+                    ? ` - ${client.phoneNumber}`
+                    : ''}
+                </option>
+              ))}
+            </select>
+
+            {clientsError ? (
+              <p className="mt-1 text-xs font-medium text-red-600">
+                {clientsError}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-blue-500">
+                {savedClients.length > 0
+                  ? `${savedClients.length.toLocaleString(
+                      'fa-IR'
+                    )} موکل از سرور دریافت شده است.`
+                  : isClientsLoading
+                    ? 'در حال دریافت اطلاعات از سرور...'
+                    : 'می‌توانید اطلاعات موکل را به‌صورت دستی وارد کنید.'}
               </p>
             )}
           </div>
 
-          <div>
-            <label className="text-xs text-blue-700 font-medium block mb-1">
-              کد ملی/شناسه ملی
-            </label>
-            <input
-              {...register(`clients.${index}.nationalId` as const)}
-              type="text"
-              className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              placeholder="کد یا شناسه"
-              dir="ltr"
-            />
-          </div>
-          <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+            <div>
+              <label className="text-xs text-blue-700 font-medium block mb-1">
+                نام شخص حقیقی/حقوقی
+              </label>
+              <input
+                {...register(`clients.${index}.name` as const)}
+                type="text"
+                className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                placeholder="نام شخص"
+              />
+            </div>
 
-<label>
-تاریخ تولد
-</label>
+            <div>
+              <label className="text-xs text-blue-700 font-medium block mb-1">
+                شماره موبایل
+              </label>
+              <input
+                {...register(`clients.${index}.phone` as const)}
+                type="text"
+                maxLength={11}
+                className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                placeholder="09123456789"
+                dir="ltr"
+              />
 
-<input
- {...register(
- `clients.${index}.birthDate`
- )}
- placeholder="1400/01/01"
-/>
+              {errors.clients?.[index]?.phone && (
+                <p className="mt-1 text-xs text-red-600">
+                  {errors.clients[index]?.phone?.message}
+                </p>
+              )}
+            </div>
 
+            <div>
+              <label className="text-xs text-blue-700 font-medium block mb-1">
+                کد ملی / شناسه ملی
+              </label>
+              <input
+                {...register(`clients.${index}.nationalId` as const)}
+                type="text"
+                className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                placeholder="کد یا شناسه"
+                dir="ltr"
+              />
+            </div>
 
-</div>
+            <div>
+              <label className="text-xs text-blue-700 font-medium block mb-1">
+                تاریخ تولد
+              </label>
+              <input
+                {...register(
+                  `clients.${index}.birthDate` as const,
+                  {
+                    setValueAs: (value) =>
+                      formatDateInput(
+                        String(value ?? '')
+                      ),
+                    onChange: (event) => {
+                      event.target.value =
+                        formatDateInput(
+                          event.target.value
+                        )
+                    },
+                  }
+                )}
+                type="text"
+                inputMode="numeric"
+                maxLength={10}
+                className={`w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 bg-white ${
+                  clientUnderLegalAge
+                    ? 'border border-amber-400 focus:ring-amber-500'
+                    : 'border border-blue-200 focus:ring-blue-500'
+                }`}
+                placeholder="1404/05/20"
+                dir="ltr"
+              />
 
-         
+              {clientUnderLegalAge && (
+                <p className="mt-1 text-xs font-medium text-amber-600">
+                  این شخص زیر ۱۸ سال است
+                </p>
+              )}
+            </div>
 
-          <div>
-            <label className="text-xs text-blue-700 font-medium block mb-1">
+            <div>
+              <label className="text-xs text-blue-700 font-medium block mb-1">
                 سمت / نماینده
-            </label>
-            <input
-              {...register(`clients.${index}.representative` as const)}
-              type="text"
-              className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              placeholder="سمت یا نام نماینده"
-            />
+              </label>
+              <input
+                {...register(`clients.${index}.representative` as const)}
+                type="text"
+                className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                placeholder="سمت یا نام نماینده"
+              />
+            </div>
           </div>
         </div>
-      </div>
-    ))}
+      )
+    })}
   </div>
 </div>
 
@@ -3141,8 +3257,8 @@ clients:
           name: '',
           phone: '',
           nationalId: '',
-          role: '',
           birthDate: '',
+          role: '',
           description: '',
         })
       }
@@ -3156,14 +3272,22 @@ clients:
   {opposingPartyFields.length === 0 && (
     <div className="bg-zinc-50 border-2 border-dashed border-zinc-300 rounded-xl p-6 text-center">
       <UserX className="mx-auto text-zinc-400 mb-2" size={32} />
-      <p className="text-sm text-zinc-500">هیچ طرف مقابلی اضافه نشده است</p>
+      <p className="text-sm text-zinc-500">
+        هیچ طرف مقابلی اضافه نشده است
+      </p>
     </div>
   )}
 
   <div className="grid gap-4">
     {opposingPartyFields.map((field, index) => {
-      const birthDateValue = watch(`opposingParties.${index}.birthDate` as const)
-      const underLegalAge = isUnderLegalAge(birthDateValue)
+      const birthDateValue =
+        watch(
+          `opposingParties.${index}.birthDate` as const
+        )
+      const underLegalAge =
+        isUnderLegalAge(
+          birthDateValue
+        )
 
       return (
         <div
@@ -3219,26 +3343,14 @@ clients:
 
             <div>
               <label className="text-xs text-zinc-700 font-medium block mb-1">
-                کد ملی/شناسه ملی
+                کد ملی / شناسنامه
               </label>
               <input
                 {...register(`opposingParties.${index}.nationalId` as const)}
                 type="text"
                 className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
-                placeholder="کد یا شناسه"
+                placeholder="کد ملی یا شماره شناسنامه"
                 dir="ltr"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-zinc-700 font-medium block mb-1">
-                سمت
-              </label>
-              <input
-                {...register(`opposingParties.${index}.role` as const)}
-                type="text"
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
-                placeholder="مثلا خوانده"
               />
             </div>
 
@@ -3247,22 +3359,50 @@ clients:
                 تاریخ تولد
               </label>
               <input
-                {...register(`opposingParties.${index}.birthDate` as const)}
+                {...register(
+                  `opposingParties.${index}.birthDate` as const,
+                  {
+                    setValueAs: (value) =>
+                      formatDateInput(
+                        String(value ?? '')
+                      ),
+                    onChange: (event) => {
+                      event.target.value =
+                        formatDateInput(
+                          event.target.value
+                        )
+                    },
+                  }
+                )}
                 type="text"
+                inputMode="numeric"
+                maxLength={10}
                 className={`w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 bg-white ${
                   underLegalAge
-                    ? 'border border-red-400 focus:ring-red-500'
+                    ? 'border border-amber-400 focus:ring-amber-500'
                     : 'border border-zinc-200 focus:ring-zinc-500'
                 }`}
-                placeholder="مثال: 1384/09/09"
+                placeholder="1404/05/20"
                 dir="ltr"
               />
 
               {underLegalAge && (
-                <p className="mt-1 text-xs text-red-600 font-medium">
-                  زیر سن قانونی
+                <p className="mt-1 text-xs font-medium text-amber-600">
+                  این شخص زیر ۱۸ سال است
                 </p>
               )}
+            </div>
+
+            <div>
+              <label className="text-xs text-zinc-700 font-medium block mb-1">
+                سمت / نماینده
+              </label>
+              <input
+                {...register(`opposingParties.${index}.role` as const)}
+                type="text"
+                className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500 bg-white"
+                placeholder="سمت یا نام نماینده"
+              />
             </div>
           </div>
 
@@ -3286,26 +3426,48 @@ clients:
         {/* وکلای همکار */}
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b-2 border-purple-100 pb-3">
-            <h2 className="text-lg font-semibold text-zinc-800">وکلای همکار / سرپرست</h2>
+            <h2 className="text-lg font-semibold text-zinc-800">
+              وکلای همکار / سرپرست
+            </h2>
             <button
               type="button"
-              onClick={() => appendCoLawyer({ name: '', phone: '', licenseNumber: '', licenseExpiry: '', licenseIssuePlace: '' })}
+              onClick={() =>
+                appendCoLawyer({
+                  name: '',
+                  phone: '',
+                  nationalId: '',
+                  birthDate: '',
+                  role: '',
+                  licenseNumber: '',
+                  licenseExpiry: '',
+                  licenseIssuePlace: '',
+                })
+              }
               className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
             >
-              <Plus size={16} /> افزودن وکیل همکار
+              <Plus size={16} />
+              افزودن وکیل همکار
             </button>
           </div>
 
           {coLawyerFields.length === 0 && (
             <div className="bg-purple-50 border-2 border-dashed border-purple-300 rounded-xl p-6 text-center">
-              <p className="text-sm text-purple-600">هیچ وکیل همکاری اضافه نشده</p>
+              <p className="text-sm text-purple-600">
+                هیچ وکیل همکاری اضافه نشده
+              </p>
             </div>
           )}
 
           <div className="grid gap-4">
             {coLawyerFields.map((field, index) => (
-              <div key={field.id} className="bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-200 rounded-xl p-4">
+              <div
+                key={field.id}
+                className="bg-gradient-to-r from-purple-50 to-violet-50 border border-purple-200 rounded-xl p-4"
+              >
                 <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-purple-800">
+                    وکیل همکار {index + 1}
+                  </h3>
                   <button
                     type="button"
                     onClick={() => removeCoLawyer(index)}
@@ -3315,9 +3477,11 @@ clients:
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-3">
                   <div>
-                    <label className="text-xs text-purple-700 font-medium block mb-1">نام و نام خانوادگی</label>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">
+                      نام و نام خانوادگی
+                    </label>
                     <input
                       {...register(`coLawyers.${index}.name` as const)}
                       type="text"
@@ -3325,8 +3489,11 @@ clients:
                       placeholder="نام وکیل"
                     />
                   </div>
+
                   <div>
-                    <label className="text-xs text-purple-700 font-medium block mb-1">شماره موبایل</label>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">
+                      شماره موبایل
+                    </label>
                     <input
                       {...register(`coLawyers.${index}.phone` as const)}
                       type="text"
@@ -3336,14 +3503,61 @@ clients:
                       dir="ltr"
                     />
                     {errors.coLawyers?.[index]?.phone && (
-                      <p className="mt-1 text-xs text-red-600">{errors.coLawyers[index]?.phone?.message}</p>
+                      <p className="mt-1 text-xs text-red-600">
+                        {errors.coLawyers[index]?.phone?.message}
+                      </p>
                     )}
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">
+                      کد ملی
+                    </label>
+                    <input
+                      {...register(`coLawyers.${index}.nationalId` as const)}
+                      type="text"
+                      inputMode="numeric"
+                      className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                      placeholder="کد ملی"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">
+                      تاریخ تولد
+                    </label>
+                    <input
+                      {...register(
+                        `coLawyers.${index}.birthDate` as const,
+                        {
+                          setValueAs: (value) =>
+                            formatDateInput(
+                              String(value ?? '')
+                            ),
+                          onChange: (event) => {
+                            event.target.value =
+                              formatDateInput(
+                                event.target.value
+                              )
+                          },
+                        }
+                      )}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={10}
+                      className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                      placeholder="1404/05/20"
+                      dir="ltr"
+                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs text-purple-700 font-medium block mb-1">شماره پروانه</label>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">
+                      شماره پروانه
+                    </label>
                     <input
                       {...register(`coLawyers.${index}.licenseNumber` as const)}
                       type="text"
@@ -3352,18 +3566,40 @@ clients:
                       dir="ltr"
                     />
                   </div>
+
                   <div>
-                    <label className="text-xs text-purple-700 font-medium block mb-1">تاریخ اعتبار پروانه</label>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">
+                      تاریخ اعتبار پروانه
+                    </label>
                     <input
-                      {...register(`coLawyers.${index}.licenseExpiry` as const)}
+                      {...register(
+                        `coLawyers.${index}.licenseExpiry` as const,
+                        {
+                          setValueAs: (value) =>
+                            formatDateInput(
+                              String(value ?? '')
+                            ),
+                          onChange: (event) => {
+                            event.target.value =
+                              formatDateInput(
+                                event.target.value
+                              )
+                          },
+                        }
+                      )}
                       type="text"
+                      inputMode="numeric"
+                      maxLength={10}
                       className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
                       placeholder="1405/12/29"
                       dir="ltr"
                     />
                   </div>
+
                   <div>
-                    <label className="text-xs text-purple-700 font-medium block mb-1">حوزه وکالت</label>
+                    <label className="text-xs text-purple-700 font-medium block mb-1">
+                      حوزه وکالت
+                    </label>
                     <input
                       {...register(`coLawyers.${index}.licenseIssuePlace` as const)}
                       type="text"
@@ -3380,26 +3616,48 @@ clients:
         {/* وکلای طرف مقابل */}
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b-2 border-orange-100 pb-3">
-            <h2 className="text-lg font-semibold text-zinc-800">وکلای طرف مقابل</h2>
+            <h2 className="text-lg font-semibold text-zinc-800">
+              وکلای طرف مقابل
+            </h2>
             <button
               type="button"
-              onClick={() => appendOpposingLawyer({ name: '', phone: '', licenseNumber: '', licenseExpiry: '', licenseIssuePlace: '' })}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              onClick={() =>
+                appendOpposingLawyer({
+                  name: '',
+                  phone: '',
+                  nationalId: '',
+                  birthDate: '',
+                  role: '',
+                  licenseNumber: '',
+                  licenseExpiry: '',
+                  licenseIssuePlace: '',
+                })
+              }
+              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
             >
-              <Plus size={16} /> افزودن وکیل طرف مقابل
+              <Plus size={16} />
+              افزودن وکیل طرف مقابل
             </button>
           </div>
 
           {opposingLawyerFields.length === 0 && (
-            <div className="bg-blue-50 border-2 border-dashed border-blue-300 rounded-xl p-6 text-center">
-              <p className="text-sm text-blue-600">هیچ وکیل طرف مقابلی اضافه نشده</p>
+            <div className="bg-orange-50 border-2 border-dashed border-orange-300 rounded-xl p-6 text-center">
+              <p className="text-sm text-orange-600">
+                هیچ وکیل طرف مقابلی اضافه نشده
+              </p>
             </div>
           )}
 
           <div className="grid gap-4">
             {opposingLawyerFields.map((field, index) => (
-              <div key={field.id} className="bg-gradient-to-r from-blue-50 to-amber-50 border border-blue-200 rounded-xl p-4">
+              <div
+                key={field.id}
+                className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4"
+              >
                 <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-orange-800">
+                    وکیل طرف مقابل {index + 1}
+                  </h3>
                   <button
                     type="button"
                     onClick={() => removeOpposingLawyer(index)}
@@ -3409,18 +3667,23 @@ clients:
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-3">
                   <div>
-                    <label className="text-xs text-blue-700 font-medium block mb-1">نام و نام خانوادگی</label>
+                    <label className="text-xs text-orange-700 font-medium block mb-1">
+                      نام و نام خانوادگی
+                    </label>
                     <input
                       {...register(`opposingLawyers.${index}.name` as const)}
                       type="text"
-                      className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      className="w-full px-3 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                       placeholder="نام وکیل"
                     />
                   </div>
+
                   <div>
-                    <label className="text-xs text-blue-700 font-medium block mb-1">شماره موبایل</label>
+                    <label className="text-xs text-orange-700 font-medium block mb-1">
+                      شماره موبایل
+                    </label>
                     <input
                       {...register(`opposingLawyers.${index}.phone` as const)}
                       type="text"
@@ -3430,14 +3693,61 @@ clients:
                       dir="ltr"
                     />
                     {errors.opposingLawyers?.[index]?.phone && (
-                      <p className="mt-1 text-xs text-red-600">{errors.opposingLawyers[index]?.phone?.message}</p>
+                      <p className="mt-1 text-xs text-red-600">
+                        {errors.opposingLawyers[index]?.phone?.message}
+                      </p>
                     )}
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-orange-700 font-medium block mb-1">
+                      کد ملی
+                    </label>
+                    <input
+                      {...register(`opposingLawyers.${index}.nationalId` as const)}
+                      type="text"
+                      inputMode="numeric"
+                      className="w-full px-3 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                      placeholder="کد ملی"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-orange-700 font-medium block mb-1">
+                      تاریخ تولد
+                    </label>
+                    <input
+                      {...register(
+                        `opposingLawyers.${index}.birthDate` as const,
+                        {
+                          setValueAs: (value) =>
+                            formatDateInput(
+                              String(value ?? '')
+                            ),
+                          onChange: (event) => {
+                            event.target.value =
+                              formatDateInput(
+                                event.target.value
+                              )
+                          },
+                        }
+                      )}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={10}
+                      className="w-full px-3 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                      placeholder="1404/05/20"
+                      dir="ltr"
+                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs text-orange-700 font-medium block mb-1">شماره پروانه</label>
+                    <label className="text-xs text-orange-700 font-medium block mb-1">
+                      شماره پروانه
+                    </label>
                     <input
                       {...register(`opposingLawyers.${index}.licenseNumber` as const)}
                       type="text"
@@ -3446,18 +3756,40 @@ clients:
                       dir="ltr"
                     />
                   </div>
+
                   <div>
-                    <label className="text-xs text-orange-700 font-medium block mb-1">تاریخ اعتبار پروانه</label>
+                    <label className="text-xs text-orange-700 font-medium block mb-1">
+                      تاریخ اعتبار پروانه
+                    </label>
                     <input
-                      {...register(`opposingLawyers.${index}.licenseExpiry` as const)}
+                      {...register(
+                        `opposingLawyers.${index}.licenseExpiry` as const,
+                        {
+                          setValueAs: (value) =>
+                            formatDateInput(
+                              String(value ?? '')
+                            ),
+                          onChange: (event) => {
+                            event.target.value =
+                              formatDateInput(
+                                event.target.value
+                              )
+                          },
+                        }
+                      )}
                       type="text"
+                      inputMode="numeric"
+                      maxLength={10}
                       className="w-full px-3 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                       placeholder="1405/12/29"
                       dir="ltr"
                     />
                   </div>
+
                   <div>
-                    <label className="text-xs text-orange-700 font-medium block mb-1"> حوزه وکالت</label>
+                    <label className="text-xs text-orange-700 font-medium block mb-1">
+                      حوزه وکالت
+                    </label>
                     <input
                       {...register(`opposingLawyers.${index}.licenseIssuePlace` as const)}
                       type="text"
@@ -3483,6 +3815,7 @@ clients:
           name: '',
           phone: '',
           nationalId: '',
+          birthDate: '',
           role: '',
           description: '',
         })
@@ -3496,7 +3829,9 @@ clients:
 
   {otherPersonFields.length === 0 && (
     <div className="bg-green-50 border-2 border-dashed border-green-300 rounded-xl p-6 text-center">
-      <p className="text-sm text-green-600">هیچ فرد دیگری اضافه نشده</p>
+      <p className="text-sm text-green-600">
+        هیچ فرد دیگری اضافه نشده
+      </p>
     </div>
   )}
 
@@ -3520,7 +3855,7 @@ clients:
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 mb-3">
           <div>
             <label className="text-xs text-green-700 font-medium block mb-1">
               نام و نام خانوادگی
@@ -3555,18 +3890,6 @@ clients:
 
           <div>
             <label className="text-xs text-green-700 font-medium block mb-1">
-              سمت
-            </label>
-            <input
-              {...register(`otherPersons.${index}.role` as const)}
-              type="text"
-              className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-              placeholder="مثلا شاهد، کارشناس، نماینده"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-green-700 font-medium block mb-1">
               کد ملی
             </label>
             <input
@@ -3575,6 +3898,47 @@ clients:
               className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
               placeholder="کد ملی"
               dir="ltr"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-green-700 font-medium block mb-1">
+              تاریخ تولد
+            </label>
+            <input
+              {...register(
+                `otherPersons.${index}.birthDate` as const,
+                {
+                  setValueAs: (value) =>
+                    formatDateInput(
+                      String(value ?? '')
+                    ),
+                  onChange: (event) => {
+                    event.target.value =
+                      formatDateInput(
+                        event.target.value
+                      )
+                  },
+                }
+              )}
+              type="text"
+              inputMode="numeric"
+              maxLength={10}
+              className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              placeholder="1404/05/20"
+              dir="ltr"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-green-700 font-medium block mb-1">
+              سمت
+            </label>
+            <input
+              {...register(`otherPersons.${index}.role` as const)}
+              type="text"
+              className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              placeholder="مثلا شاهد، کارشناس، نماینده"
             />
           </div>
         </div>
@@ -3594,6 +3958,7 @@ clients:
     ))}
   </div>
 </div>
+
        {/* اطلاعات مالی */}
 <div className="space-y-4">
   <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-green-100 pb-3 mb-4">
@@ -3610,11 +3975,17 @@ clients:
   {...register('contractAmount', {
     setValueAs:
       setOptionalNumberValue,
+    onChange: (event) => {
+      event.target.value =
+        formatMoneyInput(
+          event.target.value
+        )
+    },
   })}
   type="text"
   inputMode="numeric"
   className="w-full px-4 py-3 border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-  placeholder="مثال: 50000000"
+  placeholder="مثال: 50,000,000"
   dir="ltr"
 />
 
@@ -3708,6 +4079,12 @@ clients:
                     {
                       setValueAs:
                         setOptionalNumberValue,
+                      onChange: (event) => {
+                        event.target.value =
+                          formatMoneyInput(
+                            event.target.value
+                          )
+                      },
                     }
                   )}
                   type="text"
@@ -3878,7 +4255,8 @@ clients:
                 clientName: '',
                 amount: undefined,
                 isPaid: false,
-                paymentDate: ''
+                paymentDate: '',
+                paymentDescription: '',
             })
           }
           className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
@@ -4010,7 +4388,7 @@ clients:
   </div>
 )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4  gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
               <div>
                 <label className="text-xs text-green-700 font-medium block mb-1">
                   مبلغ (ریال)
@@ -4018,6 +4396,12 @@ clients:
                 <input
                   {...register(`cashPayments.${index}.amount` as const, {
                     setValueAs: setOptionalNumberValue,
+                    onChange: (event) => {
+                      event.target.value =
+                        formatMoneyInput(
+                          event.target.value
+                        )
+                    },
                   })}
                   type="text"
                   inputMode="numeric"
@@ -4034,9 +4418,22 @@ clients:
                 </label>
                 <input
                   type="text"
-                  {...register(`cashPayments.${index}.paymentDate` as const)}
+                  {...register(`cashPayments.${index}.paymentDate` as const, {
+                    setValueAs: (value) =>
+                      formatDateInput(
+                        String(value ?? '')
+                      ),
+                    onChange: (event) => {
+                      event.target.value =
+                        formatDateInput(
+                          event.target.value
+                        )
+                    },
+                  })}
+                  inputMode="numeric"
+                  maxLength={10}
                   className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="1403/12/15"
+                  placeholder="1404/05/20"
                   dir="ltr"
                 />
               </div>
@@ -4053,6 +4450,21 @@ clients:
                   </span>
                 </label>
               </div>
+
+            </div>
+
+            <div className="mt-3">
+              <label className="text-xs text-green-700 font-medium block mb-1">
+                توضیح
+              </label>
+              <textarea
+                {...register(
+                  `cashPayments.${index}.paymentDescription` as const
+                )}
+                rows={2}
+                className="w-full px-3 py-2 border border-green-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                placeholder="توضیح مربوط به این پرداخت..."
+              />
             </div>
           </div>
         ))}
@@ -4069,6 +4481,32 @@ clients:
       <p className="text-sm text-blue-600">
         در صورتی که پرداخت به صورت غیر نقدی مثل زمین، ملک، خودرو و ... انجام می‌شود، جزئیات را وارد کنید.
       </p>
+
+      <div>
+        <label className="block text-sm font-medium text-blue-800 mb-2">
+          حدود قیمت (ریال)
+        </label>
+        <input
+          {...register('estimatedPrice', {
+            setValueAs:
+              setOptionalNumberValue,
+            onChange: (event) => {
+              event.target.value =
+                formatMoneyInput(
+                  event.target.value
+                )
+            },
+          })}
+          type="text"
+          inputMode="numeric"
+          className="w-full px-4 py-3 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          placeholder="مثال: 1,000,000,000"
+          dir="ltr"
+        />
+        <p className="mt-1 text-xs text-blue-600">
+          ارزش تقریبی مال یا تعهد غیرنقدی را برای گزارش مالی وارد کنید.
+        </p>
+      </div>
 
       <textarea
         {...register('nonCashDescription')}
@@ -4115,24 +4553,16 @@ clients:
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs font-medium text-amber-700 block mb-1">عنوان هزینه</label>
+                    <label className="text-xs font-medium text-amber-700 block mb-1">
+                      عنوان هزینه / توضیحات
+                    </label>
                     <input
                       {...register(`expenses.${index}.title` as const)}
                       type="text"
                       className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      placeholder="مثال: هزینه ارسال مدارک"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-medium text-amber-700 block mb-1">موضوع/توضیح هزینه</label>
-                    <input
-                      {...register(`expenses.${index}.description` as const)}
-                      type="text"
-                      className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      placeholder="مثال: پست پیشتاز"
+                      placeholder="مثال: هزینه ارسال مدارک - پست پیشتاز"
                     />
                   </div>
 
@@ -4141,6 +4571,12 @@ clients:
                     <input
                       {...register(`expenses.${index}.amount` as const, {
                         setValueAs: setOptionalNumberValue,
+                        onChange: (event) => {
+                          event.target.value =
+                            formatMoneyInput(
+                              event.target.value
+                            )
+                        },
                       })}
                       type="text"
                       inputMode="numeric"
@@ -4153,11 +4589,24 @@ clients:
                   <div>
                     <label className="text-xs font-medium text-amber-700 block mb-1">تاریخ هزینه (شمسی)</label>
                     <input
-                      {...register(`expenses.${index}.date` as const)}
+                      {...register(`expenses.${index}.date` as const, {
+                        setValueAs: (value) =>
+                          formatDateInput(
+                            String(value ?? '')
+                          ),
+                        onChange: (event) => {
+                          event.target.value =
+                            formatDateInput(
+                              event.target.value
+                            )
+                        },
+                      })}
                       type="text"
+                      inputMode="numeric"
+                      maxLength={10}
                       dir="ltr"
                       className="w-full px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-                      placeholder="1403/11/01"
+                      placeholder="1404/05/20"
                     />
                   </div>
                 </div>
@@ -4173,9 +4622,9 @@ clients:
           </div>
         </div>
 
-        {/* توضیحات */}
+        {/* توضیحات کلی */}
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-gray-100 pb-3">توضیحات</h2>
+          <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-gray-100 pb-3">توضیحات کلی</h2>
           <textarea
             {...register('description')}
             rows={4}
