@@ -1,41 +1,35 @@
-import type {
-  Metadata,
-} from 'next'
-
+import type { Metadata } from 'next'
 import './globals.css'
 
-export const metadata:
-  Metadata = {
-    title: {
-      default:
-        'دادیار | پلتفرم مدیریت پرونده وکلا',
+export const metadata: Metadata = {
+  title: {
+    default: 'دادیار | پلتفرم مدیریت پرونده وکلا',
+    template: '%s | دادیار',
+  },
 
-      template:
-        '%s | دادیار',
-    },
+  description:
+    'پلتفرم حرفه‌ای برای وکلا جهت مدیریت پرونده‌ها، قراردادهای مرحله‌ای و روند کاری',
 
-    description:
-      'پلتفرم حرفه‌ای برای وکلا جهت مدیریت پرونده‌ها، قراردادهای مرحله‌ای و روند کاری',
+  icons: {
+    icon: '/faicon.ico',
+  },
 
-    icons: {
-      icon:
-        '/faicon.ico',
-    },
-  }
+  other: {
+    enamad: '61288267',
+  },
+}
 
 export default function RootLayout({
   children,
 }: {
-  children:
-    React.ReactNode
+  children: React.ReactNode
 }) {
   return (
     <html
       lang="fa"
       dir="rtl"
       style={{
-        colorScheme:
-          'light',
+        colorScheme: 'light',
       }}
     >
       <body className="min-h-screen bg-slate-100 text-slate-950 antialiased">
