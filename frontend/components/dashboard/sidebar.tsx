@@ -11,8 +11,8 @@ import {
   CirclePlus,
   FolderOpen,
   LayoutDashboard,
-  LogOut,
   NotebookPen,
+  Ticket,
   UserRound,
   UsersRound,
   X,
@@ -46,11 +46,7 @@ export default function DashboardSidebar({
   const router =
     useRouter()
 
-  const logout =
-    useAuthStore(
-      (state) =>
-        state.logout
-    )
+
 
   const notifications =
     useNotificationStore(
@@ -65,14 +61,7 @@ export default function DashboardSidebar({
         'unread'
     ).length
 
-  const handleLogout =
-    () => {
-      logout()
 
-      router.push(
-        '/login'
-      )
-    }
 
   const handleNavClick =
     () => {
@@ -150,7 +139,7 @@ export default function DashboardSidebar({
     pathname.startsWith(
       '/dashboard/notifications'
     )
-
+    const ticketsActive = pathname.startsWith('/dashboard/tickets')
   return (
     <>
       {isOpen && (
@@ -314,27 +303,33 @@ export default function DashboardSidebar({
           </div>
         </nav>
 
-        <div className="px-4 pb-2">
-          <SupportButton />
-        </div>
+<div className="px-4 pb-2">
+  <Link
+    href="/dashboard/tickets"
+    onClick={handleNavClick}
+    className={`group flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-black transition ${
+      ticketsActive
+        ? 'bg-gradient-to-l from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-200'
+        : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+    }`}
+  >
+    <div
+      className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+        ticketsActive
+          ? 'bg-white/15'
+          : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
+      }`}
+    >
+      <Ticket size={20} />
+    </div>
 
-        <div className="border-t border-slate-200 p-4">
-          <button
-            type="button"
-            onClick={
-              handleLogout
-            }
-            className="flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-black text-red-600 transition hover:bg-red-50"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-50">
-              <LogOut
-                size={20}
-              />
-            </div>
+    سوالات و پیشنهادات (تیکت)
+  </Link>
+</div>
 
-            خروج از حساب
-          </button>
-        </div>
+<div className="border-t border-slate-200 p-4">
+  <SupportButton />
+</div>
       </aside>
     </>
   )
