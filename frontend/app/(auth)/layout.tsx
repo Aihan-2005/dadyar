@@ -1,3 +1,4 @@
+import PublicSupportButton from '@/components/PublicSupportButton'
 export default function AuthLayout({
   children,
 }: {
@@ -30,6 +31,7 @@ export default function AuthLayout({
       <div className="relative z-10 flex h-full w-full max-w-6xl items-center justify-center">
         {children}
       </div>
+       <PublicSupportButton />
     </main>
   )
 }

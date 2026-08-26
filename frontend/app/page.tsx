@@ -15,6 +15,7 @@ import {
 import {
   SUBSCRIPTION_PLANS,
 } from '@/lib/subscription-plans'
+import PublicSupportButton from '@/components/PublicSupportButton'
 
 const features = [
   {
@@ -566,6 +567,7 @@ export default function HomePage() {
           </p>
         </div>
       </footer>
+       <PublicSupportButton />
     </main>
   )
 }
