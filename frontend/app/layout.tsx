@@ -27,7 +27,7 @@ export default function RootLayout({
       }}
     >
       <head>
-        <meta name="enamad" content="17330529" />
+        <meta name="enamad" content="61288267" />
       </head>
 
       <body className="min-h-screen  bg-slate-100 text-slate-950 antialiased">
