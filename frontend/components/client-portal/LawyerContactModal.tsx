@@ -5,25 +5,33 @@ import {
   useState,
 } from 'react'
 
+import type {
+  LucideIcon,
+} from 'lucide-react'
+
 import {
   BadgeCheck,
   Building2,
   CheckCircle2,
   Clock,
   Copy,
+  Languages,
   MapPin,
   Phone,
   Star,
   X,
 } from 'lucide-react'
 
+import LawyerBookingPanel from '@/components/client-portal/LawyerBookingPanel'
+import LawyerReviewsPanel from '@/components/client-portal/LawyerReviewsPanel'
+
+import {
+  getMockLawyerMarketplaceProfile,
+} from '@/features/client-portal/data/mock-lawyer-marketplace'
+
 import type {
   ClientPortalLawyer,
-  LawyerConsultationMode,
 } from '@/features/client-portal/types/lawyer'
-
-
-
 
 interface LawyerContactModalProps {
   lawyer:
@@ -32,28 +40,6 @@ interface LawyerContactModalProps {
   onClose:
     () => void
 }
-
-
-
-
-const CONSULTATION_LABELS:
-  Record<
-    LawyerConsultationMode,
-    string
-  > = {
-    in_person:
-      'مشاوره حضوری',
-
-    phone:
-      'مشاوره تلفنی',
-
-    online:
-      'مشاوره آنلاین',
-  }
-
-
-  
-
 
 export default function LawyerContactModal({
   lawyer,
@@ -67,37 +53,21 @@ export default function LawyerContactModal({
       false
     )
 
-  const [
-    requestSubmitted,
-    setRequestSubmitted,
-  ] =
-    useState(
-      false
-    )
-
- 
-    
-
   useEffect(() => {
     setCopied(
-      false
-    )
-
-    setRequestSubmitted(
       false
     )
   }, [
     lawyer?.id,
   ])
 
-
-  
-
-
   useEffect(() => {
     if (!lawyer) {
       return
     }
+
+    const previousOverflow =
+      document.body.style.overflow
 
     const handleKeyDown =
       (
@@ -112,12 +82,18 @@ export default function LawyerContactModal({
         }
       }
 
+    document.body.style.overflow =
+      'hidden'
+
     window.addEventListener(
       'keydown',
       handleKeyDown
     )
 
     return () => {
+      document.body.style.overflow =
+        previousOverflow
+
       window.removeEventListener(
         'keydown',
         handleKeyDown
@@ -132,9 +108,10 @@ export default function LawyerContactModal({
     return null
   }
 
-  
-  
-
+  const marketplaceProfile =
+    getMockLawyerMarketplaceProfile(
+      lawyer.id
+    )
 
   const handleCopyPhone =
     async () => {
@@ -148,11 +125,10 @@ export default function LawyerContactModal({
         )
 
         window.setTimeout(
-          () => {
+          () =>
             setCopied(
               false
-            )
-          },
+            ),
           2000
         )
       } catch {
@@ -162,24 +138,10 @@ export default function LawyerContactModal({
       }
     }
 
-
-    
-
-
-  const handleMockRequest =
-    () => {
-      setRequestSubmitted(
-        true
-      )
-    }
-
-  
-    
-
-
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      dir="rtl"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onMouseDown={
         onClose
       }
@@ -193,13 +155,11 @@ export default function LawyerContactModal({
         ) => {
           event.stopPropagation()
         }}
-        className="max-h-[94dvh] w-full max-w-2xl overflow-y-auto rounded-t-[28px] bg-white shadow-2xl sm:rounded-[28px]"
+        className="max-h-[96dvh] w-full max-w-4xl overflow-y-auto rounded-t-[28px] bg-white shadow-2xl sm:rounded-[28px]"
       >
-        
+        {/* Header */}
 
-
-
-        <header className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-5 py-4 sm:px-6">
+        <header className="sticky top-0 z-20 flex items-start justify-between border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur-xl sm:px-6">
           <div>
             <p className="text-xs font-black text-blue-700">
               پروفایل وکیل
@@ -209,7 +169,7 @@ export default function LawyerContactModal({
               id="lawyer-contact-title"
               className="mt-1 text-xl font-black text-slate-950"
             >
-              اطلاعات و راه ارتباط
+              اطلاعات، رزرو مشاوره و نظرات
             </h2>
           </div>
 
@@ -219,7 +179,7 @@ export default function LawyerContactModal({
               onClose
             }
             aria-label="بستن"
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
           >
             <X
               size={20}
@@ -228,9 +188,7 @@ export default function LawyerContactModal({
         </header>
 
         <div className="p-5 sm:p-6">
-            
-
-
+          {/* Identity */}
 
           <div className="flex items-start gap-4">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-emerald-100 text-lg font-black text-blue-800">
@@ -241,7 +199,7 @@ export default function LawyerContactModal({
 
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-xl font-black text-slate-950">
+                <h3 className="text-xl font-black text-slate-950 sm:text-2xl">
                   {
                     lawyer.fullName
                   }
@@ -249,7 +207,7 @@ export default function LawyerContactModal({
 
                 {lawyer.verified && (
                   <BadgeCheck
-                    size={19}
+                    size={20}
                     className="text-blue-600"
                   />
                 )}
@@ -261,26 +219,31 @@ export default function LawyerContactModal({
                 }
               </p>
 
-              <div className="mt-2 flex items-center gap-1.5 text-sm font-black text-amber-700">
-                <Star
-                  size={16}
-                  fill="currentColor"
-                />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <Star
+                    size={16}
+                    fill="currentColor"
+                    className="text-amber-500"
+                  />
 
-                {
-                  lawyer.rating.toLocaleString(
-                    'fa-IR',
+                  <span className="text-sm font-black text-amber-700">
                     {
-                      minimumFractionDigits:
-                        1,
+                      lawyer.rating.toLocaleString(
+                        'fa-IR',
+                        {
+                          minimumFractionDigits:
+                            1,
 
-                      maximumFractionDigits:
-                        1,
+                          maximumFractionDigits:
+                            1,
+                        }
+                      )
                     }
-                  )
-                }
+                  </span>
+                </div>
 
-                <span className="font-medium text-slate-500">
+                <span className="text-xs font-semibold text-slate-500">
                   از
                   {' '}
                   {
@@ -289,14 +252,13 @@ export default function LawyerContactModal({
                     )
                   }
                   {' '}
-                  نظر آزمایشی
+                  نظر
                 </span>
               </div>
             </div>
           </div>
 
-
-
+          {/* Bio */}
 
           <div className="mt-6 rounded-2xl bg-slate-50 p-4">
             <p className="text-sm font-black text-slate-900">
@@ -310,10 +272,9 @@ export default function LawyerContactModal({
             </p>
           </div>
 
+          {/* Information */}
 
-
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <InfoItem
               icon={
                 MapPin
@@ -336,6 +297,16 @@ export default function LawyerContactModal({
 
             <InfoItem
               icon={
+                BadgeCheck
+              }
+              label="شماره پروانه"
+              value={
+                lawyer.licenseNumber
+              }
+            />
+
+            <InfoItem
+              icon={
                 Clock
               }
               label="زمان تقریبی پاسخ"
@@ -346,20 +317,28 @@ export default function LawyerContactModal({
 
             <InfoItem
               icon={
-                BadgeCheck
+                Languages
               }
-              label="شماره پروانه"
+              label="زبان‌ها"
               value={
-                lawyer.licenseNumber
+                lawyer.languages.join(
+                  '، '
+                )
               }
+            />
+
+            <InfoItem
+              icon={
+                MapPin
+              }
+              label="شهر"
+              value={`${lawyer.city}، ${lawyer.province}`}
             />
           </div>
 
-         
+          {/* Specialties */}
 
-
-
-          <div className="mt-5">
+          <div className="mt-6">
             <p className="text-sm font-black text-slate-900">
               حوزه‌های فعالیت
             </p>
@@ -384,43 +363,19 @@ export default function LawyerContactModal({
             </div>
           </div>
 
+          {/* Phone */}
 
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+              <Phone
+                size={15}
+                className="text-blue-600"
+              />
 
-
-          <div className="mt-5">
-            <p className="text-sm font-black text-slate-900">
-              شیوه‌های مشاوره
-            </p>
-
-            <div className="mt-2 flex flex-wrap gap-2">
-              {lawyer.consultationModes.map(
-                (
-                  mode
-                ) => (
-                  <span
-                    key={
-                      mode
-                    }
-                    className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700"
-                  >
-                    {
-                      CONSULTATION_LABELS[
-                        mode
-                      ]
-                    }
-                  </span>
-                )
-              )}
-            </div>
-          </div>
-
-
-          <div className="mt-6 rounded-2xl border border-slate-200 p-4">
-            <p className="text-xs font-bold text-slate-500">
               شماره تماس آزمایشی
-            </p>
+            </div>
 
-            <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div
                 dir="ltr"
                 className="text-lg font-black text-slate-950"
@@ -459,64 +414,46 @@ export default function LawyerContactModal({
             </div>
           </div>
 
+          {/* Booking */}
 
-
-
-          {requestSubmitted ? (
-            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-              <div className="flex items-start gap-3">
-                <CheckCircle2
-                  size={21}
-                  className="mt-0.5 shrink-0 text-emerald-600"
-                />
-
-                <div>
-                  <p className="text-sm font-black text-emerald-900">
-                    درخواست آزمایشی ثبت شد
-                  </p>
-
-                  <p className="mt-1 text-xs font-semibold leading-6 text-emerald-700">
-                    فعلاً این درخواست فقط
-                    برای تکمیل رابط کاربری
-                    است و به Backend ارسال
-                    نمی‌شود.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              disabled={
-                !lawyer.acceptsNewClients
+          <div className="mt-6">
+            <LawyerBookingPanel
+              lawyer={
+                lawyer
               }
-              onClick={
-                handleMockRequest
+              profile={
+                marketplaceProfile
               }
-              className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-emerald-500 to-teal-600 text-sm font-black text-white shadow-md shadow-emerald-100 transition hover:from-emerald-600 hover:to-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
-            >
-              <Phone
-                size={18}
-              />
+            />
+          </div>
 
-              {lawyer.acceptsNewClients
-                ? 'ثبت درخواست ارتباط'
-                : 'پذیرش موکل جدید غیرفعال است'}
-            </button>
-          )}
+          {/* Reviews */}
 
-          <p className="mt-4 text-center text-[11px] font-semibold leading-5 text-slate-400">
-            اطلاعات این صفحه فعلاً آزمایشی
-            است و برای توسعه رابط کاربری
-            نمایش داده می‌شود.
+          <div className="mt-6">
+            <LawyerReviewsPanel
+              lawyer={
+                lawyer
+              }
+              profile={
+                marketplaceProfile
+              }
+            />
+          </div>
+
+          {/* Development Note */}
+
+          <p className="mt-5 text-center text-[11px] font-semibold leading-6 text-slate-400">
+            قیمت‌ها، زمان‌های آزاد، درخواست
+            رزرو و نظرات این مرحله برای
+            تکمیل رابط کاربری به‌صورت Mock
+            هستند و هنوز به Backend یا درگاه
+            پرداخت متصل نشده‌اند.
           </p>
         </div>
       </section>
     </div>
   )
 }
-
-
 
 function InfoItem({
   icon:
@@ -525,7 +462,7 @@ function InfoItem({
   value,
 }: {
   icon:
-    typeof MapPin
+    LucideIcon
 
   label:
     string
@@ -538,7 +475,7 @@ function InfoItem({
       <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
         <Icon
           size={15}
-          className="text-blue-600"
+          className="shrink-0 text-blue-600"
         />
 
         {label}
