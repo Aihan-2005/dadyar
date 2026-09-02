@@ -1,4 +1,3 @@
-
 import Link from 'next/link'
 
 import {
@@ -15,7 +14,19 @@ import {
 import {
   SUBSCRIPTION_PLANS,
 } from '@/lib/subscription-plans'
+
 import PublicSupportButton from '@/components/PublicSupportButton'
+
+
+
+
+
+const ENAMAD_TRUST_URL =
+  'https://trustseal.enamad.ir/?id=7376893&Code=uH3VOp3psQMSH68g6tAzZdSSAafAkvAW'
+
+
+  
+
 
 const features = [
   {
@@ -63,12 +74,17 @@ const features = [
   },
 ]
 
+
+
+
 export default function HomePage() {
   return (
     <main
       dir="rtl"
       className="min-h-screen bg-slate-100 text-slate-950"
     >
+      
+
 
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-slate-100/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -124,6 +140,7 @@ export default function HomePage() {
       </header>
 
 
+
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -right-52 -top-52 h-[650px] w-[650px] rounded-full bg-blue-300/30 blur-[120px]" />
@@ -145,10 +162,13 @@ export default function HomePage() {
 
             <h1 className="mt-6 max-w-3xl text-4xl font-black leading-[1.35] tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
               پرونده‌ها و امور دفترت را
+
               <span className="text-blue-700">
                 {' '}
-                ساده‌تر و دقیق‌تر{' '}
+                ساده‌تر و دقیق‌تر
+                {' '}
               </span>
+
               مدیریت کن
             </h1>
 
@@ -186,9 +206,13 @@ export default function HomePage() {
                 'طراحی ساده',
                 'اطلاعات تفکیک‌شده',
               ].map(
-                (item) => (
+                (
+                  item
+                ) => (
                   <span
-                    key={item}
+                    key={
+                      item
+                    }
                     className="inline-flex items-center gap-2 text-sm font-bold text-slate-700"
                   >
                     <CheckCircle2
@@ -196,7 +220,9 @@ export default function HomePage() {
                       className="text-emerald-600"
                     />
 
-                    {item}
+                    {
+                      item
+                    }
                   </span>
                 )
               )}
@@ -285,7 +311,9 @@ export default function HomePage() {
                       'text-amber-700',
                   },
                 ].map(
-                  (item) => (
+                  (
+                    item
+                  ) => (
                     <div
                       key={
                         item.title
@@ -293,11 +321,17 @@ export default function HomePage() {
                       className={`rounded-2xl border border-slate-200 p-4 ${item.bg}`}
                     >
                       <p className="text-sm font-bold text-slate-700">
-                        {item.title}
+                        {
+                          item.title
+                        }
                       </p>
 
-                      <p className={`mt-2 text-lg font-black ${item.text}`}>
-                        {item.value}
+                      <p
+                        className={`mt-2 text-lg font-black ${item.text}`}
+                      >
+                        {
+                          item.value
+                        }
                       </p>
                     </div>
                   )
@@ -307,6 +341,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+
 
 
       <section
@@ -336,11 +372,15 @@ export default function HomePage() {
               ({
                 icon:
                   Icon,
+
                 title,
+
                 description,
               }) => (
                 <article
-                  key={title}
+                  key={
+                    title
+                  }
                   className="rounded-[24px] border border-slate-300 bg-slate-50 p-6 transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
@@ -350,11 +390,15 @@ export default function HomePage() {
                   </div>
 
                   <h3 className="mt-5 text-lg font-black text-slate-950">
-                    {title}
+                    {
+                      title
+                    }
                   </h3>
 
                   <p className="mt-3 text-sm font-medium leading-7 text-slate-700">
-                    {description}
+                    {
+                      description
+                    }
                   </p>
                 </article>
               )
@@ -362,6 +406,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+
+
 
       <section
         id="workflow"
@@ -413,7 +460,9 @@ export default function HomePage() {
                   'پرونده و موکل ثبت کنید و اطلاعات دفتر را در پنل مدیریت کنید.',
               },
             ].map(
-              (step) => (
+              (
+                step
+              ) => (
                 <article
                   key={
                     step.number
@@ -421,11 +470,15 @@ export default function HomePage() {
                   className="rounded-[24px] border border-slate-300 bg-white p-6 shadow-sm"
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-lg font-black text-white">
-                    {step.number}
+                    {
+                      step.number
+                    }
                   </div>
 
                   <h3 className="mt-5 text-lg font-black text-slate-950">
-                    {step.title}
+                    {
+                      step.title
+                    }
                   </h3>
 
                   <p className="mt-3 text-sm font-medium leading-7 text-slate-700">
@@ -439,6 +492,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+
 
 
       <section
@@ -464,7 +519,9 @@ export default function HomePage() {
 
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {SUBSCRIPTION_PLANS.map(
-              (plan) => (
+              (
+                plan
+              ) => (
                 <article
                   key={
                     plan.key
@@ -507,7 +564,9 @@ export default function HomePage() {
                     </div>
 
                     <p className="mt-2 text-sm font-black text-blue-700">
-                      {plan.period}
+                      {
+                        plan.period
+                      }
                     </p>
                   </div>
 
@@ -527,7 +586,9 @@ export default function HomePage() {
                             className="shrink-0 text-emerald-600"
                           />
 
-                          {feature}
+                          {
+                            feature
+                          }
                         </li>
                       )
                     )}
@@ -541,7 +602,9 @@ export default function HomePage() {
                         : 'border border-slate-300 bg-slate-900 text-white hover:bg-slate-800'
                     }`}
                   >
-                    {plan.action}
+                    {
+                      plan.action
+                    }
                   </Link>
                 </article>
               )
@@ -549,25 +612,112 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      
 
-      <footer className="border-t border-slate-300 bg-slate-900 py-8 text-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <div>
-            <p className="text-lg font-black">
-              دادیار
-            </p>
 
-            <p className="mt-1 text-sm font-medium text-slate-300">
-              مدیریت ساده‌تر دفتر وکالت
-            </p>
+      <footer className="border-t border-slate-700 bg-slate-900 py-8 text-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+            {/* Brand */}
+
+            <div>
+              <p className="text-lg font-black">
+                دادیار
+              </p>
+
+              <p className="mt-1 text-sm font-medium text-slate-300">
+                مدیریت ساده‌تر دفتر وکالت
+              </p>
+
+              <p className="mt-4 text-xs font-medium text-slate-500">
+                © ۱۴۰۵ دادیار — تمامی حقوق محفوظ است.
+              </p>
+            </div>
+
+
+
+            <a
+              href={
+                ENAMAD_TRUST_URL
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              referrerPolicy="origin"
+              aria-label="مشاهده و بررسی اعتبار نماد اعتماد الکترونیکی دادیار در سایت رسمی اینماد"
+              title="بررسی اعتبار نماد اعتماد الکترونیکی دادیار"
+              className="group flex w-full items-center gap-3 rounded-2xl border border-slate-700 bg-slate-800/80 p-3 transition hover:border-emerald-500/60 hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 sm:w-[270px]"
+            >
+
+
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-400/15 to-blue-500/15">
+                <svg
+                  viewBox="0 0 64 64"
+                  width="44"
+                  height="44"
+                  role="img"
+                  aria-label="نشان بررسی نماد اعتماد الکترونیکی"
+                  className="overflow-visible"
+                >
+                  <path
+                    d="M32 5L51 12V28C51 41.2 43.1 52.9 32 58C20.9 52.9 13 41.2 13 28V12L32 5Z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-emerald-400"
+                  />
+
+                  <path
+                    d="M22 31L28.5 37.5L42 23"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-blue-300"
+                  />
+
+                  <circle
+                    cx="32"
+                    cy="31"
+                    r="22"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeDasharray="2 5"
+                    className="text-slate-500/50"
+                  />
+                </svg>
+              </span>
+
+              <span className="min-w-0 text-right">
+                <span className="block text-sm font-black text-white">
+                  نماد اعتماد الکترونیکی
+                </span>
+
+                <span className="mt-1 block text-xs font-semibold leading-5 text-slate-400 transition group-hover:text-slate-300">
+                  مشاهده و بررسی اعتبار در
+                  سایت رسمی اینماد
+                </span>
+
+                <span className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-black text-emerald-400">
+                  بررسی اعتبار
+
+                  <span
+                    aria-hidden="true"
+                    className="transition-transform group-hover:-translate-x-0.5"
+                  >
+                    ←
+                  </span>
+                </span>
+              </span>
+            </a>
           </div>
-
-          <p className="text-sm text-slate-400">
-            © ۱۴۰۵ دادیار
-          </p>
         </div>
       </footer>
-       <PublicSupportButton />
+
+      <PublicSupportButton />
     </main>
   )
 }
