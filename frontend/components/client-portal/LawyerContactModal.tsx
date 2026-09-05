@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 
 import LawyerBookingPanel from '@/components/client-portal/LawyerBookingPanel'
+import LawyerOnlineContractPanel from '@/components/client-portal/LawyerOnlineContractPanel'
 import LawyerReviewsPanel from '@/components/client-portal/LawyerReviewsPanel'
 
 import {
@@ -33,6 +34,9 @@ import type {
   ClientPortalLawyer,
 } from '@/features/client-portal/types/lawyer'
 
+
+
+
 interface LawyerContactModalProps {
   lawyer:
     ClientPortalLawyer | null
@@ -40,6 +44,8 @@ interface LawyerContactModalProps {
   onClose:
     () => void
 }
+
+
 
 export default function LawyerContactModal({
   lawyer,
@@ -53,6 +59,9 @@ export default function LawyerContactModal({
       false
     )
 
+ 
+    
+
   useEffect(() => {
     setCopied(
       false
@@ -60,6 +69,9 @@ export default function LawyerContactModal({
   }, [
     lawyer?.id,
   ])
+
+ 
+  
 
   useEffect(() => {
     if (!lawyer) {
@@ -108,10 +120,16 @@ export default function LawyerContactModal({
     return null
   }
 
+
+  
+
   const marketplaceProfile =
     getMockLawyerMarketplaceProfile(
       lawyer.id
     )
+
+ 
+    
 
   const handleCopyPhone =
     async () => {
@@ -138,6 +156,7 @@ export default function LawyerContactModal({
       }
     }
 
+    
   return (
     <div
       dir="rtl"
@@ -157,7 +176,7 @@ export default function LawyerContactModal({
         }}
         className="max-h-[96dvh] w-full max-w-4xl overflow-y-auto rounded-t-[28px] bg-white shadow-2xl sm:rounded-[28px]"
       >
-        {/* Header */}
+        
 
         <header className="sticky top-0 z-20 flex items-start justify-between border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur-xl sm:px-6">
           <div>
@@ -169,7 +188,7 @@ export default function LawyerContactModal({
               id="lawyer-contact-title"
               className="mt-1 text-xl font-black text-slate-950"
             >
-              اطلاعات، رزرو مشاوره و نظرات
+              اطلاعات، مشاوره، قرارداد و نظرات
             </h2>
           </div>
 
@@ -187,8 +206,9 @@ export default function LawyerContactModal({
           </button>
         </header>
 
+
         <div className="p-5 sm:p-6">
-          {/* Identity */}
+
 
           <div className="flex items-start gap-4">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-emerald-100 text-lg font-black text-blue-800">
@@ -258,7 +278,7 @@ export default function LawyerContactModal({
             </div>
           </div>
 
-          {/* Bio */}
+
 
           <div className="mt-6 rounded-2xl bg-slate-50 p-4">
             <p className="text-sm font-black text-slate-900">
@@ -272,7 +292,7 @@ export default function LawyerContactModal({
             </p>
           </div>
 
-          {/* Information */}
+
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <InfoItem
@@ -336,7 +356,7 @@ export default function LawyerContactModal({
             />
           </div>
 
-          {/* Specialties */}
+
 
           <div className="mt-6">
             <p className="text-sm font-black text-slate-900">
@@ -414,7 +434,7 @@ export default function LawyerContactModal({
             </div>
           </div>
 
-          {/* Booking */}
+
 
           <div className="mt-6">
             <LawyerBookingPanel
@@ -427,7 +447,15 @@ export default function LawyerContactModal({
             />
           </div>
 
-          {/* Reviews */}
+
+          <div className="mt-6">
+            <LawyerOnlineContractPanel
+              lawyer={
+                lawyer
+              }
+            />
+          </div>
+          
 
           <div className="mt-6">
             <LawyerReviewsPanel
@@ -444,16 +472,19 @@ export default function LawyerContactModal({
 
           <p className="mt-5 text-center text-[11px] font-semibold leading-6 text-slate-400">
             قیمت‌ها، زمان‌های آزاد، درخواست
-            رزرو و نظرات این مرحله برای
-            تکمیل رابط کاربری به‌صورت Mock
-            هستند و هنوز به Backend یا درگاه
-            پرداخت متصل نشده‌اند.
+            رزرو، قرارداد آنلاین و نظرات در
+            این مرحله برای تکمیل Frontend
+            به‌صورت Mock هستند و هنوز به
+            Backend، احراز هویت امضا یا
+            درگاه پرداخت متصل نشده‌اند.
           </p>
         </div>
       </section>
     </div>
   )
 }
+
+
 
 function InfoItem({
   icon:
@@ -478,11 +509,15 @@ function InfoItem({
           className="shrink-0 text-blue-600"
         />
 
-        {label}
+        {
+          label
+        }
       </div>
 
       <p className="mt-2 text-sm font-black leading-6 text-slate-800">
-        {value}
+        {
+          value
+        }
       </p>
     </div>
   )

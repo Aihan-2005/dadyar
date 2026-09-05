@@ -2,6 +2,7 @@ import {
   BadgeCheck,
   BriefcaseBusiness,
   Clock,
+  FileText,
   MapPin,
   MessageCircle,
   Star,
@@ -16,6 +17,9 @@ import {
   getMinimumConsultationPrice,
 } from '@/features/client-portal/data/mock-lawyer-marketplace'
 
+
+
+
 interface LawyerCardProps {
   lawyer:
     ClientPortalLawyer
@@ -26,6 +30,10 @@ interface LawyerCardProps {
         ClientPortalLawyer
     ) => void
 }
+
+
+
+
 
 const CONSULTATION_LABELS:
   Record<
@@ -42,6 +50,10 @@ const CONSULTATION_LABELS:
       'آنلاین',
   }
 
+  
+
+
+
 export default function LawyerCard({
   lawyer,
   onContact,
@@ -53,7 +65,8 @@ export default function LawyerCard({
 
   return (
     <article className="group flex h-full flex-col rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-slate-200/70 sm:p-6">
-      {/* Header */}
+
+      
 
       <div className="flex items-start gap-4">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-emerald-100 text-base font-black text-blue-800 ring-1 ring-blue-100 sm:h-16 sm:w-16">
@@ -120,7 +133,7 @@ export default function LawyerCard({
         </div>
       </div>
 
-      {/* City / Experience */}
+
 
       <div className="mt-5 grid grid-cols-2 gap-2">
         <div className="rounded-xl bg-slate-50 px-3 py-2.5">
@@ -160,7 +173,6 @@ export default function LawyerCard({
         </div>
       </div>
 
-      {/* Specialties */}
 
       <div className="mt-5">
         <p className="text-xs font-black text-slate-500">
@@ -186,8 +198,9 @@ export default function LawyerCard({
           )}
         </div>
       </div>
+      
 
-      {/* Bio */}
+
 
       <p className="mt-4 line-clamp-3 text-sm font-medium leading-7 text-slate-600">
         {
@@ -195,7 +208,7 @@ export default function LawyerCard({
         }
       </p>
 
-      {/* Consultation Modes */}
+
 
       <div className="mt-5 border-t border-slate-100 pt-4">
         <div className="flex flex-wrap gap-2">
@@ -229,12 +242,20 @@ export default function LawyerCard({
           }
         </div>
       </div>
+      
 
-      {/* Price */}
+      <div className="mt-4 flex items-center gap-2 rounded-xl border border-violet-100 bg-violet-50 px-3 py-2.5 text-xs font-black text-violet-700">
+        <FileText
+          size={15}
+        />
+
+        امکان ساخت قرارداد خدمات حقوقی آنلاین
+      </div>
+
 
       {minimumPrice !==
         null && (
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
+        <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
           <span className="text-xs font-black text-emerald-800">
             شروع مشاوره از
           </span>
@@ -249,7 +270,9 @@ export default function LawyerCard({
         </div>
       )}
 
-      {/* Availability */}
+      {/* ============================================================
+       * Availability
+       * ========================================================== */}
 
       <div className="mt-3">
         {lawyer.acceptsNewClients ? (
@@ -263,7 +286,9 @@ export default function LawyerCard({
         )}
       </div>
 
-      {/* CTA */}
+      {/* ============================================================
+       * CTA
+       * ========================================================== */}
 
       <button
         type="button"
@@ -278,7 +303,7 @@ export default function LawyerCard({
           size={18}
         />
 
-        پروفایل، رزرو و نظرات
+        پروفایل، مشاوره، قرارداد و نظرات
       </button>
     </article>
   )
