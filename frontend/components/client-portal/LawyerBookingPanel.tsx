@@ -6,12 +6,17 @@ import {
   useState,
 } from 'react'
 
+import Link from 'next/link'
+
 import {
+  ArrowRight,
   CalendarDays,
   CheckCircle2,
-  Clock,
+  CircleDollarSign,
+  Clock3,
   MapPin,
   Phone,
+  Send,
   Video,
 } from 'lucide-react'
 
@@ -22,37 +27,48 @@ import {
   type ClientPortalAccount,
 } from '@/features/client-portal/auth/client-session'
 
+import {
+  createConsultationBooking,
+  isConsultationSlotReserved,
+  subscribeClientLawyerRequests,
+} from '@/features/client-portal/data/client-communication.repository'
+
+import type {
+  ConsultationBookingRecord,
+  LegalCaseStage,
+  LegalMatterCategory,
+} from '@/features/client-portal/types/communication'
+
 import type {
   ClientPortalLawyer,
-  LawyerConsultationMode,
 } from '@/features/client-portal/types/lawyer'
 
 import type {
   LawyerMarketplaceProfile,
 } from '@/features/client-portal/types/marketplace'
 
+import {
+  CASE_STAGE_LABELS,
+  CONSULTATION_MODE_LABELS,
+  LEGAL_CATEGORY_LABELS,
+  formatToman,
+} from '@/features/client-portal/utils/communication'
+
 interface LawyerBookingPanelProps {
-  lawyer: ClientPortalLawyer
-  profile: LawyerMarketplaceProfile
+  lawyer:
+    ClientPortalLawyer
+
+  profile:
+    LawyerMarketplaceProfile
 }
 
-const MODE_LABELS:
-  Record<
-    LawyerConsultationMode,
-    string
-  > = {
-    in_person: 'حضوری',
-    phone: 'تلفنی',
-    online: 'آنلاین',
-  }
+type BookingStage =
+  | 'form'
+  | 'review'
+  | 'submitted'
 
-function formatPrice(
-  value: number
-): string {
-  return value.toLocaleString(
-    'fa-IR'
-  )
-}
+const INPUT_CLASS =
+  'h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
 
 export default function LawyerBookingPanel({
   lawyer,
@@ -60,6 +76,14 @@ export default function LawyerBookingPanel({
 }: LawyerBookingPanelProps) {
   const firstOffer =
     profile.consultationOffers[0]
+
+  const [
+    stage,
+    setStage,
+  ] =
+    useState<BookingStage>(
+      'form'
+    )
 
   const [
     offerId,
@@ -94,6 +118,28 @@ export default function LawyerBookingPanel({
     useState('')
 
   const [
+    category,
+    setCategory,
+  ] =
+    useState<LegalMatterCategory>(
+      'other'
+    )
+
+  const [
+    caseStage,
+    setCaseStage,
+  ] =
+    useState<LegalCaseStage>(
+      'pre_filing'
+    )
+
+  const [
+    opposingPartyName,
+    setOpposingPartyName,
+  ] =
+    useState('')
+
+  const [
     subject,
     setSubject,
   ] =
@@ -114,20 +160,32 @@ export default function LawyerBookingPanel({
     )
 
   const [
-    submitted,
-    setSubmitted,
-  ] =
-    useState(false)
-
-  const [
     authOpen,
     setAuthOpen,
   ] =
     useState(false)
 
+  const [
+    submittedBooking,
+    setSubmittedBooking,
+  ] =
+    useState<ConsultationBookingRecord | null>(
+      null
+    )
+
+  const [
+    availabilityRevision,
+    setAvailabilityRevision,
+  ] =
+    useState(0)
+
   useEffect(() => {
     const offer =
       profile.consultationOffers[0]
+
+    setStage(
+      'form'
+    )
 
     setOfferId(
       offer?.id ??
@@ -141,23 +199,72 @@ export default function LawyerBookingPanel({
         0
     )
 
-    setSelectedDate('')
-    setSelectedTime('')
-    setSubject('')
-    setDescription('')
-    setError(null)
-    setSubmitted(false)
-    setAuthOpen(false)
+    setSelectedDate(
+      ''
+    )
+
+    setSelectedTime(
+      ''
+    )
+
+    setCategory(
+      'other'
+    )
+
+    setCaseStage(
+      'pre_filing'
+    )
+
+    setOpposingPartyName(
+      ''
+    )
+
+    setSubject(
+      ''
+    )
+
+    setDescription(
+      ''
+    )
+
+    setError(
+      null
+    )
+
+    setAuthOpen(
+      false
+    )
+
+    setSubmittedBooking(
+      null
+    )
   }, [
     lawyer.id,
-    profile,
+    profile.lawyerId,
   ])
+
+  useEffect(
+    () =>
+      subscribeClientLawyerRequests(
+        () =>
+          setAvailabilityRevision(
+            (
+              current
+            ) =>
+              current +
+              1
+          )
+      ),
+    []
+  )
 
   const selectedOffer =
     useMemo(
       () =>
         profile.consultationOffers.find(
-          (offer) =>
+          (
+            offer
+          ) =>
             offer.id ===
             offerId
         ) ??
@@ -172,7 +279,9 @@ export default function LawyerBookingPanel({
     useMemo(
       () =>
         selectedOffer?.durations.find(
-          (duration) =>
+          (
+            duration
+          ) =>
             duration.minutes ===
             durationMinutes
         ) ??
@@ -183,9 +292,44 @@ export default function LawyerBookingPanel({
       ]
     )
 
+  const availability =
+    useMemo(
+      () =>
+        profile.availability.map(
+          (
+            day
+          ) => ({
+            ...day,
+
+            slots:
+              day.slots.map(
+                (
+                  time
+                ) => ({
+                  time,
+
+                  reserved:
+                    isConsultationSlotReserved(
+                      lawyer.id,
+                      day.value,
+                      time
+                    ),
+                })
+              ),
+          })
+        ),
+      [
+        availabilityRevision,
+        lawyer.id,
+        profile.availability,
+      ]
+    )
+
   const selectedDay =
-    profile.availability.find(
-      (day) =>
+    availability.find(
+      (
+        day
+      ) =>
         day.value ===
         selectedDate
     )
@@ -195,10 +339,12 @@ export default function LawyerBookingPanel({
       nextOfferId:
         string
     ) => {
-      const offer =
+      const nextOffer =
         profile.consultationOffers.find(
-          (item) =>
-            item.id ===
+          (
+            offer
+          ) =>
+            offer.id ===
             nextOfferId
         )
 
@@ -207,21 +353,34 @@ export default function LawyerBookingPanel({
       )
 
       setDurationMinutes(
-        offer
+        nextOffer
           ?.durations[0]
           ?.minutes ??
           0
       )
 
-      setSelectedDate('')
-      setSelectedTime('')
-      setSubmitted(false)
-      setError(null)
+      setSelectedDate(
+        ''
+      )
+
+      setSelectedTime(
+        ''
+      )
+
+      setStage(
+        'form'
+      )
+
+      setError(
+        null
+      )
     }
 
   const validate =
     (): boolean => {
-      setError(null)
+      setError(
+        null
+      )
 
       if (
         !selectedOffer ||
@@ -234,7 +393,10 @@ export default function LawyerBookingPanel({
         return false
       }
 
-      if (!selectedDate) {
+      if (
+        !selectedDate ||
+        !selectedDay
+      ) {
         setError(
           'روز جلسه را انتخاب کنید.'
         )
@@ -251,11 +413,29 @@ export default function LawyerBookingPanel({
       }
 
       if (
-        subject.trim().length <
-        3
+        isConsultationSlotReserved(
+          lawyer.id,
+          selectedDate,
+          selectedTime
+        )
       ) {
         setError(
-          'موضوع مشاوره را وارد کنید.'
+          'این ساعت دیگر در دسترس نیست.'
+        )
+
+        setSelectedTime(
+          ''
+        )
+
+        return false
+      }
+
+      if (
+        subject.trim().length <
+        5
+      ) {
+        setError(
+          'موضوع مشاوره را کامل‌تر وارد کنید.'
         )
 
         return false
@@ -264,18 +444,125 @@ export default function LawyerBookingPanel({
       return true
     }
 
-  const completeSubmission =
-    (
-      _account:
-        ClientPortalAccount
-    ) => {
-      setAuthOpen(false)
-      setSubmitted(true)
-    }
-
-  const handleSubmit =
+  const handleReview =
     () => {
       if (!validate()) {
+        return
+      }
+
+      setStage(
+        'review'
+      )
+    }
+
+  const completeSubmission =
+    (
+      account:
+        ClientPortalAccount
+    ) => {
+      if (
+        !selectedOffer ||
+        !selectedDuration ||
+        !selectedDay ||
+        !selectedTime
+      ) {
+        setError(
+          'اطلاعات جلسه کامل نیست.'
+        )
+
+        setStage(
+          'form'
+        )
+
+        return
+      }
+
+      try {
+        const created =
+          createConsultationBooking(
+            account,
+            lawyer,
+            {
+              category,
+
+              caseStage,
+
+              opposingPartyName:
+                opposingPartyName.trim() ||
+                undefined,
+
+              offerId:
+                selectedOffer.id,
+
+              consultationMode:
+                selectedOffer.mode,
+
+              consultationTitle:
+                selectedOffer.title,
+
+              durationMinutes:
+                selectedDuration.minutes,
+
+              priceToman:
+                selectedDuration.priceToman,
+
+              date:
+                selectedDay.value,
+
+              dateLabel:
+                selectedDay.label,
+
+              time:
+                selectedTime,
+
+              subject,
+
+              description,
+            }
+          )
+
+        setSubmittedBooking(
+          created
+        )
+
+        setAuthOpen(
+          false
+        )
+
+        setError(
+          null
+        )
+
+        setStage(
+          'submitted'
+        )
+      } catch (
+        caughtError
+      ) {
+        setStage(
+          'form'
+        )
+
+        setSelectedTime(
+          ''
+        )
+
+        setError(
+          caughtError instanceof
+            Error
+            ? caughtError.message
+            : 'ثبت رزرو انجام نشد.'
+        )
+      }
+    }
+
+  const handleFinalSubmit =
+    () => {
+      if (!validate()) {
+        setStage(
+          'form'
+        )
+
         return
       }
 
@@ -283,7 +570,10 @@ export default function LawyerBookingPanel({
         getCurrentClientPortalAccount()
 
       if (!account) {
-        setAuthOpen(true)
+        setAuthOpen(
+          true
+        )
+
         return
       }
 
@@ -293,64 +583,253 @@ export default function LawyerBookingPanel({
     }
 
   if (
-    submitted &&
-    selectedOffer &&
-    selectedDuration &&
-    selectedDay
+    stage ===
+      'submitted' &&
+    submittedBooking
   ) {
     return (
       <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
         <div className="flex items-start gap-3">
           <CheckCircle2
-            size={24}
+            size={25}
             className="mt-0.5 shrink-0 text-emerald-600"
           />
 
-          <div>
-            <h3 className="font-black text-emerald-950">
-              درخواست مشاوره ثبت شد
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-black text-emerald-950">
+              درخواست رزرو ثبت شد
             </h3>
 
-            <p className="mt-2 text-sm font-semibold text-emerald-800">
-              {selectedOffer.title}
-              {' '}
-              با
+            <p className="mt-2 text-sm font-semibold leading-7 text-emerald-800">
+              درخواست جلسه برای
               {' '}
               {lawyer.fullName}
+              {' '}
+              ارسال شد و از صفحه پیگیری قابل
+              مشاهده است.
             </p>
 
-            <div className="mt-4 grid gap-2 text-sm font-bold text-emerald-900 sm:grid-cols-2">
-              <p>
-                مدت:
-                {' '}
-                {selectedDuration.minutes.toLocaleString(
-                  'fa-IR'
-                )}
-                {' '}
-                دقیقه
-              </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <SummaryItem
+                label="کد پیگیری"
+                value={
+                  submittedBooking.reference
+                }
+                dir="ltr"
+              />
 
-              <p>
-                زمان:
-                {' '}
-                {selectedDay.label}
-                {' - '}
-                {selectedTime}
-              </p>
+              <SummaryItem
+                label="نوع جلسه"
+                value={
+                  CONSULTATION_MODE_LABELS[
+                    submittedBooking.consultationMode
+                  ]
+                }
+              />
 
-              <p className="sm:col-span-2">
-                مبلغ:
-                {' '}
-                {formatPrice(
-                  selectedDuration.priceToman
-                )}
-                {' '}
-                تومان
-              </p>
+              <SummaryItem
+                label="زمان"
+                value={`${submittedBooking.dateLabel} - ${submittedBooking.time}`}
+              />
+
+              <SummaryItem
+                label="هزینه"
+                value={
+                  formatToman(
+                    submittedBooking.priceToman
+                  )
+                }
+              />
             </div>
+
+            <Link
+              href={`/client-portal/requests/${submittedBooking.id}`}
+              className="mt-5 inline-flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-black text-white"
+            >
+              مشاهده جزئیات رزرو
+            </Link>
           </div>
         </div>
       </section>
+    )
+  }
+
+  if (
+    stage ===
+      'review' &&
+    selectedOffer &&
+    selectedDuration &&
+    selectedDay &&
+    selectedTime
+  ) {
+    return (
+      <>
+        <section className="rounded-2xl border border-blue-200 bg-white p-5">
+          <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
+            <div>
+              <p className="text-xs font-black text-blue-700">
+                تأیید اطلاعات
+              </p>
+
+              <h3 className="mt-1 text-lg font-black text-slate-950">
+                جزئیات جلسه را بررسی کنید
+              </h3>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setStage(
+                  'form'
+                )
+              }
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 px-3 text-xs font-black text-slate-700"
+            >
+              <ArrowRight
+                size={15}
+              />
+
+              ویرایش
+            </button>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <ReviewItem
+              label="وکیل"
+              value={
+                lawyer.fullName
+              }
+            />
+
+            <ReviewItem
+              label="نوع مشاوره"
+              value={
+                selectedOffer.title
+              }
+            />
+
+            <ReviewItem
+              label="مدت"
+              value={`${selectedDuration.minutes.toLocaleString(
+                'fa-IR'
+              )} دقیقه`}
+            />
+
+            <ReviewItem
+              label="زمان"
+              value={`${selectedDay.label} - ${selectedTime}`}
+            />
+
+            <ReviewItem
+              label="حوزه حقوقی"
+              value={
+                LEGAL_CATEGORY_LABELS[
+                  category
+                ]
+              }
+            />
+
+            <ReviewItem
+              label="مبلغ"
+              value={
+                formatToman(
+                  selectedDuration.priceToman
+                )
+              }
+            />
+          </div>
+
+          {selectedOffer.mode ===
+            'in_person' && (
+            <ModeInfo
+              icon={
+                MapPin
+              }
+              title="جلسه حضوری"
+            >
+              {lawyer.officeAddress}
+            </ModeInfo>
+          )}
+
+          {selectedOffer.mode ===
+            'phone' && (
+            <ModeInfo
+              icon={
+                Phone
+              }
+              title="جلسه تلفنی"
+            >
+              شماره موبایل حساب موکل برای
+              هماهنگی جلسه استفاده می‌شود.
+            </ModeInfo>
+          )}
+
+          {selectedOffer.mode ===
+            'online' && (
+            <ModeInfo
+              icon={
+                Video
+              }
+              title="جلسه آنلاین"
+            >
+              اطلاعات ورود به جلسه پس از
+              تأیید نهایی رزرو قابل مشاهده
+              خواهد بود.
+            </ModeInfo>
+          )}
+
+          <div className="mt-4 rounded-xl bg-slate-50 p-4">
+            <p className="text-xs font-bold text-slate-500">
+              موضوع جلسه
+            </p>
+
+            <p className="mt-2 text-sm font-black text-slate-900">
+              {subject}
+            </p>
+
+            {description.trim() && (
+              <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-7 text-slate-600">
+                {description}
+              </p>
+            )}
+          </div>
+
+          {error && (
+            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              {error}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={
+              handleFinalSubmit
+            }
+            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-black text-white transition hover:bg-blue-700"
+          >
+            <Send
+              size={18}
+            />
+
+            ثبت درخواست رزرو
+          </button>
+        </section>
+
+        <ClientAuthGateModal
+          open={
+            authOpen
+          }
+          title="برای ثبت رزرو وارد شوید"
+          onClose={() =>
+            setAuthOpen(
+              false
+            )
+          }
+          onAuthenticated={
+            completeSubmission
+          }
+        />
+      </>
     )
   }
 
@@ -361,9 +840,15 @@ export default function LawyerBookingPanel({
           رزرو مشاوره
         </p>
 
-        <h3 className="mt-1 text-lg font-black">
-          نوع ارتباط و زمان جلسه را انتخاب کنید
+        <h3 className="mt-1 text-lg font-black text-slate-950">
+          نوع ارتباط و زمان جلسه را انتخاب
+          کنید
         </h3>
+
+        <p className="mt-2 text-sm font-semibold leading-7 text-slate-600">
+          رزرو پس از بررسی و تأیید وکیل قطعی
+          خواهد شد.
+        </p>
 
         <div className="mt-5">
           <p className="text-sm font-black text-slate-800">
@@ -372,7 +857,9 @@ export default function LawyerBookingPanel({
 
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
             {profile.consultationOffers.map(
-              (offer) => (
+              (
+                offer
+              ) => (
                 <button
                   key={
                     offer.id
@@ -383,11 +870,11 @@ export default function LawyerBookingPanel({
                       offer.id
                     )
                   }
-                  className={`rounded-xl border p-3 text-right ${
+                  className={`rounded-xl border p-3 text-right transition ${
                     offer.id ===
                     offerId
                       ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-100'
-                      : 'border-slate-200 bg-white'
+                      : 'border-slate-200 bg-white hover:border-blue-200'
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -401,19 +888,21 @@ export default function LawyerBookingPanel({
                       'online' ? (
                       <Video
                         size={17}
-                        className="text-blue-600"
+                        className="text-violet-600"
                       />
                     ) : (
                       <MapPin
                         size={17}
-                        className="text-blue-600"
+                        className="text-emerald-600"
                       />
                     )}
 
                     <span className="text-sm font-black">
-                      {MODE_LABELS[
-                        offer.mode
-                      ]}
+                      {
+                        CONSULTATION_MODE_LABELS[
+                          offer.mode
+                        ]
+                      }
                     </span>
                   </div>
 
@@ -428,13 +917,20 @@ export default function LawyerBookingPanel({
 
         {selectedOffer && (
           <div className="mt-5">
-            <p className="text-sm font-black">
-              مدت جلسه و قیمت
+            <p className="flex items-center gap-2 text-sm font-black">
+              <CircleDollarSign
+                size={17}
+                className="text-emerald-600"
+              />
+
+              مدت و مبلغ جلسه
             </p>
 
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {selectedOffer.durations.map(
-                (duration) => (
+                (
+                  duration
+                ) => (
                   <button
                     key={
                       duration.minutes
@@ -448,12 +944,12 @@ export default function LawyerBookingPanel({
                     className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
                       duration.minutes ===
                       durationMinutes
-                        ? 'border-emerald-400 bg-emerald-50'
+                        ? 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-100'
                         : 'border-slate-200 bg-white'
                     }`}
                   >
                     <span className="flex items-center gap-2 text-sm font-black">
-                      <Clock
+                      <Clock3
                         size={16}
                       />
 
@@ -465,11 +961,9 @@ export default function LawyerBookingPanel({
                     </span>
 
                     <span className="text-sm font-black text-emerald-700">
-                      {formatPrice(
+                      {formatToman(
                         duration.priceToman
                       )}
-                      {' '}
-                      تومان
                     </span>
                   </button>
                 )
@@ -489,8 +983,10 @@ export default function LawyerBookingPanel({
           </p>
 
           <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {profile.availability.map(
-              (day) => (
+            {availability.map(
+              (
+                day
+              ) => (
                 <button
                   key={
                     day.value
@@ -500,7 +996,14 @@ export default function LawyerBookingPanel({
                     setSelectedDate(
                       day.value
                     )
-                    setSelectedTime('')
+
+                    setSelectedTime(
+                      ''
+                    )
+
+                    setError(
+                      null
+                    )
                   }}
                   className={`rounded-xl border px-3 py-3 text-xs font-black ${
                     selectedDate ===
@@ -527,25 +1030,36 @@ export default function LawyerBookingPanel({
               className="mt-2 flex flex-wrap gap-2"
             >
               {selectedDay.slots.map(
-                (slot) => (
+                (
+                  slot
+                ) => (
                   <button
                     key={
-                      slot
+                      slot.time
                     }
                     type="button"
-                    onClick={() =>
-                      setSelectedTime(
-                        slot
-                      )
+                    disabled={
+                      slot.reserved
                     }
+                    onClick={() => {
+                      setSelectedTime(
+                        slot.time
+                      )
+
+                      setError(
+                        null
+                      )
+                    }}
                     className={`rounded-xl border px-4 py-2.5 text-sm font-black ${
-                      selectedTime ===
-                      slot
-                        ? 'border-blue-500 bg-blue-600 text-white'
-                        : 'border-slate-200 bg-white'
+                      slot.reserved
+                        ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 line-through'
+                        : selectedTime ===
+                            slot.time
+                          ? 'border-blue-500 bg-blue-600 text-white'
+                          : 'border-slate-200 bg-white text-slate-700'
                     }`}
                   >
-                    {slot}
+                    {slot.time}
                   </button>
                 )
               )}
@@ -553,34 +1067,115 @@ export default function LawyerBookingPanel({
           </div>
         )}
 
-        <div className="mt-5">
-          <label className="text-sm font-black">
-            موضوع مشاوره
-          </label>
-
-          <input
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <SelectField
+            label="حوزه حقوقی"
             value={
-              subject
+              category
+            }
+            options={
+              LEGAL_CATEGORY_LABELS
             }
             onChange={(
-              event
+              value
             ) =>
-              setSubject(
-                event.target.value
+              setCategory(
+                value as LegalMatterCategory
               )
             }
-            maxLength={120}
-            className="mt-2 h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           />
-        </div>
 
-        <div className="mt-4">
-          <label className="text-sm font-black">
-            توضیحات اولیه
+          <SelectField
+            label="مرحله پرونده"
+            value={
+              caseStage
+            }
+            options={
+              CASE_STAGE_LABELS
+            }
+            onChange={(
+              value
+            ) =>
+              setCaseStage(
+                value as LegalCaseStage
+              )
+            }
+          />
+
+          <label className="block">
+            <span className="mb-2 block text-sm font-black text-slate-700">
+              طرف مقابل
+            </span>
+
+            <input
+              value={
+                opposingPartyName
+              }
+              onChange={(
+                event
+              ) =>
+                setOpposingPartyName(
+                  event.target.value.slice(
+                    0,
+                    120
+                  )
+                )
+              }
+              placeholder="اختیاری"
+              className={
+                INPUT_CLASS
+              }
+            />
           </label>
 
+          <label className="block">
+            <span className="mb-2 block text-sm font-black text-slate-700">
+              موضوع جلسه
+            </span>
+
+            <input
+              value={
+                subject
+              }
+              onChange={(
+                event
+              ) => {
+                setSubject(
+                  event.target.value.slice(
+                    0,
+                    140
+                  )
+                )
+
+                setError(
+                  null
+                )
+              }}
+              placeholder="موضوع اصلی مشاوره"
+              className={
+                INPUT_CLASS
+              }
+            />
+          </label>
+        </div>
+
+        <label className="mt-4 block">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-black text-slate-700">
+              توضیحات پیش از جلسه
+            </span>
+
+            <span className="text-[11px] text-slate-400">
+              {description.length.toLocaleString(
+                'fa-IR'
+              )}
+              {' / '}
+              ۱۰۰۰
+            </span>
+          </div>
+
           <textarea
-            rows={3}
+            rows={4}
             value={
               description
             }
@@ -588,32 +1183,36 @@ export default function LawyerBookingPanel({
               event
             ) =>
               setDescription(
-                event.target.value
+                event.target.value.slice(
+                  0,
+                  1000
+                )
               )
             }
-            maxLength={800}
-            className="mt-2 w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+            placeholder="اطلاعاتی که بهتر است وکیل پیش از جلسه بداند..."
+            className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-7 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           />
-        </div>
+        </label>
 
         {selectedDuration && (
           <div className="mt-5 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
             <span className="text-sm font-black text-emerald-900">
-              مبلغ
+              مبلغ جلسه
             </span>
 
             <span className="text-lg font-black text-emerald-700">
-              {formatPrice(
+              {formatToman(
                 selectedDuration.priceToman
               )}
-              {' '}
-              تومان
             </span>
           </div>
         )}
 
         {error && (
-          <p className="mt-3 text-sm font-bold text-red-600">
+          <p
+            role="alert"
+            className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700"
+          >
             {error}
           </p>
         )}
@@ -624,11 +1223,11 @@ export default function LawyerBookingPanel({
             !lawyer.acceptsNewClients
           }
           onClick={
-            handleSubmit
+            handleReview
           }
-          className="mt-5 h-12 w-full rounded-xl bg-blue-600 text-sm font-black text-white disabled:bg-slate-300"
+          className="mt-5 h-12 w-full rounded-xl bg-blue-600 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
-          ثبت درخواست مشاوره
+          بررسی اطلاعات رزرو
         </button>
       </section>
 
@@ -636,7 +1235,7 @@ export default function LawyerBookingPanel({
         open={
           authOpen
         }
-        title="برای رزرو مشاوره وارد شوید"
+        title="برای ثبت رزرو وارد شوید"
         onClose={() =>
           setAuthOpen(
             false
@@ -647,5 +1246,163 @@ export default function LawyerBookingPanel({
         }
       />
     </>
+  )
+}
+
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label:
+    string
+
+  value:
+    string
+
+  options:
+    Record<
+      string,
+      string
+    >
+
+  onChange:
+    (
+      value:
+        string
+    ) => void
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-black text-slate-700">
+        {label}
+      </span>
+
+      <select
+        value={
+          value
+        }
+        onChange={(
+          event
+        ) =>
+          onChange(
+            event.target.value
+          )
+        }
+        className={
+          INPUT_CLASS
+        }
+      >
+        {Object.entries(
+          options
+        ).map(
+          (
+            [
+              optionValue,
+              optionLabel,
+            ]
+          ) => (
+            <option
+              key={
+                optionValue
+              }
+              value={
+                optionValue
+              }
+            >
+              {optionLabel}
+            </option>
+          )
+        )}
+      </select>
+    </label>
+  )
+}
+
+function ModeInfo({
+  icon:
+    Icon,
+  title,
+  children,
+}: {
+  icon:
+    typeof MapPin
+
+  title:
+    string
+
+  children:
+    React.ReactNode
+}) {
+  return (
+    <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4">
+      <div className="flex items-center gap-2 text-sm font-black text-blue-900">
+        <Icon
+          size={17}
+        />
+
+        {title}
+      </div>
+
+      <p className="mt-2 text-sm font-semibold leading-7 text-blue-800">
+        {children}
+      </p>
+    </div>
+  )
+}
+
+function ReviewItem({
+  label,
+  value,
+}: {
+  label:
+    string
+
+  value:
+    string
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <p className="text-[11px] font-bold text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-1.5 text-sm font-black leading-6 text-slate-900">
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function SummaryItem({
+  label,
+  value,
+  dir,
+}: {
+  label:
+    string
+
+  value:
+    string
+
+  dir?:
+    'rtl' | 'ltr'
+}) {
+  return (
+    <div className="rounded-xl border border-emerald-200 bg-white p-3">
+      <p className="text-[11px] font-bold text-emerald-700">
+        {label}
+      </p>
+
+      <p
+        dir={
+          dir
+        }
+        className="mt-1.5 break-words text-sm font-black text-slate-900"
+      >
+        {value}
+      </p>
+    </div>
   )
 }

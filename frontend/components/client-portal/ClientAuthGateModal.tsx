@@ -16,15 +16,19 @@ import type {
 } from '@/features/client-portal/auth/client-session'
 
 interface ClientAuthGateModalProps {
-  open: boolean
+  open:
+    boolean
 
-  title: string
+  title:
+    string
 
-  onClose: () => void
+  onClose:
+    () => void
 
   onAuthenticated:
     (
-      account: ClientPortalAccount
+      account:
+        ClientPortalAccount
     ) => void
 }
 
@@ -83,6 +87,7 @@ export default function ClientAuthGateModal({
 
   return (
     <div
+      data-client-auth-gate="true"
       dir="rtl"
       className="fixed inset-0 z-[140] flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       onMouseDown={
@@ -92,6 +97,7 @@ export default function ClientAuthGateModal({
       <section
         role="dialog"
         aria-modal="true"
+        aria-labelledby="client-auth-gate-title"
         onMouseDown={(
           event
         ) =>
@@ -107,7 +113,10 @@ export default function ClientAuthGateModal({
               />
             </div>
 
-            <h2 className="mt-4 text-xl font-black text-slate-950">
+            <h2
+              id="client-auth-gate-title"
+              className="mt-4 text-xl font-black text-slate-950"
+            >
               {title}
             </h2>
 
