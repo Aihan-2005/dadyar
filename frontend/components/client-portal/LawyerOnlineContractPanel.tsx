@@ -7,12 +7,13 @@ import {
   type ReactNode,
 } from 'react'
 
+import Link from 'next/link'
+
 import type {
   LucideIcon,
 } from 'lucide-react'
 
 import {
-  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   CircleDollarSign,
@@ -21,6 +22,13 @@ import {
   ShieldCheck,
   UserRound,
 } from 'lucide-react'
+
+import ClientAuthGateModal from '@/components/client-portal/ClientAuthGateModal'
+
+import {
+  getCurrentClientPortalAccount,
+  type ClientPortalAccount,
+} from '@/features/client-portal/auth/client-session'
 
 import {
   ONLINE_CONTRACT_TEMPLATES,
@@ -53,42 +61,31 @@ import {
   parseFinanceDate,
 } from '@/features/finance/utils/date'
 
-/*
-|--------------------------------------------------------------------------
-| Props
-|--------------------------------------------------------------------------
-*/
 
-interface LawyerOnlineContractPanelProps {
-  lawyer:
-    ClientPortalLawyer
+
+
+export interface LawyerOnlineContractPanelProps {
+  lawyer: ClientPortalLawyer
 }
+
+
+
 
 type ContractStage =
   | 'edit'
   | 'review'
   | 'submitted'
 
-/*
-|--------------------------------------------------------------------------
-| Constants
-|--------------------------------------------------------------------------
-*/
 
-const PAYMENT_LABELS:
-  Record<
-    OnlineContractPaymentMode,
-    string
-  > = {
-    full:
-      'پرداخت کامل',
-
-    staged:
-      'پرداخت مرحله‌ای',
-
-    installments:
-      'پرداخت اقساطی',
-  }
+  
+const PAYMENT_LABELS: Record<
+  OnlineContractPaymentMode,
+  string
+> = {
+  full: 'پرداخت کامل',
+  staged: 'پرداخت مرحله‌ای',
+  installments: 'پرداخت اقساطی',
+}
 
 const INPUT_CLASS =
   'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
@@ -96,27 +93,25 @@ const INPUT_CLASS =
 const TEXTAREA_CLASS =
   'w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-7 text-slate-900 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
 
-/*
-|--------------------------------------------------------------------------
-| Component
-|--------------------------------------------------------------------------
-*/
 
+  
 export default function LawyerOnlineContractPanel({
   lawyer,
 }: LawyerOnlineContractPanelProps) {
   const defaultTemplate =
-    ONLINE_CONTRACT_TEMPLATES[
-      0
-    ]
+    ONLINE_CONTRACT_TEMPLATES[0]
+
+
 
   const [
     stage,
     setStage,
-  ] =
-    useState<ContractStage>(
-      'edit'
-    )
+  ] = useState<ContractStage>(
+    'edit'
+  )
+
+
+  
 
   const [
     templateKey,
@@ -126,73 +121,49 @@ export default function LawyerOnlineContractPanel({
       defaultTemplate.key
     )
 
-  /*
-  |--------------------------------------------------------------------------
-  | Client Fields
-  |--------------------------------------------------------------------------
-  */
 
+    
   const [
     clientFullName,
     setClientFullName,
-  ] =
-    useState(
-      ''
-    )
+  ] = useState('')
 
   const [
     clientPhone,
     setClientPhone,
-  ] =
-    useState(
-      ''
-    )
+  ] = useState('')
 
   const [
     clientNationalId,
     setClientNationalId,
-  ] =
-    useState(
-      ''
-    )
+  ] = useState('')
 
   const [
     clientAddress,
     setClientAddress,
-  ] =
-    useState(
-      ''
-    )
+  ] = useState('')
 
-  /*
-  |--------------------------------------------------------------------------
-  | Contract Fields
-  |--------------------------------------------------------------------------
-  */
+  
+
 
   const [
     subject,
     setSubject,
-  ] =
-    useState(
-      defaultTemplate.defaultSubject
-    )
+  ] = useState(
+    defaultTemplate.defaultSubject
+  )
 
   const [
     scope,
     setScope,
-  ] =
-    useState(
-      defaultTemplate.defaultScope
-    )
+  ] = useState(
+    defaultTemplate.defaultScope
+  )
 
   const [
     feeInput,
     setFeeInput,
-  ] =
-    useState(
-      ''
-    )
+  ] = useState('')
 
   const [
     paymentMode,
@@ -205,92 +176,71 @@ export default function LawyerOnlineContractPanel({
   const [
     paymentDetails,
     setPaymentDetails,
-  ] =
-    useState(
-      ''
-    )
+  ] = useState('')
 
   const [
     startDate,
     setStartDate,
-  ] =
-    useState(
-      ''
-    )
+  ] = useState('')
 
   const [
     servicePeriod,
     setServicePeriod,
-  ] =
-    useState(
-      ''
-    )
+  ] = useState('')
 
   const [
     additionalTerms,
     setAdditionalTerms,
-  ] =
-    useState(
-      ''
-    )
+  ] = useState('')
 
-  /*
-  |--------------------------------------------------------------------------
-  | Review
-  |--------------------------------------------------------------------------
-  */
+  
 
   const [
     reviewDraft,
     setReviewDraft,
   ] =
-    useState<
-      OnlineContractDraft | null
-    >(
+    useState<OnlineContractDraft | null>(
       null
     )
 
   const [
     confirmDraft,
     setConfirmDraft,
-  ] =
-    useState(
-      false
-    )
+  ] = useState(false)
 
-  const [
-    confirmElectronicDelivery,
-    setConfirmElectronicDelivery,
-  ] =
-    useState(
-      false
-    )
+
+  
 
   const [
     submittedContract,
     setSubmittedContract,
   ] =
-    useState<
-      OnlineContractRecord | null
-    >(
+    useState<OnlineContractRecord | null>(
       null
     )
+
+  
+    
+
+  const [
+    authOpen,
+    setAuthOpen,
+  ] = useState(false)
+
+
+  
+
 
   const [
     error,
     setError,
   ] =
-    useState<
-      string | null
-    >(
+    useState<string | null>(
       null
     )
 
-  /*
-  |--------------------------------------------------------------------------
-  | Template
-  |--------------------------------------------------------------------------
-  */
+
+    
 
   const selectedTemplate =
     useMemo(
@@ -298,18 +248,14 @@ export default function LawyerOnlineContractPanel({
         getOnlineContractTemplate(
           templateKey
         ),
-      [
-        templateKey,
-      ]
+      [templateKey]
     )
 
-  /*
-  |--------------------------------------------------------------------------
-  | Reset On Lawyer Change
-  |--------------------------------------------------------------------------
-  */
-
+    
   useEffect(() => {
+    const account =
+      getCurrentClientPortalAccount()
+
     setStage(
       'edit'
     )
@@ -319,11 +265,13 @@ export default function LawyerOnlineContractPanel({
     )
 
     setClientFullName(
-      ''
+      account?.fullName ??
+        ''
     )
 
     setClientPhone(
-      ''
+      account?.phone ??
+        ''
     )
 
     setClientNationalId(
@@ -374,36 +322,33 @@ export default function LawyerOnlineContractPanel({
       false
     )
 
-    setConfirmElectronicDelivery(
-      false
-    )
-
     setSubmittedContract(
       null
+    )
+
+    setAuthOpen(
+      false
     )
 
     setError(
       null
     )
   }, [
-    defaultTemplate.defaultScope,
-    defaultTemplate.defaultSubject,
-    defaultTemplate.key,
     lawyer.id,
+    defaultTemplate.key,
+    defaultTemplate.defaultSubject,
+    defaultTemplate.defaultScope,
   ])
 
-  /*
-  |--------------------------------------------------------------------------
-  | Template Change
-  |--------------------------------------------------------------------------
-  */
+ 
+  
 
   const handleTemplateChange =
     (
       nextKey:
         OnlineLegalContractTemplateKey
     ) => {
-      const template =
+      const nextTemplate =
         getOnlineContractTemplate(
           nextKey
         )
@@ -413,11 +358,11 @@ export default function LawyerOnlineContractPanel({
       )
 
       setSubject(
-        template.defaultSubject
+        nextTemplate.defaultSubject
       )
 
       setScope(
-        template.defaultScope
+        nextTemplate.defaultScope
       )
 
       setError(
@@ -425,34 +370,60 @@ export default function LawyerOnlineContractPanel({
       )
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Build Draft
-  |--------------------------------------------------------------------------
-  */
+ 
+    
 
   const buildDraft =
     ():
       | OnlineContractDraft
       | null => {
+      setError(
+        null
+      )
+
       const fullName =
         clientFullName.trim()
 
       const phone =
         normalizeDigits(
           clientPhone
-        ).trim()
+        )
+          .replace(
+            /\D/g,
+            ''
+          )
+          .slice(
+            0,
+            11
+          )
 
       const nationalId =
         normalizeDigits(
           clientNationalId
-        ).trim()
+        )
+          .replace(
+            /\D/g,
+            ''
+          )
+          .slice(
+            0,
+            10
+          )
 
       const normalizedSubject =
         subject.trim()
 
       const normalizedScope =
         scope.trim()
+
+      const normalizedPaymentDetails =
+        paymentDetails.trim()
+
+      const normalizedServicePeriod =
+        servicePeriod.trim()
+
+      const normalizedAdditionalTerms =
+        additionalTerms.trim()
 
       const feeToman =
         toOptionalFiniteNumber(
@@ -469,17 +440,8 @@ export default function LawyerOnlineContractPanel({
           normalizedStartDate
         )
 
-      const normalizedServicePeriod =
-        servicePeriod.trim()
-
-      const normalizedPaymentDetails =
-        paymentDetails.trim()
-
-      /*
-      |--------------------------------------------------------------------------
-      | Validation
-      |--------------------------------------------------------------------------
-      */
+   
+        
 
       if (
         fullName.length <
@@ -498,7 +460,7 @@ export default function LawyerOnlineContractPanel({
         )
       ) {
         setError(
-          'شماره موبایل موکل باید ۱۱ رقم و با ۰۹ شروع شود.'
+          'شماره موبایل معتبر وارد کنید.'
         )
 
         return null
@@ -510,7 +472,7 @@ export default function LawyerOnlineContractPanel({
         )
       ) {
         setError(
-          'کد ملی موکل باید دقیقاً ۱۰ رقم باشد.'
+          'کد ملی باید دقیقاً ۱۰ رقم باشد.'
         )
 
         return null
@@ -521,7 +483,7 @@ export default function LawyerOnlineContractPanel({
         5
       ) {
         setError(
-          'موضوع قرارداد را دقیق‌تر وارد کنید.'
+          'موضوع قرارداد را کامل‌تر وارد کنید.'
         )
 
         return null
@@ -532,7 +494,7 @@ export default function LawyerOnlineContractPanel({
         20
       ) {
         setError(
-          'دامنه خدمات قرارداد باید حداقل ۲۰ کاراکتر باشد.'
+          'دامنه خدمات باید حداقل ۲۰ کاراکتر باشد.'
         )
 
         return null
@@ -565,7 +527,7 @@ export default function LawyerOnlineContractPanel({
         3
       ) {
         setError(
-          'مدت یا محدوده زمانی ارائه خدمات را مشخص کنید.'
+          'مدت یا محدوده زمانی خدمات را مشخص کنید.'
         )
 
         return null
@@ -578,20 +540,21 @@ export default function LawyerOnlineContractPanel({
           5
       ) {
         setError(
-          'جزئیات پرداخت مرحله‌ای یا اقساطی را وارد کنید.'
+          'جزئیات پرداخت را تکمیل کنید.'
         )
 
         return null
       }
+
+   
+      
 
       return {
         templateKey,
 
         client: {
           fullName,
-
           phone,
-
           nationalId,
 
           address:
@@ -643,23 +606,16 @@ export default function LawyerOnlineContractPanel({
           normalizedServicePeriod,
 
         additionalTerms:
-          additionalTerms.trim() ||
+          normalizedAdditionalTerms ||
           undefined,
       }
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Review
-  |--------------------------------------------------------------------------
-  */
+    
+
 
   const handleReview =
     () => {
-      setError(
-        null
-      )
-
       const draft =
         buildDraft()
 
@@ -675,22 +631,83 @@ export default function LawyerOnlineContractPanel({
         false
       )
 
-      setConfirmElectronicDelivery(
-        false
-      )
-
       setStage(
         'review'
       )
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Submit
-  |--------------------------------------------------------------------------
-  */
+  
+    
 
-  const handleSubmitToLawyer =
+  const createContract =
+    (
+      account:
+        ClientPortalAccount
+    ) => {
+      if (!reviewDraft) {
+        setError(
+          'اطلاعات قرارداد در دسترس نیست.'
+        )
+
+        return
+      }
+
+      const authenticatedDraft:
+        OnlineContractDraft = {
+        ...reviewDraft,
+
+        client: {
+          ...reviewDraft.client,
+
+          fullName:
+            account.fullName,
+
+          phone:
+            account.phone,
+        },
+      }
+
+      try {
+        const created =
+          createMockOnlineContract(
+            authenticatedDraft
+          )
+
+        setSubmittedContract(
+          created
+        )
+
+        setReviewDraft(
+          authenticatedDraft
+        )
+
+        setAuthOpen(
+          false
+        )
+
+        setError(
+          null
+        )
+
+        setStage(
+          'submitted'
+        )
+      } catch (
+        caughtError
+      ) {
+        setError(
+          caughtError instanceof
+            Error
+            ? caughtError.message
+            : 'ثبت قرارداد انجام نشد.'
+        )
+      }
+    }
+
+ 
+    
+
+  const handleSubmit =
     () => {
       setError(
         null
@@ -706,44 +723,36 @@ export default function LawyerOnlineContractPanel({
 
       if (!confirmDraft) {
         setError(
-          'لطفاً صحت اطلاعات پیش‌نویس را تأیید کنید.'
+          'برای ادامه، صحت اطلاعات قرارداد را تأیید کنید.'
         )
 
         return
       }
 
-      if (
-        !confirmElectronicDelivery
-      ) {
-        setError(
-          'برای ادامه، ارسال الکترونیکی پیش‌نویس برای وکیل را تأیید کنید.'
+      const account =
+        getCurrentClientPortalAccount()
+
+      if (!account) {
+        setAuthOpen(
+          true
         )
 
         return
       }
 
-      const created =
-        createMockOnlineContract(
-          reviewDraft
-        )
-
-      setSubmittedContract(
-        created
-      )
-
-      setStage(
-        'submitted'
+      createContract(
+        account
       )
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Start New
-  |--------------------------------------------------------------------------
-  */
+
+    
 
   const handleNewContract =
     () => {
+      const account =
+        getCurrentClientPortalAccount()
+
       setStage(
         'edit'
       )
@@ -760,20 +769,55 @@ export default function LawyerOnlineContractPanel({
         false
       )
 
-      setConfirmElectronicDelivery(
+      setAuthOpen(
         false
       )
 
       setError(
         null
       )
+
+      setClientFullName(
+        account?.fullName ??
+          ''
+      )
+
+      setClientPhone(
+        account?.phone ??
+          ''
+      )
+
+      setClientNationalId(
+        ''
+      )
+
+      setClientAddress(
+        ''
+      )
+
+      setFeeInput(
+        ''
+      )
+
+      setPaymentDetails(
+        ''
+      )
+
+      setStartDate(
+        ''
+      )
+
+      setServicePeriod(
+        ''
+      )
+
+      setAdditionalTerms(
+        ''
+      )
     }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Submitted
-  |--------------------------------------------------------------------------
-  */
+
+    
 
   if (
     stage ===
@@ -781,7 +825,7 @@ export default function LawyerOnlineContractPanel({
     submittedContract
   ) {
     return (
-      <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 sm:p-5">
+      <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
         <div className="flex items-start gap-3">
           <CheckCircle2
             size={24}
@@ -794,18 +838,17 @@ export default function LawyerOnlineContractPanel({
             </p>
 
             <h3 className="mt-1 text-lg font-black text-emerald-950">
-              پیش‌نویس برای وکیل ارسال شد
+              قرارداد برای وکیل ارسال شد
             </h3>
 
             <p className="mt-2 text-sm font-semibold leading-7 text-emerald-800">
-              قرارداد هنوز نهایی یا
-              امضاشده نیست. وکیل باید
-              اطلاعات، مبلغ و شرایط آن را
-              بررسی کند.
+              پس از بررسی وکیل، وضعیت و نسخه
+              جدید قرارداد در بخش قراردادهای
+              شما قابل مشاهده خواهد بود.
             </p>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <ReceiptItem
+              <SummaryItem
                 label="شناسه قرارداد"
                 value={
                   submittedContract.reference
@@ -813,7 +856,7 @@ export default function LawyerOnlineContractPanel({
                 dir="ltr"
               />
 
-              <ReceiptItem
+              <SummaryItem
                 label="نسخه"
                 value={
                   submittedContract.version.toLocaleString(
@@ -822,66 +865,46 @@ export default function LawyerOnlineContractPanel({
                 }
               />
 
-              <ReceiptItem
+              <SummaryItem
                 label="وکیل"
                 value={
                   submittedContract.draft.lawyer.fullName
                 }
               />
 
-              <ReceiptItem
-                label="وضعیت"
-                value="در انتظار بررسی وکیل"
-              />
-
-              <ReceiptItem
-                label="موضوع"
-                value={
-                  submittedContract.draft.subject
-                }
-              />
-
-              <ReceiptItem
-                label="مبلغ پیشنهادی"
+              <SummaryItem
+                label="مبلغ"
                 value={`${submittedContract.draft.feeToman.toLocaleString(
                   'fa-IR'
                 )} تومان`}
               />
             </div>
 
-            <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
-              <p className="text-xs font-semibold leading-6 text-blue-800">
-                اگر وکیل تغییری در متن یا
-                مبلغ ایجاد کند، نسخه جدید
-                قرارداد باید دوباره توسط
-                موکل بررسی و تأیید شود.
-              </p>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <Link
+                href="/client-portal/contracts"
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700"
+              >
+                قراردادهای من
+              </Link>
+
+              <button
+                type="button"
+                onClick={
+                  handleNewContract
+                }
+                className="h-11 rounded-xl border border-emerald-300 bg-white px-5 text-sm font-black text-emerald-700 transition hover:bg-emerald-100"
+              >
+                قرارداد جدید
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={
-                handleNewContract
-              }
-              className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 text-sm font-black text-emerald-700 transition hover:bg-emerald-100"
-            >
-              <FileText
-                size={17}
-              />
-
-              پیش‌نویس جدید
-            </button>
           </div>
         </div>
       </section>
     )
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Review Stage
-  |--------------------------------------------------------------------------
-  */
+
 
   if (
     stage ===
@@ -889,187 +912,155 @@ export default function LawyerOnlineContractPanel({
     reviewDraft
   ) {
     return (
-      <section className="rounded-2xl border border-blue-200 bg-white p-4 sm:p-5">
-        <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-black text-blue-700">
-              مرحله بررسی
-            </p>
+      <>
+        <section className="rounded-2xl border border-blue-200 bg-white p-4 sm:p-5">
+          <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-xs font-black text-blue-700">
+                بررسی قرارداد
+              </p>
 
-            <h3 className="mt-1 text-lg font-black text-slate-950">
-              پیش‌نمایش درخواست قرارداد
-            </h3>
+              <h3 className="mt-1 text-lg font-black text-slate-950">
+                پیش‌نمایش قرارداد
+              </h3>
 
-            <p className="mt-2 text-xs font-semibold leading-6 text-slate-500">
-              این نسخه هنوز قرارداد نهایی
-              نیست و ابتدا برای بررسی وکیل
-              ارسال می‌شود.
-            </p>
+              <p className="mt-2 text-xs font-semibold leading-6 text-slate-500">
+                پیش از ارسال، اطلاعات و شرایط
+                قرارداد را بررسی کنید.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setStage(
+                  'edit'
+                )
+
+                setError(
+                  null
+                )
+              }}
+              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+            >
+              <ArrowRight
+                size={15}
+              />
+
+              ویرایش
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setStage(
-                'edit'
-              )
+          <PreviewSection title="طرفین قرارداد">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <PreviewItem
+                label="موکل"
+                value={
+                  reviewDraft.client.fullName
+                }
+              />
 
-              setError(
-                null
-              )
-            }}
-            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-xs font-black text-slate-700"
-          >
-            <ArrowRight
-              size={15}
-            />
+              <PreviewItem
+                label="شماره موبایل"
+                value={
+                  reviewDraft.client.phone
+                }
+                dir="ltr"
+              />
 
-            ویرایش
-          </button>
-        </div>
+              <PreviewItem
+                label="کد ملی"
+                value={
+                  reviewDraft.client.nationalId
+                }
+                dir="ltr"
+              />
 
-        <ContractSection title="طرفین قرارداد">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <PreviewItem
-              label="موکل"
+              <PreviewItem
+                label="وکیل"
+                value={
+                  reviewDraft.lawyer.fullName
+                }
+              />
+            </div>
+          </PreviewSection>
+
+          <PreviewSection title="موضوع و خدمات">
+            <PreviewText
+              label="موضوع قرارداد"
               value={
-                reviewDraft.client.fullName
+                reviewDraft.subject
               }
             />
 
-            <PreviewItem
-              label="شماره موبایل"
+            <PreviewText
+              label="دامنه خدمات"
               value={
-                reviewDraft.client.phone
-              }
-              dir="ltr"
-            />
-
-            <PreviewItem
-              label="کد ملی"
-              value={
-                reviewDraft.client.nationalId
-              }
-              dir="ltr"
-            />
-
-            <PreviewItem
-              label="وکیل"
-              value={
-                reviewDraft.lawyer.fullName
+                reviewDraft.scope
               }
             />
-          </div>
-        </ContractSection>
+          </PreviewSection>
 
-        <ContractSection title="موضوع و خدمات">
-          <PreviewParagraph
-            label="موضوع"
-            value={
-              reviewDraft.subject
-            }
-          />
+          <PreviewSection title="شرایط مالی و زمانی">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <PreviewItem
+                label="حق‌الزحمه"
+                value={`${reviewDraft.feeToman.toLocaleString(
+                  'fa-IR'
+                )} تومان`}
+              />
 
-          <PreviewParagraph
-            label="دامنه خدمات"
-            value={
-              reviewDraft.scope
-            }
-          />
-        </ContractSection>
+              <PreviewItem
+                label="روش پرداخت"
+                value={
+                  PAYMENT_LABELS[
+                    reviewDraft.paymentMode
+                  ]
+                }
+              />
 
-        <ContractSection title="مالی و زمانی">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <PreviewItem
-              label="حق‌الزحمه پیشنهادی"
-              value={`${reviewDraft.feeToman.toLocaleString(
-                'fa-IR'
-              )} تومان`}
-            />
+              <PreviewItem
+                label="تاریخ شروع"
+                value={
+                  reviewDraft.startDate
+                }
+                dir="ltr"
+              />
 
-            <PreviewItem
-              label="روش پرداخت"
+              <PreviewItem
+                label="مدت خدمات"
+                value={
+                  reviewDraft.servicePeriod
+                }
+              />
+            </div>
+
+            <PreviewText
+              label="جزئیات پرداخت"
               value={
-                PAYMENT_LABELS[
-                  reviewDraft.paymentMode
-                ]
+                reviewDraft.paymentDetails
+              }
+            />
+          </PreviewSection>
+
+          <PreviewSection title="شروط قرارداد">
+            <ClauseList
+              items={
+                selectedTemplate.standardTerms
               }
             />
 
-            <PreviewItem
-              label="تاریخ شروع"
-              value={
-                reviewDraft.startDate
-              }
-              dir="ltr"
-            />
+            {reviewDraft.additionalTerms && (
+              <PreviewText
+                label="شروط تکمیلی"
+                value={
+                  reviewDraft.additionalTerms
+                }
+              />
+            )}
+          </PreviewSection>
 
-            <PreviewItem
-              label="مدت خدمات"
-              value={
-                reviewDraft.servicePeriod
-              }
-            />
-          </div>
-
-          <PreviewParagraph
-            label="جزئیات پرداخت"
-            value={
-              reviewDraft.paymentDetails
-            }
-          />
-        </ContractSection>
-
-        <ContractSection title="تعهدات و شروط">
-          <ClauseList
-            title="تعهدات وکیل"
-            items={
-              selectedTemplate.lawyerObligations
-            }
-          />
-
-          <ClauseList
-            title="تعهدات موکل"
-            items={
-              selectedTemplate.clientObligations
-            }
-          />
-
-          <ClauseList
-            title="شروط عمومی"
-            items={
-              selectedTemplate.standardTerms
-            }
-          />
-
-          {reviewDraft.additionalTerms && (
-            <PreviewParagraph
-              label="شروط تکمیلی"
-              value={
-                reviewDraft.additionalTerms
-              }
-            />
-          )}
-        </ContractSection>
-
-        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <div className="flex items-start gap-3">
-            <ShieldCheck
-              size={19}
-              className="mt-0.5 shrink-0 text-amber-700"
-            />
-
-            <p className="text-xs font-semibold leading-6 text-amber-800">
-              تأیید این مرحله فقط به معنی
-              ارسال پیش‌نویس برای بررسی
-              وکیل است و امضای الکترونیکی
-              محسوب نمی‌شود.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-5 space-y-3">
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+          <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
             <input
               type="checkbox"
               checked={
@@ -1090,73 +1081,60 @@ export default function LawyerOnlineContractPanel({
             />
 
             <span className="text-sm font-semibold leading-6 text-slate-700">
-              اطلاعات واردشده و مبلغ
-              پیشنهادی را بررسی کرده‌ام.
+              اطلاعات، مبلغ و شرایط قرارداد
+              را بررسی کرده‌ام.
             </span>
           </label>
 
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-            <input
-              type="checkbox"
-              checked={
-                confirmElectronicDelivery
-              }
-              onChange={(
-                event
-              ) => {
-                setConfirmElectronicDelivery(
-                  event.target.checked
-                )
+          {error && (
+            <p
+              role="alert"
+              className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700"
+            >
+              {error}
+            </p>
+          )}
 
-                setError(
-                  null
-                )
-              }}
-              className="mt-1 h-4 w-4 accent-blue-600"
+          <button
+            type="button"
+            onClick={
+              handleSubmit
+            }
+            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-emerald-500 to-teal-600 px-4 text-sm font-black text-white shadow-md shadow-emerald-100 transition hover:from-emerald-600 hover:to-teal-700"
+          >
+            <Send
+              size={18}
             />
 
-            <span className="text-sm font-semibold leading-6 text-slate-700">
-              با ارسال الکترونیکی این
-              پیش‌نویس برای بررسی وکیل
-              موافقم.
-            </span>
-          </label>
-        </div>
+            ارسال برای بررسی وکیل
+          </button>
+        </section>
 
-        {error && (
-          <p
-            role="alert"
-            className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700"
-          >
-            {error}
-          </p>
-        )}
-
-        <button
-          type="button"
-          onClick={
-            handleSubmitToLawyer
+        <ClientAuthGateModal
+          open={
+            authOpen
           }
-          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-emerald-500 to-teal-600 px-4 text-sm font-black text-white shadow-md shadow-emerald-100 transition hover:from-emerald-600 hover:to-teal-700"
-        >
-          <Send
-            size={18}
-          />
-
-          ارسال پیش‌نویس برای وکیل
-        </button>
-      </section>
+          title="برای ارسال قرارداد وارد شوید"
+          onClose={() =>
+            setAuthOpen(
+              false
+            )
+          }
+          onAuthenticated={
+            createContract
+          }
+        />
+      </>
     )
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Edit Stage
-  |--------------------------------------------------------------------------
-  */
+  
+
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
+      {/* Header */}
+
       <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
           <FileText
@@ -1174,31 +1152,13 @@ export default function LawyerOnlineContractPanel({
           </h3>
 
           <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-            پیش‌نویس اولیه را تکمیل کنید تا
-            وکیل آن را بررسی و نسخه نهایی
-            پیشنهادی را برای شما ارسال کند.
+            نوع قرارداد، دامنه خدمات، مدت و
+            شرایط مالی را مشخص کنید.
           </p>
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-3">
-        <div className="flex items-start gap-2">
-          <AlertTriangle
-            size={17}
-            className="mt-0.5 shrink-0 text-violet-700"
-          />
-
-          <p className="text-xs font-semibold leading-6 text-violet-800">
-            این بخش فعلاً آزمایشی است و
-            اطلاعات داخل مرورگر ذخیره
-            می‌شوند. اطلاعات واقعی و حساس
-            در نسخه Production نباید در
-            LocalStorage ذخیره شوند.
-          </p>
-        </div>
-      </div>
-
-      {/* Template */}
+      {/* Templates */}
 
       <div className="mt-5">
         <p className="text-sm font-black text-slate-800">
@@ -1232,15 +1192,11 @@ export default function LawyerOnlineContractPanel({
                   }`}
                 >
                   <p className="text-sm font-black text-slate-900">
-                    {
-                      template.title
-                    }
+                    {template.title}
                   </p>
 
                   <p className="mt-1.5 text-xs font-semibold leading-5 text-slate-500">
-                    {
-                      template.shortDescription
-                    }
+                    {template.shortDescription}
                   </p>
                 </button>
               )
@@ -1248,6 +1204,8 @@ export default function LawyerOnlineContractPanel({
           )}
         </div>
       </div>
+
+      {/* Client */}
 
       <FormSection
         icon={
@@ -1275,7 +1233,8 @@ export default function LawyerOnlineContractPanel({
                   null
                 )
               }}
-              placeholder="مثال: علی رضایی"
+              maxLength={120}
+              placeholder="مثلاً علی رضایی"
               className={
                 INPUT_CLASS
               }
@@ -1365,15 +1324,17 @@ export default function LawyerOnlineContractPanel({
               }
               onChange={(
                 event
-              ) =>
+              ) => {
                 setClientAddress(
                   event.target.value
                 )
-              }
-              maxLength={
-                300
-              }
-              placeholder="اختیاری"
+
+                setError(
+                  null
+                )
+              }}
+              maxLength={300}
+              placeholder="نشانی محل سکونت"
               className={
                 INPUT_CLASS
               }
@@ -1381,34 +1342,28 @@ export default function LawyerOnlineContractPanel({
           </FormField>
         </div>
 
-        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3.5">
           <p className="text-xs font-bold text-slate-500">
             وکیل طرف قرارداد
           </p>
 
           <p className="mt-1 text-sm font-black text-slate-900">
-            {
-              lawyer.fullName
-            }
+            {lawyer.fullName}
             {' — '}
-            {
-              lawyer.title
-            }
+            {lawyer.title}
           </p>
 
           <p className="mt-1 text-xs font-semibold text-slate-500">
             شماره پروانه:
             {' '}
-            {
-              lawyer.licenseNumber
-            }
+            {lawyer.licenseNumber}
             {' • '}
-            {
-              lawyer.barAssociation
-            }
+            {lawyer.barAssociation}
           </p>
         </div>
       </FormSection>
+
+      {/* Subject */}
 
       <FormSection
         icon={
@@ -1435,9 +1390,7 @@ export default function LawyerOnlineContractPanel({
                 null
               )
             }}
-            maxLength={
-              180
-            }
+            maxLength={180}
             className={
               INPUT_CLASS
             }
@@ -1465,9 +1418,7 @@ export default function LawyerOnlineContractPanel({
                   null
                 )
               }}
-              maxLength={
-                1600
-              }
+              maxLength={1600}
               className={
                 TEXTAREA_CLASS
               }
@@ -1475,6 +1426,8 @@ export default function LawyerOnlineContractPanel({
           </FormField>
         </div>
       </FormSection>
+
+      {/* Finance */}
 
       <FormSection
         icon={
@@ -1484,7 +1437,7 @@ export default function LawyerOnlineContractPanel({
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <FormField
-            label="مبلغ پیشنهادی حق‌الزحمه"
+            label="مبلغ حق‌الزحمه"
             required
           >
             <div className="relative">
@@ -1518,7 +1471,7 @@ export default function LawyerOnlineContractPanel({
           </FormField>
 
           <FormField
-            label="تاریخ شروع پیشنهادی"
+            label="تاریخ شروع"
             required
           >
             <input
@@ -1548,9 +1501,11 @@ export default function LawyerOnlineContractPanel({
           </FormField>
         </div>
 
+        {/* Payment Mode */}
+
         <div className="mt-4">
           <p className="text-sm font-black text-slate-800">
-            روش پرداخت پیشنهادی
+            روش پرداخت
           </p>
 
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
@@ -1582,19 +1537,19 @@ export default function LawyerOnlineContractPanel({
                     paymentMode ===
                     mode
                       ? 'border-emerald-400 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-100'
-                      : 'border-slate-200 bg-white text-slate-700'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-200'
                   }`}
                 >
-                  {
-                    PAYMENT_LABELS[
-                      mode
-                    ]
-                  }
+                  {PAYMENT_LABELS[
+                    mode
+                  ]}
                 </button>
               )
             )}
           </div>
         </div>
+
+        {/* Details */}
 
         <div className="mt-3">
           <FormField
@@ -1603,7 +1558,7 @@ export default function LawyerOnlineContractPanel({
               paymentMode ===
               'full'
                 ? 'اختیاری'
-                : 'برای پرداخت مرحله‌ای/اقساطی الزامی'
+                : 'برای این روش پرداخت الزامی'
             }
           >
             <textarea
@@ -1622,9 +1577,7 @@ export default function LawyerOnlineContractPanel({
                   null
                 )
               }}
-              maxLength={
-                600
-              }
+              maxLength={600}
               placeholder={
                 paymentMode ===
                 'full'
@@ -1637,6 +1590,8 @@ export default function LawyerOnlineContractPanel({
             />
           </FormField>
         </div>
+
+        {/* Period */}
 
         <div className="mt-3">
           <FormField
@@ -1658,9 +1613,7 @@ export default function LawyerOnlineContractPanel({
                   null
                 )
               }}
-              maxLength={
-                180
-              }
+              maxLength={180}
               placeholder="مثلاً تا پایان مرحله بدوی"
               className={
                 INPUT_CLASS
@@ -1670,61 +1623,55 @@ export default function LawyerOnlineContractPanel({
         </div>
       </FormSection>
 
+      {/* Terms */}
+
       <FormSection
         icon={
           ShieldCheck
         }
-        title="شروط تکمیلی"
+        title="شروط قرارداد"
       >
-        <textarea
-          rows={3}
-          value={
-            additionalTerms
-          }
-          onChange={(
-            event
-          ) =>
-            setAdditionalTerms(
-              event.target.value
-            )
-          }
-          maxLength={
-            1200
-          }
-          placeholder="در صورت نیاز شرط یا توضیح تکمیلی را وارد کنید..."
-          className={
-            TEXTAREA_CLASS
-          }
-        />
-
-        <div className="mt-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-xs font-black text-slate-500">
-            شروط استاندارد قالب:
+            شروط اصلی قرارداد
           </p>
 
-          <ul className="mt-2 space-y-2">
-            {selectedTemplate.standardTerms.map(
-              (
-                term
-              ) => (
-                <li
-                  key={
-                    term
-                  }
-                  className="flex items-start gap-2 text-xs font-semibold leading-6 text-slate-600"
-                >
-                  <CheckCircle2
-                    size={14}
-                    className="mt-1 shrink-0 text-emerald-600"
-                  />
+          <ClauseList
+            items={
+              selectedTemplate.standardTerms
+            }
+          />
+        </div>
 
-                  {term}
-                </li>
-              )
-            )}
-          </ul>
+        <div className="mt-3">
+          <FormField label="شروط تکمیلی">
+            <textarea
+              rows={3}
+              value={
+                additionalTerms
+              }
+              onChange={(
+                event
+              ) => {
+                setAdditionalTerms(
+                  event.target.value
+                )
+
+                setError(
+                  null
+                )
+              }}
+              maxLength={1200}
+              placeholder="در صورت نیاز توضیحات یا شروط تکمیلی را وارد کنید..."
+              className={
+                TEXTAREA_CLASS
+              }
+            />
+          </FormField>
         </div>
       </FormSection>
+
+      {/* Error */}
 
       {error && (
         <p
@@ -1734,6 +1681,8 @@ export default function LawyerOnlineContractPanel({
           {error}
         </p>
       )}
+
+      {/* Submit */}
 
       <button
         type="button"
@@ -1746,17 +1695,14 @@ export default function LawyerOnlineContractPanel({
           size={18}
         />
 
-        بررسی پیش‌نویس
+        بررسی قرارداد
       </button>
     </section>
   )
 }
 
-/*
-|--------------------------------------------------------------------------
-| Shared Components
-|--------------------------------------------------------------------------
-*/
+
+
 
 function FormSection({
   icon:
@@ -1764,17 +1710,12 @@ function FormSection({
   title,
   children,
 }: {
-  icon:
-    LucideIcon
-
-  title:
-    string
-
-  children:
-    ReactNode
+  icon: LucideIcon
+  title: string
+  children: ReactNode
 }) {
   return (
-    <div className="mt-6 border-t border-slate-200 pt-5">
+    <section className="mt-6 border-t border-slate-200 pt-5">
       <div className="mb-4 flex items-center gap-2">
         <Icon
           size={18}
@@ -1787,28 +1728,23 @@ function FormSection({
       </div>
 
       {children}
-    </div>
+    </section>
   )
 }
 
+
+
+
 function FormField({
   label,
-  required =
-    false,
+  required = false,
   hint,
   children,
 }: {
-  label:
-    string
-
-  required?:
-    boolean
-
-  hint?:
-    string
-
-  children:
-    ReactNode
+  label: string
+  required?: boolean
+  hint?: string
+  children: ReactNode
 }) {
   return (
     <label className="block">
@@ -1835,40 +1771,40 @@ function FormField({
   )
 }
 
-function ContractSection({
+
+
+
+
+function PreviewSection({
   title,
   children,
 }: {
-  title:
-    string
-
-  children:
-    ReactNode
+  title: string
+  children: ReactNode
 }) {
   return (
-    <div className="mt-5 border-t border-slate-200 pt-5">
+    <section className="mt-5 border-t border-slate-200 pt-5">
       <h4 className="mb-3 font-black text-slate-900">
         {title}
       </h4>
 
       {children}
-    </div>
+    </section>
   )
 }
+
+
+
+
 
 function PreviewItem({
   label,
   value,
   dir,
 }: {
-  label:
-    string
-
-  value:
-    string
-
-  dir?:
-    'rtl' | 'ltr'
+  label: string
+  value: string
+  dir?: 'rtl' | 'ltr'
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -1880,7 +1816,7 @@ function PreviewItem({
         dir={
           dir
         }
-        className="mt-1.5 text-sm font-black leading-6 text-slate-900"
+        className="mt-1.5 break-words text-sm font-black leading-6 text-slate-900"
       >
         {value}
       </p>
@@ -1888,15 +1824,15 @@ function PreviewItem({
   )
 }
 
-function PreviewParagraph({
+
+
+
+function PreviewText({
   label,
   value,
 }: {
-  label:
-    string
-
-  value:
-    string
+  label: string
+  value: string
 }) {
   return (
     <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
@@ -1911,70 +1847,56 @@ function PreviewParagraph({
   )
 }
 
+
+
+
+
 function ClauseList({
-  title,
   items,
 }: {
-  title:
-    string
-
-  items:
-    string[]
+  items: string[]
 }) {
   return (
-    <div className="mt-4">
-      <p className="text-sm font-black text-slate-800">
-        {title}
-      </p>
+    <ul className="mt-3 space-y-2">
+      {items.map(
+        (
+          item,
+          index
+        ) => (
+          <li
+            key={`${index}-${item}`}
+            className="flex items-start gap-2 text-xs font-semibold leading-6 text-slate-600"
+          >
+            <CheckCircle2
+              size={14}
+              className="mt-1 shrink-0 text-emerald-600"
+            />
 
-      <ol className="mt-2 space-y-2">
-        {items.map(
-          (
-            item,
-            index
-          ) => (
-            <li
-              key={
-                item
-              }
-              className="flex items-start gap-2 text-sm font-semibold leading-7 text-slate-700"
-            >
-              <span className="mt-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-600">
-                {(
-                  index +
-                  1
-                ).toLocaleString(
-                  'fa-IR'
-                )}
-              </span>
-
-              <span>
-                {item}
-              </span>
-            </li>
-          )
-        )}
-      </ol>
-    </div>
+            <span>
+              {item}
+            </span>
+          </li>
+        )
+      )}
+    </ul>
   )
 }
 
-function ReceiptItem({
+
+
+
+
+function SummaryItem({
   label,
   value,
   dir,
 }: {
-  label:
-    string
-
-  value:
-    string
-
-  dir?:
-    'rtl' | 'ltr'
+  label: string
+  value: string
+  dir?: 'rtl' | 'ltr'
 }) {
   return (
-    <div className="rounded-xl border border-emerald-200 bg-white/80 p-3">
+    <div className="rounded-xl border border-emerald-200 bg-white p-3">
       <p className="text-[11px] font-bold text-emerald-700">
         {label}
       </p>

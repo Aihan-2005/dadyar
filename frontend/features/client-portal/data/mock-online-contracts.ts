@@ -5,19 +5,29 @@ import type {
   OnlineContractAuditEvent,
   OnlineContractDraft,
   OnlineContractRecord,
+  OnlineContractVersion,
 } from '@/features/client-portal/types/contract'
 
-
-
+/*
+|--------------------------------------------------------------------------
+| Storage
+|--------------------------------------------------------------------------
+*/
 
 const STORAGE_KEY =
-  'dadyar:mock-online-contracts:v1'
+  'dadyar:online-contracts:v2'
+
+const CLIENT_CONTRACT_IDS_KEY =
+  'dadyar:client-contract-ids:v1'
 
 const CHANGE_EVENT =
-  'dadyar:mock-online-contracts:changed'
+  'dadyar:online-contracts:changed'
 
-
-  
+/*
+|--------------------------------------------------------------------------
+| Browser
+|--------------------------------------------------------------------------
+*/
 
 function isBrowser(): boolean {
   return (
@@ -26,8 +36,11 @@ function isBrowser(): boolean {
   )
 }
 
-
-
+/*
+|--------------------------------------------------------------------------
+| IDs
+|--------------------------------------------------------------------------
+*/
 
 function createId(
   prefix:
@@ -47,8 +60,6 @@ function createId(
     .slice(2, 10)}`
 }
 
-
-
 function createReference(): string {
   const timestamp =
     Date.now()
@@ -64,8 +75,11 @@ function createReference(): string {
   return `DY-${timestamp}-${random}`
 }
 
-
-
+/*
+|--------------------------------------------------------------------------
+| Audit
+|--------------------------------------------------------------------------
+*/
 
 function createAuditEvent(
   action:
@@ -94,15 +108,95 @@ function createAuditEvent(
   }
 }
 
+/*
+|--------------------------------------------------------------------------
+| Client Ownership
+|--------------------------------------------------------------------------
+*/
 
+function readClientContractIds():
+  string[] {
+  if (!isBrowser()) {
+    return []
+  }
 
+  const stored =
+    window.sessionStorage.getItem(
+      CLIENT_CONTRACT_IDS_KEY
+    )
+
+  if (!stored) {
+    return []
+  }
+
+  try {
+    const parsed:
+      unknown =
+      JSON.parse(
+        stored
+      )
+
+    if (
+      !Array.isArray(
+        parsed
+      )
+    ) {
+      return []
+    }
+
+    return parsed.filter(
+      (
+        item
+      ): item is string =>
+        typeof item ===
+        'string'
+    )
+  } catch {
+    return []
+  }
+}
+
+function rememberClientContract(
+  contractId:
+    string
+): void {
+  if (!isBrowser()) {
+    return
+  }
+
+  const ids =
+    readClientContractIds()
+
+  if (
+    ids.includes(
+      contractId
+    )
+  ) {
+    return
+  }
+
+  window.sessionStorage.setItem(
+    CLIENT_CONTRACT_IDS_KEY,
+
+    JSON.stringify([
+      contractId,
+      ...ids,
+    ])
+  )
+}
+
+/*
+|--------------------------------------------------------------------------
+| Seed
+|--------------------------------------------------------------------------
+*/
 
 function createSeedContracts():
   OnlineContractRecord[] {
   const now =
     Date.now()
 
-  const firstCreatedAt =
+  const firstDate =
     new Date(
       now -
         2 *
@@ -111,7 +205,7 @@ function createSeedContracts():
           1000
     ).toISOString()
 
-  const secondCreatedAt =
+  const secondDate =
     new Date(
       now -
         26 *
@@ -120,7 +214,7 @@ function createSeedContracts():
           1000
     ).toISOString()
 
-  const secondUpdatedAt =
+  const revisedDate =
     new Date(
       now -
         20 *
@@ -129,13 +223,155 @@ function createSeedContracts():
           1000
     ).toISOString()
 
+  const firstDraft:
+    OnlineContractDraft = {
+      templateKey:
+        'case_legal_services',
+
+      client: {
+        fullName:
+          'علی رضایی',
+
+        phone:
+          '09121234567',
+
+        nationalId:
+          '0012345678',
+
+        address:
+          'تهران',
+      },
+
+      lawyer: {
+        id:
+          'lawyer-mock-001',
+
+        fullName:
+          'آرمان نادری',
+
+        title:
+          'وکیل پایه یک دادگستری',
+
+        licenseNumber:
+          'MOCK-1001',
+
+        barAssociation:
+          'کانون وکلای دادگستری مرکز',
+
+        city:
+          'تهران',
+      },
+
+      subject:
+        'پیگیری پرونده ملکی',
+
+      scope:
+        'بررسی اسناد ملک، ارائه مشاوره حقوقی، بررسی وضعیت پرونده و انجام خدمات حقوقی مورد توافق در مرحله بدوی.',
+
+      feeToman:
+        18_000_000,
+
+      paymentMode:
+        'staged',
+
+      paymentDetails:
+        '۵۰٪ در شروع و ۵۰٪ پس از پایان مرحله بدوی.',
+
+      startDate:
+        '1405/06/15',
+
+      servicePeriod:
+        'تا پایان مرحله بدوی',
+
+      additionalTerms:
+        'هزینه‌های کارشناسی و دادرسی جدا از حق‌الزحمه است.',
+    }
+
+  const initialSecondDraft:
+    OnlineContractDraft = {
+      templateKey:
+        'legal_consultation',
+
+      client: {
+        fullName:
+          'مریم حسینی',
+
+        phone:
+          '09123334455',
+
+        nationalId:
+          '1234567890',
+
+        address:
+          'کرج',
+      },
+
+      lawyer: {
+        id:
+          'lawyer-mock-003',
+
+        fullName:
+          'امیرحسین کریمی',
+
+        title:
+          'وکیل دادگستری',
+
+        licenseNumber:
+          'MOCK-1003',
+
+        barAssociation:
+          'کانون وکلای دادگستری البرز',
+
+        city:
+          'کرج',
+      },
+
+      subject:
+        'مشاوره درباره چک',
+
+      scope:
+        'بررسی وضعیت حقوقی چک و ارائه نظر اولیه درباره روش‌های مطالبه وجه.',
+
+      feeToman:
+        900_000,
+
+      paymentMode:
+        'full',
+
+      paymentDetails:
+        'پرداخت کامل قبل از جلسه.',
+
+      startDate:
+        '1405/06/12',
+
+      servicePeriod:
+        'یک جلسه مشاوره',
+    }
+
+  const revisedSecondDraft:
+    OnlineContractDraft = {
+      ...initialSecondDraft,
+
+      subject:
+        'مشاوره حقوقی درباره چک',
+
+      scope:
+        'بررسی اسناد و اطلاعات مرتبط با چک و ارائه نظر حقوقی درباره روش‌های قانونی مطالبه وجه.',
+
+      feeToman:
+        1_200_000,
+
+      paymentDetails:
+        'پرداخت کامل قبل از جلسه مشاوره.',
+
+      servicePeriod:
+        'یک جلسه مشاوره و بررسی اولیه مدارک',
+    }
+
   return [
-
-    
-
     {
       id:
-        'mock-contract-seed-001',
+        'contract-seed-001',
 
       reference:
         'DY-DEMO-1001',
@@ -146,79 +382,38 @@ function createSeedContracts():
       status:
         'waiting_lawyer_review',
 
+      draft:
+        firstDraft,
+
+      versions: [
+        {
+          version:
+            1,
+
+          draft:
+            firstDraft,
+
+          createdBy:
+            'client',
+
+          createdAt:
+            firstDate,
+
+          summary:
+            'نسخه اولیه موکل',
+        },
+      ],
+
       createdAt:
-        firstCreatedAt,
+        firstDate,
 
       updatedAt:
-        firstCreatedAt,
-
-      draft: {
-        templateKey:
-          'case_legal_services',
-
-        client: {
-          fullName:
-            'علی رضایی',
-
-          phone:
-            '09121234567',
-
-          nationalId:
-            '0012345678',
-
-          address:
-            'تهران',
-        },
-
-        lawyer: {
-          id:
-            'lawyer-mock-001',
-
-          fullName:
-            'آرمان نادری',
-
-          title:
-            'وکیل پایه یک دادگستری',
-
-          licenseNumber:
-            'MOCK-1001',
-
-          barAssociation:
-            'کانون وکلای دادگستری مرکز',
-
-          city:
-            'تهران',
-        },
-
-        subject:
-          'پیگیری پرونده ملکی',
-
-        scope:
-          'بررسی اسناد ملک، ارائه مشاوره حقوقی، بررسی وضعیت پرونده و انجام خدمات حقوقی مورد توافق در مرحله بدوی.',
-
-        feeToman:
-          18_000_000,
-
-        paymentMode:
-          'staged',
-
-        paymentDetails:
-          '۵۰٪ در شروع و ۵۰٪ پس از پایان مرحله بدوی.',
-
-        startDate:
-          '1405/06/15',
-
-        servicePeriod:
-          'تا پایان مرحله بدوی',
-
-        additionalTerms:
-          'هزینه‌های کارشناسی و دادرسی جدا از حق‌الزحمه است.',
-      },
+        firstDate,
 
       auditTrail: [
         {
           id:
-            'seed-audit-001',
+            'audit-seed-001',
 
           action:
             'created_by_client',
@@ -227,20 +422,17 @@ function createSeedContracts():
             'client',
 
           label:
-            'پیش‌نویس قرارداد توسط موکل برای بررسی وکیل ارسال شد.',
+            'قرارداد برای بررسی وکیل ارسال شد.',
 
           createdAt:
-            firstCreatedAt,
+            firstDate,
         },
       ],
     },
 
-
-    
-
     {
       id:
-        'mock-contract-seed-002',
+        'contract-seed-002',
 
       reference:
         'DY-DEMO-1002',
@@ -251,76 +443,55 @@ function createSeedContracts():
       status:
         'waiting_client_approval',
 
+      draft:
+        revisedSecondDraft,
+
+      versions: [
+        {
+          version:
+            1,
+
+          draft:
+            initialSecondDraft,
+
+          createdBy:
+            'client',
+
+          createdAt:
+            secondDate,
+
+          summary:
+            'نسخه اولیه موکل',
+        },
+
+        {
+          version:
+            2,
+
+          draft:
+            revisedSecondDraft,
+
+          createdBy:
+            'lawyer',
+
+          createdAt:
+            revisedDate,
+
+          summary:
+            'نسخه بررسی‌شده توسط وکیل',
+        },
+      ],
+
       createdAt:
-        secondCreatedAt,
+        secondDate,
 
       updatedAt:
-        secondUpdatedAt,
-
-      draft: {
-        templateKey:
-          'legal_consultation',
-
-        client: {
-          fullName:
-            'مریم حسینی',
-
-          phone:
-            '09123334455',
-
-          nationalId:
-            '1234567890',
-
-          address:
-            'کرج',
-        },
-
-        lawyer: {
-          id:
-            'lawyer-mock-003',
-
-          fullName:
-            'امیرحسین کریمی',
-
-          title:
-            'وکیل دادگستری',
-
-          licenseNumber:
-            'MOCK-1003',
-
-          barAssociation:
-            'کانون وکلای دادگستری البرز',
-
-          city:
-            'کرج',
-        },
-
-        subject:
-          'مشاوره حقوقی درباره چک',
-
-        scope:
-          'بررسی اسناد و اطلاعات مرتبط با چک و ارائه نظر حقوقی درباره روش‌های قانونی مطالبه وجه.',
-
-        feeToman:
-          1_200_000,
-
-        paymentMode:
-          'full',
-
-        paymentDetails:
-          'پرداخت کامل قبل از جلسه مشاوره.',
-
-        startDate:
-          '1405/06/12',
-
-        servicePeriod:
-          'یک جلسه مشاوره و بررسی اولیه مدارک',
-      },
+        revisedDate,
 
       auditTrail: [
         {
           id:
-            'seed-audit-002-1',
+            'audit-seed-002-1',
 
           action:
             'created_by_client',
@@ -329,15 +500,15 @@ function createSeedContracts():
             'client',
 
           label:
-            'درخواست قرارداد توسط موکل ثبت شد.',
+            'قرارداد برای بررسی وکیل ارسال شد.',
 
           createdAt:
-            secondCreatedAt,
+            secondDate,
         },
 
         {
           id:
-            'seed-audit-002-2',
+            'audit-seed-002-2',
 
           action:
             'reviewed_by_lawyer',
@@ -349,12 +520,12 @@ function createSeedContracts():
             'قرارداد توسط وکیل بررسی شد.',
 
           createdAt:
-            secondUpdatedAt,
+            revisedDate,
         },
 
         {
           id:
-            'seed-audit-002-3',
+            'audit-seed-002-3',
 
           action:
             'sent_to_client',
@@ -363,24 +534,27 @@ function createSeedContracts():
             'lawyer',
 
           label:
-            'نسخه ۲ قرارداد برای تأیید موکل ارسال شد.',
+            'نسخه ۲ برای تأیید موکل ارسال شد.',
 
           createdAt:
-            secondUpdatedAt,
+            revisedDate,
         },
       ],
     },
   ]
 }
 
+/*
+|--------------------------------------------------------------------------
+| Parse
+|--------------------------------------------------------------------------
+*/
 
-
-
-function parseStoredContracts(
-  value:
+function parseContracts(
+  raw:
     string | null
 ): OnlineContractRecord[] {
-  if (!value) {
+  if (!raw) {
     return []
   }
 
@@ -388,7 +562,7 @@ function parseStoredContracts(
     const parsed:
       unknown =
       JSON.parse(
-        value
+        raw
       )
 
     if (
@@ -405,45 +579,11 @@ function parseStoredContracts(
   }
 }
 
-
-
-
-
-function notifyChanged(): void {
-  if (!isBrowser()) {
-    return
-  }
-
-  window.dispatchEvent(
-    new Event(
-      CHANGE_EVENT
-    )
-  )
-}
-
-
-
-
-function writeContracts(
-  contracts:
-    OnlineContractRecord[]
-): void {
-  if (!isBrowser()) {
-    return
-  }
-
-  window.localStorage.setItem(
-    STORAGE_KEY,
-
-    JSON.stringify(
-      contracts
-    )
-  )
-
-  notifyChanged()
-}
-
-
+/*
+|--------------------------------------------------------------------------
+| Sort
+|--------------------------------------------------------------------------
+*/
 
 function sortContracts(
   contracts:
@@ -465,7 +605,54 @@ function sortContracts(
   )
 }
 
+/*
+|--------------------------------------------------------------------------
+| Notify
+|--------------------------------------------------------------------------
+*/
 
+function notifyChanged(): void {
+  if (!isBrowser()) {
+    return
+  }
+
+  window.dispatchEvent(
+    new Event(
+      CHANGE_EVENT
+    )
+  )
+}
+
+/*
+|--------------------------------------------------------------------------
+| Write
+|--------------------------------------------------------------------------
+*/
+
+function writeContracts(
+  contracts:
+    OnlineContractRecord[]
+): void {
+  if (!isBrowser()) {
+    return
+  }
+
+  window.localStorage.setItem(
+    STORAGE_KEY,
+
+    JSON.stringify(
+      contracts
+    )
+  )
+
+  notifyChanged()
+}
+
+/*
+|--------------------------------------------------------------------------
+| Get All
+|--------------------------------------------------------------------------
+*/
 
 export function getMockOnlineContracts():
   OnlineContractRecord[] {
@@ -478,7 +665,6 @@ export function getMockOnlineContracts():
       STORAGE_KEY
     )
 
-    
   if (!stored) {
     const seeded =
       createSeedContracts()
@@ -497,14 +683,40 @@ export function getMockOnlineContracts():
   }
 
   return sortContracts(
-    parseStoredContracts(
+    parseContracts(
       stored
     )
   )
 }
 
+/*
+|--------------------------------------------------------------------------
+| Client Contracts
+|--------------------------------------------------------------------------
+*/
 
+export function getMockClientOnlineContracts():
+  OnlineContractRecord[] {
+  const ids =
+    new Set(
+      readClientContractIds()
+    )
 
+  return getMockOnlineContracts().filter(
+    (
+      contract
+    ) =>
+      ids.has(
+        contract.id
+      )
+  )
+}
+
+/*
+|--------------------------------------------------------------------------
+| Get
+|--------------------------------------------------------------------------
+*/
 
 export function getMockOnlineContractById(
   contractId:
@@ -522,20 +734,35 @@ export function getMockOnlineContractById(
   )
 }
 
-
+/*
+|--------------------------------------------------------------------------
+| Create
+|--------------------------------------------------------------------------
+*/
 
 export function createMockOnlineContract(
   draft:
     OnlineContractDraft
 ): OnlineContractRecord {
-  if (!isBrowser()) {
-    throw new Error(
-      'Mock contract storage is only available in the browser.'
-    )
-  }
-
   const now =
     new Date().toISOString()
+
+  const version:
+    OnlineContractVersion = {
+      version:
+        1,
+
+      draft,
+
+      createdBy:
+        'client',
+
+      createdAt:
+        now,
+
+      summary:
+        'نسخه اولیه موکل',
+    }
 
   const contract:
     OnlineContractRecord = {
@@ -555,6 +782,10 @@ export function createMockOnlineContract(
 
       draft,
 
+      versions: [
+        version,
+      ],
+
       createdAt:
         now,
 
@@ -567,7 +798,7 @@ export function createMockOnlineContract(
 
           'client',
 
-          'پیش‌نویس قرارداد توسط موکل برای بررسی وکیل ارسال شد.'
+          'قرارداد برای بررسی وکیل ارسال شد.'
         ),
       ],
     }
@@ -580,9 +811,18 @@ export function createMockOnlineContract(
     ...contracts,
   ])
 
+  rememberClientContract(
+    contract.id
+  )
+
   return contract
 }
 
+/*
+|--------------------------------------------------------------------------
+| Lawyer Review
+|--------------------------------------------------------------------------
+*/
 
 export function reviewMockOnlineContract(
   contractId:
@@ -622,40 +862,37 @@ export function reviewMockOnlineContract(
     'waiting_lawyer_review'
   ) {
     throw new Error(
-      'این قرارداد در وضعیت قابل بررسی توسط وکیل نیست.'
+      'این قرارداد در وضعیت قابل بررسی نیست.'
     )
   }
 
-  const normalizedSubject =
+  const subject =
     input.subject.trim()
 
-  const normalizedScope =
+  const scope =
     input.scope.trim()
 
-  const normalizedPaymentDetails =
-    input.paymentDetails.trim()
-
-  const normalizedServicePeriod =
+  const servicePeriod =
     input.servicePeriod.trim()
 
- 
-    
+  const paymentDetails =
+    input.paymentDetails.trim()
 
   if (
-    normalizedSubject.length <
+    subject.length <
     5
   ) {
     throw new Error(
-      'موضوع قرارداد معتبر نیست.'
+      'موضوع قرارداد کامل نیست.'
     )
   }
 
   if (
-    normalizedScope.length <
+    scope.length <
     20
   ) {
     throw new Error(
-      'دامنه خدمات قرارداد معتبر نیست.'
+      'دامنه خدمات کامل نیست.'
     )
   }
 
@@ -672,22 +909,22 @@ export function reviewMockOnlineContract(
   }
 
   if (
-    normalizedServicePeriod.length <
+    servicePeriod.length <
     3
   ) {
     throw new Error(
-      'مدت ارائه خدمات معتبر نیست.'
+      'مدت ارائه خدمات را مشخص کنید.'
     )
   }
 
   if (
     input.paymentMode !==
       'full' &&
-    normalizedPaymentDetails.length <
+    paymentDetails.length <
       5
   ) {
     throw new Error(
-      'جزئیات پرداخت باید تکمیل شود.'
+      'جزئیات پرداخت را تکمیل کنید.'
     )
   }
 
@@ -697,6 +934,52 @@ export function reviewMockOnlineContract(
 
   const now =
     new Date().toISOString()
+
+  const nextDraft:
+    OnlineContractDraft = {
+      ...current.draft,
+
+      subject,
+
+      scope,
+
+      feeToman:
+        input.feeToman,
+
+      paymentMode:
+        input.paymentMode,
+
+      paymentDetails:
+        input.paymentMode ===
+        'full'
+          ? paymentDetails ||
+            'پرداخت کامل طبق توافق طرفین.'
+          : paymentDetails,
+
+      servicePeriod,
+
+      additionalTerms:
+        input.additionalTerms?.trim() ||
+        undefined,
+    }
+
+  const newVersion:
+    OnlineContractVersion = {
+      version:
+        nextVersion,
+
+      draft:
+        nextDraft,
+
+      createdBy:
+        'lawyer',
+
+      createdAt:
+        now,
+
+      summary:
+        'نسخه بررسی‌شده توسط وکیل',
+    }
 
   const updated:
     OnlineContractRecord = {
@@ -708,41 +991,22 @@ export function reviewMockOnlineContract(
       status:
         'waiting_client_approval',
 
-      updatedAt:
-        now,
+      draft:
+        nextDraft,
+
+      versions: [
+        ...current.versions,
+        newVersion,
+      ],
+
+      clientFeedback:
+        undefined,
 
       rejectionReason:
         undefined,
 
-      draft: {
-        ...current.draft,
-
-        subject:
-          normalizedSubject,
-
-        scope:
-          normalizedScope,
-
-        feeToman:
-          input.feeToman,
-
-        paymentMode:
-          input.paymentMode,
-
-        paymentDetails:
-          input.paymentMode ===
-          'full'
-            ? normalizedPaymentDetails ||
-              'پرداخت کامل طبق توافق طرفین.'
-            : normalizedPaymentDetails,
-
-        servicePeriod:
-          normalizedServicePeriod,
-
-        additionalTerms:
-          input.additionalTerms?.trim() ||
-          undefined,
-      },
+      updatedAt:
+        now,
 
       auditTrail: [
         ...current.auditTrail,
@@ -772,7 +1036,7 @@ export function reviewMockOnlineContract(
 
           `نسخه ${nextVersion.toLocaleString(
             'fa-IR'
-          )} برای بررسی و تأیید موکل ارسال شد.`
+          )} برای تأیید موکل ارسال شد.`
         ),
       ],
     }
@@ -789,6 +1053,276 @@ export function reviewMockOnlineContract(
   return updated
 }
 
+/*
+|--------------------------------------------------------------------------
+| Client Approval
+|--------------------------------------------------------------------------
+*/
+
+export function approveMockOnlineContractByClient(
+  contractId:
+    string
+): OnlineContractRecord {
+  const contracts =
+    getMockOnlineContracts()
+
+  const index =
+    contracts.findIndex(
+      (
+        contract
+      ) =>
+        contract.id ===
+        contractId
+    )
+
+  if (
+    index ===
+    -1
+  ) {
+    throw new Error(
+      'قرارداد پیدا نشد.'
+    )
+  }
+
+  const current =
+    contracts[
+      index
+    ]
+
+  if (
+    current.status !==
+    'waiting_client_approval'
+  ) {
+    throw new Error(
+      'این نسخه در وضعیت قابل تأیید نیست.'
+    )
+  }
+
+  const updated:
+    OnlineContractRecord = {
+      ...current,
+
+      status:
+        'waiting_lawyer_signature',
+
+      updatedAt:
+        new Date().toISOString(),
+
+      clientFeedback:
+        undefined,
+
+      auditTrail: [
+        ...current.auditTrail,
+
+        createAuditEvent(
+          'approved_by_client',
+
+          'client',
+
+          `نسخه ${current.version.toLocaleString(
+            'fa-IR'
+          )} توسط موکل تأیید شد.`
+        ),
+      ],
+    }
+
+  contracts[
+    index
+  ] =
+    updated
+
+  writeContracts(
+    contracts
+  )
+
+  return updated
+}
+
+/*
+|--------------------------------------------------------------------------
+| Client Requests Changes
+|--------------------------------------------------------------------------
+*/
+
+export function requestMockOnlineContractChanges(
+  contractId:
+    string,
+
+  feedback:
+    string
+): OnlineContractRecord {
+  const contracts =
+    getMockOnlineContracts()
+
+  const index =
+    contracts.findIndex(
+      (
+        contract
+      ) =>
+        contract.id ===
+        contractId
+    )
+
+  if (
+    index ===
+    -1
+  ) {
+    throw new Error(
+      'قرارداد پیدا نشد.'
+    )
+  }
+
+  const current =
+    contracts[
+      index
+    ]
+
+  if (
+    current.status !==
+    'waiting_client_approval'
+  ) {
+    throw new Error(
+      'در این مرحله امکان درخواست اصلاح وجود ندارد.'
+    )
+  }
+
+  const normalizedFeedback =
+    feedback.trim()
+
+  if (
+    normalizedFeedback.length <
+    5
+  ) {
+    throw new Error(
+      'توضیح مورد نیاز برای اصلاح را کامل وارد کنید.'
+    )
+  }
+
+  const updated:
+    OnlineContractRecord = {
+      ...current,
+
+      status:
+        'waiting_lawyer_review',
+
+      clientFeedback:
+        normalizedFeedback,
+
+      updatedAt:
+        new Date().toISOString(),
+
+      auditTrail: [
+        ...current.auditTrail,
+
+        createAuditEvent(
+          'changes_requested_by_client',
+
+          'client',
+
+          `موکل درخواست اصلاح قرارداد را ثبت کرد: ${normalizedFeedback}`
+        ),
+      ],
+    }
+
+  contracts[
+    index
+  ] =
+    updated
+
+  writeContracts(
+    contracts
+  )
+
+  return updated
+}
+
+/*
+|--------------------------------------------------------------------------
+| Lawyer Final Confirmation
+|--------------------------------------------------------------------------
+*/
+
+export function signMockOnlineContractByLawyer(
+  contractId:
+    string
+): OnlineContractRecord {
+  const contracts =
+    getMockOnlineContracts()
+
+  const index =
+    contracts.findIndex(
+      (
+        contract
+      ) =>
+        contract.id ===
+        contractId
+    )
+
+  if (
+    index ===
+    -1
+  ) {
+    throw new Error(
+      'قرارداد پیدا نشد.'
+    )
+  }
+
+  const current =
+    contracts[
+      index
+    ]
+
+  if (
+    current.status !==
+    'waiting_lawyer_signature'
+  ) {
+    throw new Error(
+      'این قرارداد در وضعیت قابل تأیید نهایی نیست.'
+    )
+  }
+
+  const now =
+    new Date().toISOString()
+
+  const updated:
+    OnlineContractRecord = {
+      ...current,
+
+      status:
+        'completed',
+
+      completedAt:
+        now,
+
+      updatedAt:
+        now,
+
+      auditTrail: [
+        ...current.auditTrail,
+
+        createAuditEvent(
+          'signed_by_lawyer',
+
+          'lawyer',
+
+          `نسخه ${current.version.toLocaleString(
+            'fa-IR'
+          )} توسط وکیل تأیید نهایی شد و قرارداد تکمیل شد.`
+        ),
+      ],
+    }
+
+  contracts[
+    index
+  ] =
+    updated
+
+  writeContracts(
+    contracts
+  )
+
+  return updated
+}
 
 
 
@@ -830,7 +1364,7 @@ export function rejectMockOnlineContract(
     'waiting_lawyer_review'
   ) {
     throw new Error(
-      'این قرارداد در وضعیت قابل رد شدن توسط وکیل نیست.'
+      'این قرارداد در وضعیت قابل رد شدن نیست.'
     )
   }
 
@@ -846,9 +1380,6 @@ export function rejectMockOnlineContract(
     )
   }
 
-  const now =
-    new Date().toISOString()
-
   const updated:
     OnlineContractRecord = {
       ...current,
@@ -860,7 +1391,7 @@ export function rejectMockOnlineContract(
         normalizedReason,
 
       updatedAt:
-        now,
+        new Date().toISOString(),
 
       auditTrail: [
         ...current.auditTrail,
@@ -889,7 +1420,6 @@ export function rejectMockOnlineContract(
 
 
 
-
 export function subscribeMockOnlineContracts(
   listener:
     () => void
@@ -911,7 +1441,7 @@ export function subscribeMockOnlineContracts(
       }
     }
 
-  const handleLocalChange =
+  const handleLocal =
     () => {
       listener()
     }
@@ -923,7 +1453,7 @@ export function subscribeMockOnlineContracts(
 
   window.addEventListener(
     CHANGE_EVENT,
-    handleLocalChange
+    handleLocal
   )
 
   return () => {
@@ -934,7 +1464,7 @@ export function subscribeMockOnlineContracts(
 
     window.removeEventListener(
       CHANGE_EVENT,
-      handleLocalChange
+      handleLocal
     )
   }
 }

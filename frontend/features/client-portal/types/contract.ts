@@ -12,6 +12,7 @@ export type OnlineContractPaymentMode =
   | 'installments'
 
 
+  
 
 export type OnlineContractStatus =
   | 'waiting_lawyer_review'
@@ -51,6 +52,7 @@ export interface OnlineLegalContractTemplate {
 
 
 
+
 export interface OnlineContractClientParty {
   fullName:
     string
@@ -64,8 +66,6 @@ export interface OnlineContractClientParty {
   address?:
     string
 }
-
-
 
 export interface OnlineContractLawyerParty {
   id:
@@ -86,7 +86,6 @@ export interface OnlineContractLawyerParty {
   city:
     string
 }
-
 
 
 
@@ -128,6 +127,29 @@ export interface OnlineContractDraft {
 
 
 
+export type OnlineContractVersionAuthor =
+  | 'client'
+  | 'lawyer'
+
+export interface OnlineContractVersion {
+  version:
+    number
+
+  draft:
+    OnlineContractDraft
+
+  createdBy:
+    OnlineContractVersionAuthor
+
+  createdAt:
+    string
+
+  summary:
+    string
+}
+
+
+
 export type OnlineContractActor =
   | 'client'
   | 'lawyer'
@@ -139,6 +161,7 @@ export type OnlineContractAuditAction =
   | 'updated_by_lawyer'
   | 'sent_to_client'
   | 'approved_by_client'
+  | 'changes_requested_by_client'
   | 'signed_by_lawyer'
   | 'rejected_by_lawyer'
   | 'cancelled'
@@ -163,6 +186,7 @@ export interface OnlineContractAuditEvent {
 
 
 
+
 export interface OnlineContractRecord {
   id:
     string
@@ -179,24 +203,30 @@ export interface OnlineContractRecord {
   draft:
     OnlineContractDraft
 
+  versions:
+    OnlineContractVersion[]
+
   createdAt:
     string
 
   updatedAt:
     string
 
+  completedAt?:
+    string
+
   rejectionReason?:
+    string
+
+  clientFeedback?:
     string
 
   auditTrail:
     OnlineContractAuditEvent[]
 }
 
-/*
-|--------------------------------------------------------------------------
-| Lawyer Review
-|--------------------------------------------------------------------------
-*/
+
+
 
 export interface LawyerContractReviewInput {
   subject:
