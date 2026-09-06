@@ -8,11 +8,8 @@ import type {
   User,
 } from '@/store/auth.store'
 
-/*
-|--------------------------------------------------------------------------
-| Constants
-|--------------------------------------------------------------------------
-*/
+
+
 
 export const LOGIN_OTP_LENGTH =
   6
@@ -26,18 +23,8 @@ const EMAIL_PATTERN =
 const IRAN_MOBILE_PATTERN =
   /^09\d{9}$/
 
-/*
-|--------------------------------------------------------------------------
-| Public Auth Client
-|--------------------------------------------------------------------------
-|
-| OTP login intentionally uses its own Axios instance.
-|
-| Why?
-| Wrong/expired OTP can return 401.
-| That 401 must NOT trigger normal access-token refresh logic.
-|--------------------------------------------------------------------------
-*/
+
+  
 
 const otpAuthClient =
   axios.create({
@@ -59,11 +46,8 @@ const otpAuthClient =
     },
   })
 
-/*
-|--------------------------------------------------------------------------
-| Shared Envelope
-|--------------------------------------------------------------------------
-*/
+
+  
 
 interface ApiEnvelope<T> {
   success:
@@ -74,36 +58,23 @@ interface ApiEnvelope<T> {
 
   message?:
     string
+
+  code?:
+    string
 }
 
-/*
-|--------------------------------------------------------------------------
-| Types
-|--------------------------------------------------------------------------
-*/
 
-export type OtpPurpose = 'LOGIN'
 
-export interface LoginOtpChallenge {
-  challengeId:
-    string
 
-  /*
-   * Masked destination returned by backend.
-   *
-   * Example:
-   * 0912***7890
-   * m***@gmail.com
-   */
-  destination:
-    string
-
+interface BackendOtpRequestResult {
   expiresIn:
     number
 
   resendAfter:
     number
 }
+
+
 
 export interface LoginOtpSession {
   user:
@@ -116,35 +87,76 @@ export interface LoginOtpSession {
     number
 }
 
-interface RequestLoginOtpPayload {
-  identifier:
-    string
 
-  purpose:
-    OtpPurpose
-}
 
-interface VerifyLoginOtpPayload {
+
+export interface LoginOtpChallenge {
   challengeId:
     string
 
-  otp:
+  destination:
     string
+
+  expiresIn:
+    number
+
+  resendAfter:
+    number
 }
 
-interface ResendLoginOtpPayload {
-  challengeId:
-    string
-}
 
-/*
-|--------------------------------------------------------------------------
-| Normalize Digits
-|--------------------------------------------------------------------------
-*/
+
+
+type OtpIdentifier =
+  | {
+      channel:
+        'phone'
+
+      value:
+        string
+    }
+  | {
+      channel:
+        'email'
+
+      value:
+        string
+    }
+
+
+    
+
+type RequestOtpPayload =
+  | {
+      phone:
+        string
+    }
+  | {
+      email:
+        string
+    }
+
+type VerifyOtpPayload =
+  | {
+      phone:
+        string
+
+      code:
+        string
+    }
+  | {
+      email:
+        string
+
+      code:
+        string
+    }
+
+
+    
 
 function normalizeDigits(
- value:
+  value:
     string
 ): string {
   const persianDigits =
@@ -174,38 +186,51 @@ function normalizeDigits(
     )
 }
 
-/*
-|--------------------------------------------------------------------------
-| Identifier
-|--------------------------------------------------------------------------
-*/
+
+
 
 function normalizeIdentifier(
-  value:
+  rawValue:
     string
-): string {
+): OtpIdentifier {
   const trimmed =
-    value.trim()
+    rawValue.trim()
 
   if (
     EMAIL_PATTERN.test(
       trimmed
     )
   ) {
-    return trimmed.toLowerCase()
+    return {
+      channel:
+        'email',
+
+      value:
+        trimmed.toLowerCase(),
+    }
   }
 
-  const phone =
+  const normalizedPhone =
     normalizeDigits(
       trimmed
     )
+      .replace(
+        /\s+/g,
+        ''
+      )
 
   if (
     IRAN_MOBILE_PATTERN.test(
-      phone
+      normalizedPhone
     )
   ) {
-    return phone
+    return {
+      channel:
+        'phone',
+
+      value:
+        normalizedPhone,
+    }
   }
 
   throw new Error(
@@ -213,25 +238,24 @@ function normalizeIdentifier(
   )
 }
 
-/*
-|--------------------------------------------------------------------------
-| OTP
-|--------------------------------------------------------------------------
-*/
+
+
 
 function normalizeOtp(
-  value:
+  rawValue:
     string
 ): string {
-  const otp =
+  const normalized =
     normalizeDigits(
-      value ).replace(
-      /\D/g,
-      ''
+      rawValue
     )
+      .replace(
+        /\D/g,
+        ''
+      )
 
   if (
-    otp.length !==
+    normalized.length !==
     LOGIN_OTP_LENGTH
   ) {
     throw new Error(
@@ -241,14 +265,11 @@ function normalizeOtp(
     )
   }
 
-  return otp
+  return normalized
 }
 
-/*
-|--------------------------------------------------------------------------
-| Numbers
-|--------------------------------------------------------------------------
-*/
+
+
 
 function positiveNumber(
   value:
@@ -257,83 +278,282 @@ function positiveNumber(
   fallback:
     number
 ): number {
-  const result =
+  const number =
     Number(
       value
     )
 
   if (
     Number.isFinite(
-      result
+      number
     ) &&
-    result >
+    number >
       0
   ) {
-    return result
+    return number
   }
 
   return fallback
 }
 
-/*
-|--------------------------------------------------------------------------
-| Parse Challenge
-|--------------------------------------------------------------------------
-*/
 
-function parseChallenge(
-  response:
-    ApiEnvelope<LoginOtpChallenge>
-): LoginOtpChallenge {
-  const data =
-    response.data
+
+function createRequestPayload(
+  identifier:
+    OtpIdentifier
+): RequestOtpPayload {
+  if (
+    identifier.channel ===
+    'email'
+  ) {
+    return {
+      email:
+        identifier.value,
+    }
+  }
+
+  return {
+    phone:
+      identifier.value,
+  }
+}
+
+function createVerifyPayload(
+  identifier:
+    OtpIdentifier,
+
+  code:
+    string
+): VerifyOtpPayload {
+  if (
+    identifier.channel ===
+    'email'
+  ) {
+    return {
+      email:
+        identifier.value,
+
+      code,
+    }
+  }
+
+  return {
+    phone:
+      identifier.value,
+
+    code,
+  }
+}
+
+
+
+
+function createChallengeId(
+  identifier:
+    OtpIdentifier
+): string {
+  return [
+    identifier.channel,
+    encodeURIComponent(
+      identifier.value
+    ),
+  ].join(':')
+}
+
+function parseChallengeId(
+  challengeId:
+    string
+): OtpIdentifier {
+  const normalized =
+    challengeId.trim()
+
+  const separatorIndex =
+    normalized.indexOf(
+      ':'
+    )
 
   if (
-    response.success !==
-      true ||
-    !data ||
-    typeof data.challengeId !==
-      'string' ||
-    data.challengeId
-      .trim()
-      .length ===
+    separatorIndex <=
       0
+  ) {
+    throw new Error(
+      'درخواست ورود معتبر نیست. دوباره کد دریافت کنید.'
+    )
+  }
+
+  const channel =
+    normalized.slice(
+      0,
+      separatorIndex
+    )
+
+  const encodedValue =
+    normalized.slice(
+      separatorIndex +
+        1
+    )
+
+  if (
+    channel !==
+      'phone' &&
+    channel !==
+      'email'
+  ) {
+    throw new Error(
+      'درخواست ورود معتبر نیست. دوباره کد دریافت کنید.'
+    )
+  }
+
+  let decodedValue:
+    string
+
+  try {
+    decodedValue =
+      decodeURIComponent(
+        encodedValue
+      )
+  } catch {
+    throw new Error(
+      'درخواست ورود معتبر نیست. دوباره کد دریافت کنید.'
+    )
+  }
+
+  return normalizeIdentifier(
+    decodedValue
+  )
+}
+
+
+
+function maskPhone(
+  phone:
+    string
+): string {
+  if (
+    phone.length !==
+    11
+  ) {
+    return phone
+  }
+
+  return `${phone.slice(
+    0,
+    4
+  )}***${phone.slice(
+    -4
+  )}`
+}
+
+function maskEmail(
+  email:
+    string
+): string {
+  const [
+    localPart,
+    domain,
+  ] =
+    email.split(
+      '@'
+    )
+
+  if (
+    !localPart ||
+    !domain
+  ) {
+    return email
+  }
+
+  const firstCharacter =
+    localPart.charAt(
+      0
+    )
+
+  return `${firstCharacter}***@${domain}`
+}
+
+function maskIdentifier(
+  identifier:
+    OtpIdentifier
+): string {
+  if (
+    identifier.channel ===
+    'phone'
+  ) {
+    return maskPhone(
+      identifier.value
+    )
+  }
+
+  return maskEmail(
+    identifier.value
+  )
+}
+
+
+
+
+function parseOtpMetadata(
+  response:
+    ApiEnvelope<BackendOtpRequestResult>
+): BackendOtpRequestResult {
+  if (
+    response.success !==
+    true ||
+    !response.data
   ) {
     throw new Error(
       'پاسخ ارسال کد ورود معتبر نیست.'
     )
-  } return {
-    challengeId:
-      data.challengeId.trim(),
+  }
 
-    destination:
-      typeof data.destination ===
-        'string' &&
-      data.destination.trim()
-        .length >
-        0
-        ? data.destination.trim()
-        : 'راه ارتباطی ثبت‌شده',
-
+  return {
     expiresIn:
       positiveNumber(
-        data.expiresIn,
-        300
+        response.data
+          .expiresIn,
+        120
       ),
 
     resendAfter:
       positiveNumber(
-        data.resendAfter,
+        response.data
+          .resendAfter,
         60
       ),
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| Parse Session
-|--------------------------------------------------------------------------
-*/
+
+
+
+function createChallenge(
+  identifier:
+    OtpIdentifier,
+
+  metadata:
+    BackendOtpRequestResult
+): LoginOtpChallenge {
+  return {
+    challengeId:
+      createChallengeId(
+        identifier
+      ),
+
+    destination:
+      maskIdentifier(
+        identifier
+      ),
+
+    expiresIn:
+      metadata.expiresIn,
+
+    resendAfter:
+      metadata.resendAfter,
+  }
+}
+
+
+
 
 function parseSession(
   response:
@@ -348,7 +568,8 @@ function parseSession(
     !data?.user ||
     typeof data.accessToken !==
       'string' ||
-    data.accessToken.trim()
+    data.accessToken
+      .trim()
       .length ===
       0
   ) {
@@ -372,91 +593,72 @@ function parseSession(
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| Request Login OTP
-|--------------------------------------------------------------------------
-|
-| POST /auth/otp/request
-|
-| {
-|   identifier: string,
-|   purpose: "LOGIN"
-| }
-|--------------------------------------------------------------------------
-*/
+
+
 
 export async function requestLoginOtp(
-  identifier:
+  rawIdentifier:
     string
 ): Promise<LoginOtpChallenge> {
-  const payload:
-    RequestLoginOtpPayload = {
-      identifier:normalizeIdentifier(
-          identifier
-        ),
+  const identifier =
+    normalizeIdentifier(
+      rawIdentifier
+    )
 
-      purpose:
-        'LOGIN',
-    }
+  const payload =
+    createRequestPayload(
+      identifier
+    )
 
   const response =
     await otpAuthClient.post<
-      ApiEnvelope<LoginOtpChallenge>
+      ApiEnvelope<BackendOtpRequestResult>
     >(
       '/auth/otp/request',
       payload
     )
 
-  return parseChallenge(
-    response.data
+  const metadata =
+    parseOtpMetadata(
+      response.data
+    )
+
+  return createChallenge(
+    identifier,
+    metadata
   )
 }
 
-/*
-|--------------------------------------------------------------------------
-| Verify Login OTP
-|--------------------------------------------------------------------------
-|
-| Successful verification must return the SAME auth session shape
-| used by normal password login.
-|--------------------------------------------------------------------------
-*/
+
 
 export async function verifyLoginOtp(
   challengeId:
     string,
 
-  otp:
+  rawOtp:
     string
 ): Promise<LoginOtpSession> {
-  const normalizedChallengeId =
-    challengeId.trim()
-
-  if (
-    !normalizedChallengeId
-  ) {
-    throw new Error(
-      'درخواست ورود معتبر نیست.'
+  const identifier =
+    parseChallengeId(
+      challengeId
     )
-  }
 
-  const payload:
-    VerifyLoginOtpPayload = {
-      challengeId:
-        normalizedChallengeId,
+  const code =
+    normalizeOtp(
+      rawOtp
+    )
 
-      otp:
-        normalizeOtp(
-          otp
-        ),
-    }
+  const payload =
+    createVerifyPayload(
+      identifier,
+      code
+    )
 
   const response =
     await otpAuthClient.post<
       ApiEnvelope<LoginOtpSession>
     >(
-      '/auth/otp/verify',
+      '/auth/otp/login',
       payload
     )
 
@@ -465,50 +667,43 @@ export async function verifyLoginOtp(
   )
 }
 
-/*
-|--------------------------------------------------------------------------
-| Resend
-|--------------------------------------------------------------------------
-*/
+
+
 
 export async function resendLoginOtp(
   challengeId:
     string
 ): Promise<LoginOtpChallenge> {
-  const normalizedChallengeId =
-    challengeId.trim()
-
-  if (
-    !normalizedChallengeId  ) {
-    throw new Error(
-      'درخواست ورود معتبر نیست.'
+  const identifier =
+    parseChallengeId(
+      challengeId
     )
-  }
 
-  const payload:
-    ResendLoginOtpPayload = {
-      challengeId:
-        normalizedChallengeId,
-    }
+  const payload =
+    createRequestPayload(
+      identifier
+    )
 
   const response =
     await otpAuthClient.post<
-      ApiEnvelope<LoginOtpChallenge>
+      ApiEnvelope<BackendOtpRequestResult>
     >(
-      '/auth/otp/resend',
+      '/auth/otp/request',
       payload
     )
 
-  return parseChallenge(
-    response.data
+  const metadata =
+    parseOtpMetadata(
+      response.data
+    )
+
+  return createChallenge(
+    identifier,
+    metadata
   )
 }
 
-/*
-|--------------------------------------------------------------------------
-| Error
-|--------------------------------------------------------------------------
-*/
+
 
 export function getLoginOtpErrorMessage(
   error:
