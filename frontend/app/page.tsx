@@ -1,81 +1,185 @@
 import Link from 'next/link'
 
+import type {
+  LucideIcon,
+} from 'lucide-react'
+
 import {
   ArrowLeft,
   BellRing,
   BriefcaseBusiness,
+  CalendarDays,
   CheckCircle2,
   CircleDollarSign,
+  FileText,
+  ListChecks,
+  MessageSquareText,
+  PenLine,
+  Search,
   ShieldCheck,
   Sparkles,
   UsersRound,
 } from 'lucide-react'
 
+import PublicSupportButton from '@/components/PublicSupportButton'
+
 import {
   SUBSCRIPTION_PLANS,
 } from '@/lib/subscription-plans'
 
-import PublicSupportButton from '@/components/PublicSupportButton'
-
-
-
-
-
 const ENAMAD_TRUST_URL =
   'https://trustseal.enamad.ir/?id=7376893&Code=uH3VOp3psQMSH68g6tAzZdSSAafAkvAW'
 
+interface FeatureItem {
+  icon:
+    LucideIcon
 
-  
+  title:
+    string
 
+  description:
+    string
+}
 
-const features = [
-  {
-    icon:
-      BriefcaseBusiness,
+interface ClientServiceItem
+  extends FeatureItem {
+  href:
+    string
+}
 
-    title:
-      'مدیریت پرونده‌ها',
+const officeFeatures:
+  FeatureItem[] = [
+    {
+      icon:
+        BriefcaseBusiness,
 
-    description:
-      'ثبت، دسته‌بندی، جست‌وجو و مدیریت اطلاعات پرونده‌ها در یک محیط یکپارچه.',
-  },
+      title:
+        'مدیریت پرونده‌ها',
 
-  {
-    icon:
-      UsersRound,
+      description:
+        'ثبت و مدیریت اطلاعات پرونده، طرفین، شعبه، روند رسیدگی و جزئیات مرتبط در یک ساختار منظم.',
+    },
 
-    title:
-      'مدیریت موکلین',
+    {
+      icon:
+        UsersRound,
 
-    description:
-      'اطلاعات موکلین را یک‌بار ثبت کنید و در پرونده‌های مرتبط استفاده کنید.',
-  },
+      title:
+        'مدیریت موکلین',
 
-  {
-    icon:
-      CircleDollarSign,
+      description:
+        'اطلاعات موکلین را یک‌بار ثبت کنید و در پرونده‌ها و فرآیندهای مرتبط استفاده کنید.',
+    },
 
-    title:
-      'مدیریت مالی',
+    {
+      icon:
+        CircleDollarSign,
 
-    description:
-      'حق‌الوکاله، پرداخت‌ها، مطالبات، هزینه‌ها و گزارش مالی را کنترل کنید.',
-  },
+      title:
+        'مدیریت مالی',
 
-  {
-    icon:
-      BellRing,
+      description:
+        'حق‌الوکاله، پرداخت‌ها، مطالبات، هزینه‌ها و وضعیت مالی پرونده‌ها را کنترل کنید.',
+    },
 
-    title:
-      'یادداشت و پیگیری',
+    {
+      icon:
+        BellRing,
 
-    description:
-      'یادآوری‌ها و نکات مهم مربوط به امور روزانه دفتر را یکجا نگه دارید.',
-  },
-]
+      title:
+        'پیگیری امور دفتر',
 
+      description:
+        'یادداشت‌ها، پیگیری‌ها و اطلاعات ضروری روزمره دفتر را در محیطی یکپارچه نگه دارید.',
+    },
+  ]
 
+const clientServices:
+  ClientServiceItem[] = [
+    {
+      icon:
+        Search,
 
+      title:
+        'پیدا کردن وکیل',
+
+      description:
+        'وکلا را بر اساس تخصص، شهر، سابقه، روش مشاوره و نظرات مقایسه و انتخاب کنید.',
+
+      href:
+        '/client-portal#lawyers',
+    },
+
+    {
+      icon:
+        MessageSquareText,
+
+      title:
+        'درخواست بررسی',
+
+      description:
+        'موضوع حقوقی را برای وکیل ارسال کنید و ادامه گفتگو و وضعیت درخواست را پیگیری کنید.',
+
+      href:
+        '/client-portal#lawyers',
+    },
+
+    {
+      icon:
+        CalendarDays,
+
+      title:
+        'رزرو مشاوره',
+
+      description:
+        'مشاوره حضوری، تلفنی یا آنلاین را با مدت، هزینه، روز و ساعت مشخص انتخاب کنید.',
+
+      href:
+        '/client-portal#lawyers',
+    },
+
+    {
+      icon:
+        FileText,
+
+      title:
+        'قرارداد آنلاین',
+
+      description:
+        'شرایط خدمات حقوقی، محدوده همکاری و حق‌الزحمه را در قالب قرارداد مدیریت کنید.',
+
+      href:
+        '/client-portal#lawyers',
+    },
+
+    {
+      icon:
+        PenLine,
+
+      title:
+        'تنظیم لایحه',
+
+      description:
+        'اطلاعات پرونده، شرح موضوع، دفاعیات، مستندات و درخواست خود را در قالب یک پیش‌نویس منظم آماده کنید.',
+
+      href:
+        '/client-portal/petitions/new',
+    },
+
+    {
+      icon:
+        ListChecks,
+
+      title:
+        'پیگیری درخواست‌ها',
+
+      description:
+        'رزروها، درخواست‌های بررسی، وضعیت ارتباط و پیام‌های مرتبط را از یک صفحه دنبال کنید.',
+
+      href:
+        '/client-portal/requests',
+    },
+  ]
 
 export default function HomePage() {
   return (
@@ -83,9 +187,6 @@ export default function HomePage() {
       dir="rtl"
       className="min-h-screen bg-slate-100 text-slate-950"
     >
-      
-
-
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-slate-100/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link
@@ -97,22 +198,29 @@ export default function HomePage() {
             </div>
 
             <div>
-              <p className="text-lg font-black text-slate-950">
+              <p className="text-lg font-black">
                 دادیار
               </p>
 
               <p className="hidden text-xs font-semibold text-slate-600 sm:block">
-                مدیریت هوشمند دفتر وکالت
+                پلتفرم یکپارچه امور حقوقی
               </p>
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-6 text-sm font-bold text-slate-700 md:flex">
+          <nav className="hidden items-center gap-6 text-sm font-bold text-slate-700 lg:flex">
             <a
-              href="#features"
+              href="#lawyers"
               className="transition hover:text-blue-700"
             >
-              امکانات
+              برای وکلا
+            </a>
+
+            <a
+              href="#clients"
+              className="transition hover:text-blue-700"
+            >
+              برای موکلین
             </a>
 
             <a
@@ -134,77 +242,74 @@ export default function HomePage() {
             href="/launch"
             className="inline-flex h-10 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-700"
           >
-            ورود به دادیار
+            ورود و شروع
           </Link>
         </div>
       </header>
-
-
 
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -right-52 -top-52 h-[650px] w-[650px] rounded-full bg-blue-300/30 blur-[120px]" />
 
-          <div className="absolute -bottom-60 -left-52 h-[600px] w-[600px] rounded-full bg-emerald-200/20 blur-[120px]" />
+          <div className="absolute -bottom-60 -left-52 h-[600px] w-[600px] rounded-full bg-emerald-200/25 blur-[120px]" />
         </div>
 
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-24">
-          {/* Copy */}
-
+        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.08fr_0.92fr] lg:px-8 lg:py-24">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-blue-300 bg-blue-100 px-4 py-2 text-sm font-black text-blue-800">
               <Sparkles
                 size={17}
               />
 
-              دستیار مدیریت حرفه‌ای دفتر وکالت
+              برای وکلا و موکلین
             </span>
 
-            <h1 className="mt-6 max-w-3xl text-4xl font-black leading-[1.35] tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-              پرونده‌ها و امور دفترت را
+            <h1 className="mt-6 max-w-3xl text-4xl font-black leading-[1.35] tracking-tight sm:text-5xl lg:text-6xl">
+              مدیریت و دریافت خدمات حقوقی،
+              {' '}
 
               <span className="text-blue-700">
-                {' '}
-                ساده‌تر و دقیق‌تر
-                {' '}
+                ساده‌تر و یکپارچه‌تر
               </span>
-
-              مدیریت کن
             </h1>
 
             <p className="mt-6 max-w-2xl text-base font-medium leading-8 text-slate-700 sm:text-lg sm:leading-9">
-              دادیار یک محیط یکپارچه برای
-              مدیریت پرونده‌ها، موکلین،
-              اطلاعات مالی و پیگیری امور
-              دفتر وکالت است؛ بدون پراکندگی
-              اطلاعات بین چند ابزار مختلف.
+              دادیار برای وکلا ابزار مدیریت
+              پرونده، موکل، مالی و قرارداد
+              فراهم می‌کند و برای موکلین مسیر
+              انتخاب وکیل، ارتباط، رزرو
+              مشاوره، قرارداد آنلاین، پیگیری
+              درخواست و تنظیم لایحه را کنار
+              هم قرار می‌دهد.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a
-                href="#plans"
-                className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-600 to-blue-700 px-7 text-base font-black text-white shadow-lg shadow-blue-200 transition hover:-translate-y-0.5 hover:shadow-xl"
+              <Link
+                href="/client-portal"
+                className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-600 px-7 text-base font-black text-white shadow-lg shadow-emerald-200 transition hover:-translate-y-0.5 hover:shadow-xl"
               >
-                مشاهده پلن‌ها
+                خدمات موکلین
 
                 <ArrowLeft
                   size={19}
                 />
-              </a>
+              </Link>
 
               <Link
                 href="/launch"
                 className="inline-flex h-14 items-center justify-center rounded-2xl border border-slate-300 bg-white px-7 text-base font-black text-slate-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
               >
-                ورود به سامانه
+                ورود به دادیار
               </Link>
             </div>
 
             <div className="mt-8 flex flex-wrap gap-x-5 gap-y-3">
               {[
-                'مدیریت متمرکز',
-                'طراحی ساده',
-                'اطلاعات تفکیک‌شده',
+                'انتخاب وکیل',
+                'رزرو و پیگیری',
+                'قرارداد آنلاین',
+                'تنظیم لایحه',
+                'مدیریت دفتر وکالت',
               ].map(
                 (
                   item
@@ -220,29 +325,25 @@ export default function HomePage() {
                       className="text-emerald-600"
                     />
 
-                    {
-                      item
-                    }
+                    {item}
                   </span>
                 )
               )}
             </div>
           </div>
 
-          {/* Preview */}
-
           <div className="relative">
-            <div className="absolute -inset-4 rounded-[36px] bg-gradient-to-br from-blue-200/50 to-emerald-100/30 blur-2xl" />
+            <div className="absolute -inset-4 rounded-[36px] bg-gradient-to-br from-blue-200/50 to-emerald-100/40 blur-2xl" />
 
             <div className="relative overflow-hidden rounded-[30px] border border-slate-300 bg-white p-5 shadow-2xl shadow-slate-300/50 sm:p-7">
               <div className="flex items-center justify-between border-b border-slate-200 pb-5">
                 <div>
                   <p className="text-sm font-black text-blue-700">
-                    پنل دادیار
+                    دادیار
                   </p>
 
-                  <h2 className="mt-1 text-xl font-black text-slate-950">
-                    مدیریت دفتر در یک نگاه
+                  <h2 className="mt-1 text-xl font-black">
+                    دو مسیر، یک پلتفرم
                   </h2>
                 </div>
 
@@ -253,166 +354,204 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                {[
-                  {
-                    title:
-                      'پرونده‌ها',
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                  <p className="text-xs font-black text-blue-700">
+                    پنل وکلا
+                  </p>
 
-                    value:
-                      'مدیریت کامل',
+                  <ul className="mt-3 space-y-2">
+                    {[
+                      'پرونده و موکل',
+                      'مدیریت مالی',
+                      'قراردادها',
+                      'پیگیری امور دفتر',
+                    ].map(
+                      (
+                        item
+                      ) => (
+                        <li
+                          key={
+                            item
+                          }
+                          className="flex items-center gap-2 text-xs font-bold text-slate-700"
+                        >
+                          <CheckCircle2
+                            size={15}
+                            className="text-blue-600"
+                          />
 
-                    bg:
-                      'bg-blue-50',
+                          {item}
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
 
-                    text:
-                      'text-blue-700',
-                  },
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-xs font-black text-emerald-700">
+                    بخش موکلین
+                  </p>
 
-                  {
-                    title:
-                      'موکلین',
+                  <ul className="mt-3 space-y-2">
+                    {[
+                      'انتخاب وکیل',
+                      'رزرو مشاوره',
+                      'قرارداد آنلاین',
+                      'تنظیم لایحه',
+                    ].map(
+                      (
+                        item
+                      ) => (
+                        <li
+                          key={
+                            item
+                          }
+                          className="flex items-center gap-2 text-xs font-bold text-slate-700"
+                        >
+                          <CheckCircle2
+                            size={15}
+                            className="text-emerald-600"
+                          />
 
-                    value:
-                      'یکپارچه',
-
-                    bg:
-                      'bg-emerald-50',
-
-                    text:
-                      'text-emerald-700',
-                  },
-
-                  {
-                    title:
-                      'گزارش مالی',
-
-                    value:
-                      'شفاف',
-
-                    bg:
-                      'bg-cyan-50',
-
-                    text:
-                      'text-cyan-700',
-                  },
-
-                  {
-                    title:
-                      'پیگیری‌ها',
-
-                    value:
-                      'منظم',
-
-                    bg:
-                      'bg-amber-50',
-
-                    text:
-                      'text-amber-700',
-                  },
-                ].map(
-                  (
-                    item
-                  ) => (
-                    <div
-                      key={
-                        item.title
-                      }
-                      className={`rounded-2xl border border-slate-200 p-4 ${item.bg}`}
-                    >
-                      <p className="text-sm font-bold text-slate-700">
-                        {
-                          item.title
-                        }
-                      </p>
-
-                      <p
-                        className={`mt-2 text-lg font-black ${item.text}`}
-                      >
-                        {
-                          item.value
-                        }
-                      </p>
-                    </div>
-                  )
-                )}
+                          {item}
+                        </li>
+                      )
+                    )}
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-
-
-
       <section
-        id="features"
-        className="border-y border-slate-200 bg-white py-16 sm:py-20"
+        id="lawyers"
+        className="scroll-mt-20 border-y border-slate-200 bg-white py-16 sm:py-20"
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="max-w-2xl">
             <p className="text-sm font-black text-blue-700">
-              امکانات دادیار
+              برای وکلا
             </p>
 
-            <h2 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">
+            <h2 className="mt-2 text-3xl font-black sm:text-4xl">
               ابزارهای اصلی دفتر، کنار هم
             </h2>
 
             <p className="mt-4 text-base font-medium leading-8 text-slate-700">
-              به‌جای نگهداری اطلاعات در چند
-              محل، داده‌های اصلی پرونده و
-              موکل را در یک محیط مدیریت
-              کنید.
+              پرونده‌ها، موکلین، وضعیت مالی و
+              فرآیندهای روزانه دفتر را از یک
+              محیط منظم مدیریت کنید.
             </p>
           </div>
 
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {features.map(
-              ({
-                icon:
-                  Icon,
-
-                title,
-
-                description,
-              }) => (
-                <article
+            {officeFeatures.map(
+              (
+                feature
+              ) => (
+                <FeatureCard
                   key={
-                    title
+                    feature.title
                   }
-                  className="rounded-[24px] border border-slate-300 bg-slate-50 p-6 transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
-                    <Icon
-                      size={24}
-                    />
-                  </div>
-
-                  <h3 className="mt-5 text-lg font-black text-slate-950">
-                    {
-                      title
-                    }
-                  </h3>
-
-                  <p className="mt-3 text-sm font-medium leading-7 text-slate-700">
-                    {
-                      description
-                    }
-                  </p>
-                </article>
+                  feature={
+                    feature
+                  }
+                />
               )
             )}
           </div>
         </div>
       </section>
 
+      <section
+        id="clients"
+        className="scroll-mt-20 py-16 sm:py-20"
+      >
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-sm font-black text-emerald-700">
+                برای موکلین
+              </p>
 
+              <h2 className="mt-2 text-3xl font-black sm:text-4xl">
+                از پیدا کردن وکیل تا تنظیم لایحه
+              </h2>
 
+              <p className="mt-4 text-base font-medium leading-8 text-slate-700">
+                بدون ورود می‌توانید وکلا و
+                خدمات را مشاهده کنید. هنگام
+                ثبت درخواست، رزرو، قرارداد یا
+                ذخیره اطلاعات شخصی، حساب موکل
+                وارد جریان می‌شود.
+              </p>
+            </div>
+
+            <Link
+              href="/client-portal"
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-black text-white"
+            >
+              ورود به بخش موکلین
+
+              <ArrowLeft
+                size={17}
+              />
+            </Link>
+          </div>
+
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {clientServices.map(
+              (
+                service
+              ) => {
+                const Icon =
+                  service.icon
+
+                return (
+                  <Link
+                    key={
+                      service.title
+                    }
+                    href={
+                      service.href
+                    }
+                    className="group rounded-[24px] border border-slate-300 bg-white p-6 transition hover:-translate-y-1 hover:border-emerald-300 hover:shadow-lg"
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 transition group-hover:bg-emerald-600 group-hover:text-white">
+                      <Icon
+                        size={23}
+                      />
+                    </div>
+
+                    <h3 className="mt-5 text-lg font-black">
+                      {service.title}
+                    </h3>
+
+                    <p className="mt-3 text-sm font-medium leading-7 text-slate-600">
+                      {service.description}
+                    </p>
+
+                    <span className="mt-4 inline-flex items-center gap-1 text-xs font-black text-emerald-700">
+                      مشاهده
+
+                      <ArrowLeft
+                        size={14}
+                      />
+                    </span>
+                  </Link>
+                )
+              }
+            )}
+          </div>
+        </div>
+      </section>
 
       <section
         id="workflow"
-        className="py-16 sm:py-20"
+        className="border-y border-slate-200 bg-white py-16 sm:py-20"
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
@@ -420,100 +559,113 @@ export default function HomePage() {
               شروع کار
             </p>
 
-            <h2 className="mt-2 text-3xl font-black text-slate-950">
-              در سه مرحله وارد دادیار شوید
+            <h2 className="mt-2 text-3xl font-black">
+              مسیر مناسب خود را انتخاب کنید
             </h2>
           </div>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {[
-              {
-                number:
-                  '۱',
+          <div className="mt-10 grid gap-5 lg:grid-cols-2">
+            <article className="rounded-[26px] border border-blue-200 bg-blue-50 p-6 sm:p-7">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white">
+                <BriefcaseBusiness
+                  size={23}
+                />
+              </div>
 
-                title:
-                  'پلن را انتخاب کنید',
+              <h3 className="mt-5 text-xl font-black">
+                اگر وکیل هستید
+              </h3>
 
-                description:
-                  'پلن متناسب با نیاز دفتر خود را از بخش پایین انتخاب کنید.',
-              },
+              <ol className="mt-5 space-y-4">
+                <WorkflowStep
+                  number="۱"
+                  text="پلن مورد نیاز دفتر را انتخاب کنید."
+                />
 
-              {
-                number:
-                  '۲',
+                <WorkflowStep
+                  number="۲"
+                  text="وارد حساب وکیل شوید یا حساب جدید بسازید."
+                />
 
-                title:
-                  'حساب وکیل را ایجاد کنید',
+                <WorkflowStep
+                  number="۳"
+                  text="پرونده‌ها، موکلین و امور دفتر را مدیریت کنید."
+                />
+              </ol>
 
-                description:
-                  'وارد حساب فعلی شوید یا حساب جدید خود را بسازید.',
-              },
+              <Link
+                href="/launch"
+                className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
+              >
+                ورود وکلا
 
-              {
-                number:
-                  '۳',
+                <ArrowLeft
+                  size={16}
+                />
+              </Link>
+            </article>
 
-                title:
-                  'مدیریت را شروع کنید',
+            <article className="rounded-[26px] border border-emerald-200 bg-emerald-50 p-6 sm:p-7">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-white">
+                <UsersRound
+                  size={23}
+                />
+              </div>
 
-                description:
-                  'پرونده و موکل ثبت کنید و اطلاعات دفتر را در پنل مدیریت کنید.',
-              },
-            ].map(
-              (
-                step
-              ) => (
-                <article
-                  key={
-                    step.number
-                  }
-                  className="rounded-[24px] border border-slate-300 bg-white p-6 shadow-sm"
-                >
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-lg font-black text-white">
-                    {
-                      step.number
-                    }
-                  </div>
+              <h3 className="mt-5 text-xl font-black">
+                اگر موکل هستید
+              </h3>
 
-                  <h3 className="mt-5 text-lg font-black text-slate-950">
-                    {
-                      step.title
-                    }
-                  </h3>
+              <ol className="mt-5 space-y-4">
+                <WorkflowStep
+                  number="۱"
+                  text="بدون ورود، وکلا و خدمات موجود را بررسی کنید."
+                />
 
-                  <p className="mt-3 text-sm font-medium leading-7 text-slate-700">
-                    {
-                      step.description
-                    }
-                  </p>
-                </article>
-              )
-            )}
+                <WorkflowStep
+                  number="۲"
+                  text="خدمت مورد نظر مانند مشاوره، قرارداد یا تنظیم لایحه را شروع کنید."
+                />
+
+                <WorkflowStep
+                  number="۳"
+                  text="برای ثبت و پیگیری عملیات شخصی، وارد حساب موکل شوید."
+                />
+              </ol>
+
+              <Link
+                href="/client-portal"
+                className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-black text-white"
+              >
+                خدمات موکلین
+
+                <ArrowLeft
+                  size={16}
+                />
+              </Link>
+            </article>
           </div>
         </div>
       </section>
 
-
-
-
       <section
         id="plans"
-        className="border-t border-slate-200 bg-slate-200/60 py-16 sm:py-20"
+        className="bg-slate-200/60 py-16 sm:py-20"
       >
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-sm font-black text-blue-700">
-              پلن‌های دادیار
+              پلن‌های پنل وکلا
             </p>
 
-            <h2 className="mt-2 text-3xl font-black text-slate-950 sm:text-4xl">
+            <h2 className="mt-2 text-3xl font-black sm:text-4xl">
               پلن مناسب دفترت را انتخاب کن
             </h2>
 
             <p className="mt-4 text-base font-medium leading-8 text-slate-700">
-              بعد از انتخاب پلن، انتخاب شما
-              تا صفحه ورود یا ثبت‌نام وکیل
-              حفظ می‌شود.
+              بعد از انتخاب پلن، انتخاب شما تا
+              صفحه ورود یا ثبت‌نام وکیل حفظ
+              می‌شود.
             </p>
           </div>
 
@@ -538,24 +690,18 @@ export default function HomePage() {
                     </span>
                   )}
 
-                  <h3 className="text-xl font-black text-slate-950">
-                    {
-                      plan.title
-                    }
+                  <h3 className="text-xl font-black">
+                    {plan.title}
                   </h3>
 
                   <p className="mt-3 min-h-[56px] text-sm font-medium leading-7 text-slate-700">
-                    {
-                      plan.description
-                    }
+                    {plan.description}
                   </p>
 
                   <div className="my-5 border-y border-slate-200 py-5">
                     <div className="flex items-end gap-2">
-                      <span className="text-3xl font-black text-slate-950">
-                        {
-                          plan.price
-                        }
+                      <span className="text-3xl font-black">
+                        {plan.price}
                       </span>
 
                       <span className="pb-1 text-sm font-bold text-slate-600">
@@ -564,9 +710,7 @@ export default function HomePage() {
                     </div>
 
                     <p className="mt-2 text-sm font-black text-blue-700">
-                      {
-                        plan.period
-                      }
+                      {plan.period}
                     </p>
                   </div>
 
@@ -586,9 +730,7 @@ export default function HomePage() {
                             className="shrink-0 text-emerald-600"
                           />
 
-                          {
-                            feature
-                          }
+                          {feature}
                         </li>
                       )
                     )}
@@ -602,9 +744,7 @@ export default function HomePage() {
                         : 'border border-slate-300 bg-slate-900 text-white hover:bg-slate-800'
                     }`}
                   >
-                    {
-                      plan.action
-                    }
+                    {plan.action}
                   </Link>
                 </article>
               )
@@ -612,21 +752,17 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-      
-
 
       <footer className="border-t border-slate-700 bg-slate-900 py-8 text-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-            {/* Brand */}
-
             <div>
               <p className="text-lg font-black">
                 دادیار
               </p>
 
               <p className="mt-1 text-sm font-medium text-slate-300">
-                مدیریت ساده‌تر دفتر وکالت
+                مدیریت دفتر و خدمات حقوقی موکلین
               </p>
 
               <p className="mt-4 text-xs font-medium text-slate-500">
@@ -634,21 +770,17 @@ export default function HomePage() {
               </p>
             </div>
 
-
-
             <a
               href={
                 ENAMAD_TRUST_URL
               }
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener"
               referrerPolicy="origin"
               aria-label="مشاهده و بررسی اعتبار نماد اعتماد الکترونیکی دادیار در سایت رسمی اینماد"
               title="بررسی اعتبار نماد اعتماد الکترونیکی دادیار"
               className="group flex w-full items-center gap-3 rounded-2xl border border-slate-700 bg-slate-800/80 p-3 transition hover:border-emerald-500/60 hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 sm:w-[270px]"
             >
-
-
               <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-400/15 to-blue-500/15">
                 <svg
                   viewBox="0 0 64 64"
@@ -656,7 +788,6 @@ export default function HomePage() {
                   height="44"
                   role="img"
                   aria-label="نشان بررسی نماد اعتماد الکترونیکی"
-                  className="overflow-visible"
                 >
                   <path
                     d="M32 5L51 12V28C51 41.2 43.1 52.9 32 58C20.9 52.9 13 41.2 13 28V12L32 5Z"
@@ -677,39 +808,22 @@ export default function HomePage() {
                     strokeLinejoin="round"
                     className="text-blue-300"
                   />
-
-                  <circle
-                    cx="32"
-                    cy="31"
-                    r="22"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeDasharray="2 5"
-                    className="text-slate-500/50"
-                  />
                 </svg>
               </span>
 
               <span className="min-w-0 text-right">
-                <span className="block text-sm font-black text-white">
+                <span className="block text-sm font-black">
                   نماد اعتماد الکترونیکی
                 </span>
 
                 <span className="mt-1 block text-xs font-semibold leading-5 text-slate-400 transition group-hover:text-slate-300">
-                  مشاهده و بررسی اعتبار در
-                  سایت رسمی اینماد
+                  مشاهده و بررسی اعتبار در سایت رسمی اینماد
                 </span>
 
                 <span className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-black text-emerald-400">
                   بررسی اعتبار
-
-                  <span
-                    aria-hidden="true"
-                    className="transition-transform group-hover:-translate-x-0.5"
-                  >
-                    ←
-                  </span>
+                  {' '}
+                  ←
                 </span>
               </span>
             </a>
@@ -719,5 +833,56 @@ export default function HomePage() {
 
       <PublicSupportButton />
     </main>
+  )
+}
+
+function FeatureCard({
+  feature,
+}: {
+  feature:
+    FeatureItem
+}) {
+  const Icon =
+    feature.icon
+
+  return (
+    <article className="rounded-[24px] border border-slate-300 bg-slate-50 p-6 transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-lg">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+        <Icon
+          size={24}
+        />
+      </div>
+
+      <h3 className="mt-5 text-lg font-black">
+        {feature.title}
+      </h3>
+
+      <p className="mt-3 text-sm font-medium leading-7 text-slate-700">
+        {feature.description}
+      </p>
+    </article>
+  )
+}
+
+function WorkflowStep({
+  number,
+  text,
+}: {
+  number:
+    string
+
+  text:
+    string
+}) {
+  return (
+    <li className="flex items-start gap-3">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-slate-800">
+        {number}
+      </span>
+
+      <p className="pt-0.5 text-sm font-bold leading-6 text-slate-700">
+        {text}
+      </p>
+    </li>
   )
 }

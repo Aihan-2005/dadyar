@@ -18,9 +18,11 @@ import {
   ChevronDown,
   FileText,
   Filter,
+  ListChecks,
   LogIn,
   LogOut,
   MapPin,
+  PenLine,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -30,23 +32,9 @@ import {
   X,
 } from 'lucide-react'
 
+import ClientServiceHub from '@/components/client-portal/ClientServiceHub'
 import LawyerCard from '@/components/client-portal/LawyerCard'
 import LawyerContactModal from '@/components/client-portal/LawyerContactModal'
-
-import {
-  MOCK_LAWYERS,
-} from '@/features/client-portal/data/mock-lawyers'
-
-import {
-  filterLawyers,
-  getLawyerCities,
-  getLawyerSpecialties,
-} from '@/features/client-portal/utils/lawyer-filters'
-
-import type {
-  ClientPortalLawyer,
-  LawyerDirectoryFilters,
-} from '@/features/client-portal/types/lawyer'
 
 import {
   clearClientPortalSession,
@@ -55,14 +43,40 @@ import {
   type ClientPortalAccount,
 } from '@/features/client-portal/auth/client-session'
 
+import {
+  MOCK_LAWYERS,
+} from '@/features/client-portal/data/mock-lawyers'
+
+import type {
+  ClientPortalLawyer,
+  LawyerDirectoryFilters,
+} from '@/features/client-portal/types/lawyer'
+
+import {
+  filterLawyers,
+  getLawyerCities,
+  getLawyerSpecialties,
+} from '@/features/client-portal/utils/lawyer-filters'
+
 const DEFAULT_FILTERS:
   LawyerDirectoryFilters = {
-    search: '',
-    city: '',
-    specialty: '',
-    consultationMode: 'all',
-    acceptsNewClientsOnly: false,
-    sort: 'recommended',
+    search:
+      '',
+
+    city:
+      '',
+
+    specialty:
+      '',
+
+    consultationMode:
+      'all',
+
+    acceptsNewClientsOnly:
+      false,
+
+    sort:
+      'recommended',
   }
 
 export default function ClientPortalPage() {
@@ -86,7 +100,9 @@ export default function ClientPortalPage() {
     showMobileFilters,
     setShowMobileFilters,
   ] =
-    useState(false)
+    useState(
+      false
+    )
 
   const [
     selectedLawyer,
@@ -136,14 +152,18 @@ export default function ClientPortalPage() {
           MOCK_LAWYERS,
           filters
         ),
-      [filters]
+      [
+        filters,
+      ]
     )
 
   const acceptingCount =
     useMemo(
       () =>
         MOCK_LAWYERS.filter(
-          (lawyer) =>
+          (
+            lawyer
+          ) =>
             lawyer.acceptsNewClients
         ).length,
       []
@@ -152,27 +172,37 @@ export default function ClientPortalPage() {
   const activeFilterCount =
     [
       filters.city,
+
       filters.specialty,
+
       filters.consultationMode !==
       'all'
         ? filters.consultationMode
         : '',
+
       filters.acceptsNewClientsOnly
         ? 'accepting'
         : '',
-    ].filter(Boolean).length
+    ].filter(
+      Boolean
+    ).length
 
   const updateFilter = <
     K extends keyof LawyerDirectoryFilters,
   >(
-    key: K,
+    key:
+      K,
+
     value:
       LawyerDirectoryFilters[K]
   ) => {
     setFilters(
-      (current) => ({
+      (
+        current
+      ) => ({
         ...current,
-        [key]: value,
+        [key]:
+          value,
       })
     )
   }
@@ -191,7 +221,7 @@ export default function ClientPortalPage() {
         className="min-h-dvh bg-slate-100 text-slate-950"
       >
         <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-white/95 backdrop-blur-xl">
-          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
             <Link
               href="/client-portal"
               className="flex items-center gap-3"
@@ -206,33 +236,62 @@ export default function ClientPortalPage() {
                 </p>
 
                 <p className="text-xs font-semibold text-slate-500">
-                  انتخاب وکیل
+                  خدمات موکلین
                 </p>
               </div>
             </Link>
 
             {account ? (
               <div className="flex items-center gap-2">
-                <div className="hidden text-left md:block">
-                  <p className="text-xs font-bold text-slate-500">
+                <div className="hidden text-left lg:block">
+                  <p className="text-[10px] font-bold text-slate-500">
                     حساب موکل
                   </p>
 
-                  <p className="text-sm font-black text-slate-800">
+                  <p className="text-xs font-black text-slate-800">
                     {account.fullName}
                   </p>
                 </div>
 
                 <Link
+                  href="/client-portal/requests"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 sm:w-auto sm:px-3"
+                  title="درخواست‌های من"
+                >
+                  <ListChecks
+                    size={16}
+                  />
+
+                  <span className="mr-2 hidden xl:inline">
+                    درخواست‌ها
+                  </span>
+                </Link>
+
+                <Link
+                  href="/client-portal/petitions"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-700 sm:w-auto sm:px-3"
+                  title="لوایح من"
+                >
+                  <PenLine
+                    size={16}
+                  />
+
+                  <span className="mr-2 hidden xl:inline">
+                    لوایح
+                  </span>
+                </Link>
+
+                <Link
                   href="/client-portal/contracts"
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 text-sm font-black text-blue-700"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-700 sm:w-auto sm:px-3"
+                  title="قراردادهای من"
                 >
                   <FileText
                     size={16}
                   />
 
-                  <span className="hidden sm:inline">
-                    قراردادهای من
+                  <span className="mr-2 hidden xl:inline">
+                    قراردادها
                   </span>
                 </Link>
 
@@ -280,7 +339,16 @@ export default function ClientPortalPage() {
         </header>
 
         <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-9 lg:px-8">
-          <section className="relative overflow-hidden rounded-[28px] border border-blue-200 bg-gradient-to-l from-blue-50 via-white to-emerald-50 p-6 shadow-sm sm:p-8 lg:p-10">
+          <ClientServiceHub
+            account={
+              account
+            }
+          />
+
+          <section
+            id="lawyers"
+            className="relative mt-6 scroll-mt-24 overflow-hidden rounded-[28px] border border-blue-200 bg-gradient-to-l from-blue-50 via-white to-emerald-50 p-6 shadow-sm sm:p-8 lg:p-10"
+          >
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-blue-200/30 blur-3xl" />
               <div className="absolute -bottom-24 -right-16 h-64 w-64 rounded-full bg-emerald-200/25 blur-3xl" />
@@ -292,11 +360,11 @@ export default function ClientPortalPage() {
                   size={15}
                 />
 
-                وکلای دادیار
+                انتخاب وکیل
               </span>
 
               <h1 className="mt-4 max-w-3xl text-3xl font-black leading-[1.4] sm:text-4xl">
-                وکیل مناسب پرونده‌ات را
+                وکیل مناسب موضوعت را
                 {' '}
                 <span className="text-blue-700">
                   دقیق‌تر پیدا کن
@@ -304,10 +372,12 @@ export default function ClientPortalPage() {
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm font-semibold leading-8 text-slate-600 sm:text-base">
-                بر اساس تخصص، شهر، شیوه
-                مشاوره، سابقه و نظرات کاربران
-                وکیل مورد نظر خود را انتخاب
-                کنید.
+                وکلا را بر اساس تخصص، شهر،
+                شیوه مشاوره، سابقه و نظرات
+                مقایسه کنید؛ سپس درخواست
+                بررسی، رزرو مشاوره یا قرارداد
+                آنلاین را از پروفایل همان
+                وکیل شروع کنید.
               </p>
 
               <div className="mt-7 max-w-3xl">
@@ -521,7 +591,9 @@ export default function ClientPortalPage() {
               0 ? (
                 <div className="mt-5 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {lawyers.map(
-                    (lawyer) => (
+                    (
+                      lawyer
+                    ) => (
                       <LawyerCard
                         key={
                           lawyer.id
@@ -647,8 +719,11 @@ function FilterHeader({
   activeCount,
   onReset,
 }: {
-  activeCount: number
-  onReset: () => void
+  activeCount:
+    number
+
+  onReset:
+    () => void
 }) {
   return (
     <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
@@ -702,14 +777,21 @@ function LawyerFilterFields({
   specialties,
   updateFilter,
 }: {
-  filters: LawyerDirectoryFilters
-  cities: string[]
-  specialties: string[]
+  filters:
+    LawyerDirectoryFilters
+
+  cities:
+    string[]
+
+  specialties:
+    string[]
 
   updateFilter: <
     K extends keyof LawyerDirectoryFilters,
   >(
-    key: K,
+    key:
+      K,
+
     value:
       LawyerDirectoryFilters[K]
   ) => void
@@ -738,7 +820,9 @@ function LawyerFilterFields({
           </option>
 
           {cities.map(
-            (city) => (
+            (
+              city
+            ) => (
               <option
                 key={
                   city
@@ -776,7 +860,9 @@ function LawyerFilterFields({
           </option>
 
           {specialties.map(
-            (specialty) => (
+            (
+              specialty
+            ) => (
               <option
                 key={
                   specialty
@@ -863,8 +949,11 @@ function FilterField({
   label,
   children,
 }: {
-  label: string
-  children: ReactNode
+  label:
+    string
+
+  children:
+    ReactNode
 }) {
   return (
     <div>
@@ -880,7 +969,8 @@ function FilterField({
 function EmptyState({
   onReset,
 }: {
-  onReset: () => void
+  onReset:
+    () => void
 }) {
   return (
     <div className="mt-5 rounded-[24px] border border-dashed border-slate-300 bg-white px-5 py-14 text-center">
@@ -916,9 +1006,14 @@ function StatCard({
   icon:
     Icon,
 }: {
-  label: string
-  value: number
-  icon: LucideIcon
+  label:
+    string
+
+  value:
+    number
+
+  icon:
+    LucideIcon
 }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
