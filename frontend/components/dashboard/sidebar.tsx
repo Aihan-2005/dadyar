@@ -1,5 +1,8 @@
 'use client'
-
+import {
+  useEffect,
+  useState,
+} from 'react'
 import Link from 'next/link'
 
 import {
@@ -11,11 +14,17 @@ import {
   FileText,
   FolderOpen,
   LayoutDashboard,
+  MessageSquareText,
   NotebookPen,
   Ticket,
   UsersRound,
   X,
 } from 'lucide-react'
+
+import {
+  getAllLawyerRequests,
+  subscribeClientLawyerRequests,
+} from '@/features/client-portal/data/client-communication.repository'
 
 import SupportButton from './support'
 
@@ -51,6 +60,21 @@ export default function DashboardSidebar({
         'unread'
     ).length
 
+    const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
+
+      useEffect(() => {
+        const reload = () => {
+          const count = getAllLawyerRequests().filter(
+            (record) => record.status === 'submitted'
+          ).length
+
+          setPendingRequestsCount(count)
+        }
+
+        reload()
+
+        return subscribeClientLawyerRequests(reload)
+      }, [])
 
     
 
@@ -254,7 +278,33 @@ export default function DashboardSidebar({
               )
             }
           )}
+          <Link
+          href="/dashboard/client-requests"
+          onClick={handleNavClick}
+          className={`group flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-black transition ${
+            pathname.startsWith('/dashboard/client-requests')
+              ? 'bg-gradient-to-l from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-200'
+              : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+          }`}
+        >
+          <div
+            className={`relative flex h-9 w-9 items-center justify-center rounded-xl ${
+              pathname.startsWith('/dashboard/client-requests')
+                ? 'bg-white/15'
+                : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
+            }`}
+          >
+            <MessageSquareText size={20} />
 
+            {pendingRequestsCount > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-white">
+                {pendingRequestsCount > 99 ? '99+' : pendingRequestsCount}
+              </span>
+            )}
+          </div>
+
+          ارتباط با موکلین
+        </Link>
 
           <Link
             href="/dashboard/notifications"
@@ -318,14 +368,7 @@ export default function DashboardSidebar({
               </div>
             </Link>
           </div>
-        </nav>
-
-        {/* ==========================================================
-         * Tickets
-         * ======================================================== */}
-
-        <div className="px-4 pb-2">
-          <Link
+                    <Link
             href="/dashboard/tickets"
             onClick={
               handleNavClick
@@ -350,7 +393,8 @@ export default function DashboardSidebar({
 
             سوالات و پیشنهادات (تیکت)
           </Link>
-        </div>
+        </nav>
+
 
         {/* Support */}
 

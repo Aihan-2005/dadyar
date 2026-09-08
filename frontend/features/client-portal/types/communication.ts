@@ -59,6 +59,7 @@ export type ClientLawyerRequestStatus =
   | 'under_review'
   | 'confirmed'
   | 'completed'
+  |  'declined'
   | 'cancelled'
 
   

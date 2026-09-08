@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Paperclip, Send, HelpCircle, Check } from 'lucide-react'
-
+import { ChevronDown, Paperclip, Send, HelpCircle, Check, Loader2 } from 'lucide-react'
+import type { TicketType } from '@/types/ticket'
 import { DashboardPageHeader } from '@/components/dashboard/DashboardPageHeader'
 import { createTicketApi, getTicketApiErrorMessage } from '@/features/tickets/api/ticket.api'
-import type { TicketPurpose } from '@/types/ticket'
+import { ListChecks } from 'lucide-react'
+import Link from 'next/link'
+
 const FAQ_ITEMS = [
   {
     id: 'change-password',
@@ -42,30 +44,30 @@ const FAQ_ITEMS = [
   },
 ]
 
-const PURPOSE_OPTIONS = [
+const TYPE_OPTIONS = [
   { value: 'bug', label: 'باگ (خطا یا مشکل)' },
   { value: 'suggestion', label: 'پیشنهاد' },
 ] as const
-
-type Purpose = (typeof PURPOSE_OPTIONS)[number]['value']
 
 export default function TicketsPage() {
   const [openFaqId, setOpenFaqId] = useState<string | null>(null)
 
   const [title, setTitle] = useState('')
-  const [purpose, setPurpose] = useState<Purpose | ''>('')
+  const [type, setType] = useState<TicketType | ''>('')
   const [description, setDescription] = useState('')
   const [file, setFile] = useState<File | null>(null)
 
-  const [isPurposeOpen, setIsPurposeOpen] = useState(false)
-  const purposeRef = useRef<HTMLDivElement>(null)
+  const [isTypeOpen, setIsTypeOpen] = useState(false)
+  const typeRef = useRef<HTMLDivElement>(null)
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitSuccess, setSubmitSuccess] = useState(false)
-    useEffect(() => {
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (purposeRef.current && !purposeRef.current.contains(event.target as Node)) {
-        setIsPurposeOpen(false)
+      if (typeRef.current && !typeRef.current.contains(event.target as Node)) {
+        setIsTypeOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -76,13 +78,25 @@ export default function TicketsPage() {
     setOpenFaqId((current) => (current === id ? null : id))
   }
 
+  const [fileError, setFileError] = useState<string | null>(null)
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setFile(event.target.files?.[0] ?? null)
+    const selectedFile = event.target.files?.[0] ?? null
+
+    if (selectedFile && selectedFile.size > MAX_ATTACHMENT_SIZE_BYTES) {
+      setFileError('حجم فایل بیشتر از حد مجاز (۲ مگابایت) است.')
+      setFile(null)
+      event.target.value = ''
+      return
+    }
+
+    setFileError(null)
+    setFile(selectedFile)
   }
 
   const resetForm = () => {
     setTitle('')
-    setPurpose('')
+    setType('')
     setDescription('')
     setFile(null)
   }
@@ -90,14 +104,17 @@ export default function TicketsPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    if (!purpose) return
-
     setIsSubmitting(true)
     setSubmitError(null)
     setSubmitSuccess(false)
 
     try {
-      await createTicketApi({ title, purpose, description, attachment: file })
+      await createTicketApi({
+        title,
+        description,
+        type: type || undefined,
+        attachment: file,
+      })
       setSubmitSuccess(true)
       resetForm()
     } catch (error) {
@@ -107,14 +124,21 @@ export default function TicketsPage() {
     }
   }
 
-  const selectedPurposeLabel = PURPOSE_OPTIONS.find((option) => option.value === purpose)?.label
+  const selectedTypeLabel = TYPE_OPTIONS.find((option) => option.value === type)?.label
+  const MAX_ATTACHMENT_SIZE_BYTES = 2 * 1024 * 1024
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <DashboardPageHeader
         title="سوالات و پیشنهادات (تیکت)"
         description="پاسخ سوالات رایج را ببینید یا برای ما تیکت جدید ثبت کنید"
       />
-
+      <Link
+        href="/dashboard/tickets/list"
+        className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
+      >
+        <ListChecks size={16} />
+        تیکت‌های قبلی من
+      </Link>
       {/* بخش سوالات متداول */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/60">
         <div className="flex items-center gap-3 border-b border-slate-100 px-6 py-5">
@@ -144,16 +168,14 @@ export default function TicketsPage() {
 
                   <ChevronDown
                     size={18}
-                    className={`shrink-0 text-slate-400 transition-transform duration-200 ${
-                      isOpen ? 'rotate-180 text-blue-600' : ''
-                    }`}
+                    className={`shrink-0 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-blue-600' : ''
+                      }`}
                   />
                 </button>
 
                 <div
-                  className={`grid overflow-hidden transition-all duration-300 ease-in-out ${
-                    isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-                  }`}
+                  className={`grid overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                    }`}
                 >
                   <div className="min-h-0 bg-slate-50/60 px-6 pb-5 pt-1 text-sm leading-7 text-slate-500">
                     {item.answer}
@@ -171,6 +193,18 @@ export default function TicketsPage() {
           ثبت تیکت جدید
         </h2>
 
+        {submitSuccess && (
+          <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+            تیکت ثبت شد (درخواست شما ثبت شد و به زودی بررسی می‌شود)
+          </div>
+        )}
+
+        {submitError && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            {submitError}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="mb-2 block text-sm font-bold text-slate-700">
@@ -187,34 +221,32 @@ export default function TicketsPage() {
             />
           </div>
 
-          <div ref={purposeRef} className="relative">
+          <div ref={typeRef} className="relative">
             <label className="mb-2 block text-sm font-bold text-slate-700">
               هدف
             </label>
 
             <button
               type="button"
-              onClick={() => setIsPurposeOpen((current) => !current)}
-              className={`flex w-full items-center justify-between rounded-xl border bg-slate-50/60 px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-4 focus:ring-blue-500/10 ${
-                isPurposeOpen
+              onClick={() => setIsTypeOpen((current) => !current)}
+              className={`flex w-full items-center justify-between rounded-xl border bg-slate-50/60 px-4 py-3 text-sm transition-colors focus:outline-none focus:ring-4 focus:ring-blue-500/10 ${isTypeOpen
                   ? 'border-blue-500 bg-white'
                   : 'border-slate-200'
-              } ${selectedPurposeLabel ? 'text-slate-800' : 'text-slate-400'}`}
+                } ${selectedTypeLabel ? 'text-slate-800' : 'text-slate-400'}`}
             >
-              {selectedPurposeLabel ?? 'انتخاب کنید'}
+              {selectedTypeLabel ?? 'انتخاب کنید'}
 
               <ChevronDown
                 size={16}
-                className={`shrink-0 text-slate-400 transition-transform duration-200 ${
-                  isPurposeOpen ? 'rotate-180 text-blue-600' : ''
-                }`}
+                className={`shrink-0 text-slate-400 transition-transform duration-200 ${isTypeOpen ? 'rotate-180 text-blue-600' : ''
+                  }`}
               />
             </button>
 
             {/* select مخفی برای حفظ اعتبارسنجی و رفتار فرم */}
             <select
-              value={purpose}
-              onChange={(event) => setPurpose(event.target.value as Purpose)}
+              value={type}
+              onChange={(event) => setType(event.target.value as TicketType)}
               required
               tabIndex={-1}
               aria-hidden="true"
@@ -223,7 +255,7 @@ export default function TicketsPage() {
               <option value="" disabled>
                 انتخاب کنید
               </option>
-              {PURPOSE_OPTIONS.map((option) => (
+              {TYPE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -231,25 +263,24 @@ export default function TicketsPage() {
             </select>
 
             <div
-              className={`absolute z-10 mt-2 w-full origin-top overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/80 transition-all duration-200 ease-out ${
-                isPurposeOpen
+              className={`absolute z-10 mt-2 w-full origin-top overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/80 transition-all duration-200 ease-out ${isTypeOpen
                   ? 'scale-100 opacity-100'
                   : 'pointer-events-none scale-95 opacity-0'
-              }`}
+                }`}
             >
-              {PURPOSE_OPTIONS.map((option) => (
+              {TYPE_OPTIONS.map((option) => (
                 <button
                   key={option.value}
                   type="button"
                   onClick={() => {
-                    setPurpose(option.value)
-                    setIsPurposeOpen(false)
+                    setType(option.value)
+                    setIsTypeOpen(false)
                   }}
                   className="flex w-full items-center justify-between gap-2 px-4 py-3 text-right text-sm text-slate-700 transition-colors hover:bg-blue-50 hover:text-blue-700"
                 >
                   {option.label}
 
-                  {purpose === option.value && (
+                  {type === option.value && (
                     <Check size={15} className="text-blue-600" />
                   )}
                 </button>
@@ -293,18 +324,25 @@ export default function TicketsPage() {
               className="hidden"
               accept=".jpg,.jpeg,.png,.gif,.txt,.xls,.xlsx,.pdf,.doc,.docx,.zip,.rar"
             />
-
             <p className="mt-2 text-xs text-slate-400">
-              فایل‌های قابل قبول: jpg، png، pdf، doc، docx، xls، xlsx، zip، rar
+              فایل‌های قابل قبول: jpg، png، pdf، doc، docx، xls، xlsx، zip، rar (حداکثر حجم: ۲ مگابایت)
             </p>
+            {fileError && (
+              <p className="mt-2 text-xs font-medium text-red-600">{fileError}</p>
+            )}
           </div>
 
           <button
             type="submit"
-            className="inline-flex h-12 items-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-black text-white shadow-md shadow-blue-600/20 transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/30 active:scale-[0.98]"
+            disabled={isSubmitting}
+            className="inline-flex h-12 items-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-black text-white shadow-md shadow-blue-600/20 transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <Send size={17} />
-            ثبت تیکت
+            {isSubmitting ? (
+              <Loader2 size={17} className="animate-spin" />
+            ) : (
+              <Send size={17} />
+            )}
+            {isSubmitting ? 'در حال ارسال...' : 'ثبت تیکت'}
           </button>
         </form>
       </div>

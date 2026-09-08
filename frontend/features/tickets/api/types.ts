@@ -4,23 +4,30 @@ export interface ApiEnvelope<T> {
   message?: string
 }
 
-export type ApiTicketPurpose = 'BUG' | 'SUGGESTION'
-export type ApiTicketStatus = 'OPEN' | 'IN_PROGRESS' | 'CLOSED'
+export type ApiTicketType = 'BUG' | 'SUGGESTION'
 
-export interface ApiCreateTicketRequest {
-  title: string
-  purpose: ApiTicketPurpose
-  description: string
-  attachment?: File
-}
+export type ApiTicketStatus =
+  | 'OPEN'
+  | 'IN_PROGRESS'
+  | 'WAITING_FOR_LAWYER'
+  | 'RESOLVED'
+  | 'CLOSED'
 
 export interface ApiTicketRecord {
   _id: string
   title: string
-  purpose: ApiTicketPurpose
-  description: string
-  attachmentUrl?: string
+  type?: ApiTicketType
   status: ApiTicketStatus
   createdAt: string
   updatedAt: string
+}
+
+export interface ApiTicketMessageRecord {
+  _id: string
+  ticketId: string
+  senderId: string
+  senderType: 'LAWYER' | 'ADMIN'
+  message: string
+  attachmentId?: string
+  createdAt: string
 }

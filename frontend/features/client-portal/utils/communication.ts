@@ -142,6 +142,9 @@ export const REQUEST_STATUS_LABELS:
     completed:
       'انجام شده',
 
+    declined:
+        'رد شده',  
+
     cancelled:
       'لغو شده',
   }
@@ -163,6 +166,9 @@ export function getRequestStatusClassName(
     case 'completed':
       return 'border-emerald-200 bg-emerald-50 text-emerald-700'
 
+    case 'declined':
+      return 'border-red-200 bg-red-50 text-red-700'  
+      
     case 'cancelled':
       return 'border-slate-200 bg-slate-100 text-slate-500'
   }
