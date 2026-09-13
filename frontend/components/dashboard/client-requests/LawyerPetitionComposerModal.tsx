@@ -3,6 +3,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 
@@ -10,16 +11,23 @@ import {
   CheckCircle2,
   Copy,
   FileText,
+  Loader2,
   Printer,
   Save,
+  Search,
   ShieldCheck,
+  UserRound,
   X,
 } from 'lucide-react'
 
 import {
-  deleteLawyerPetition,
-  saveLawyerPetition,
-} from '@/features/dashboard/petitions/lawyer-petition.repository'
+  deletePetitionApi,
+  getPetitionApiErrorMessage,
+  savePetitionApi,
+} from '@/features/dashboard/petitions/api/petition.api'
+
+import { fetchClientsApi } from '@/features/clients/api/client.api'
+import type { Client } from '@/types/client'
 
 import type {
   LawyerPetitionDraft,
@@ -43,7 +51,6 @@ import {
 interface LawyerPetitionComposerModalProps {
   petition: LawyerPetitionRecord | null
   creating: boolean
-  lawyerId: string
   onClose: () => void
   onUpdated: () => void
 }
@@ -56,6 +63,7 @@ const TEXTAREA_CLASS =
 
 function createEmptyDraft(): LawyerPetitionDraft {
   return {
+    clientId: '',
     clientName: '',
     templateKey: 'defense',
     authorityName: '',
@@ -76,6 +84,7 @@ function createEmptyDraft(): LawyerPetitionDraft {
 
 function recordToDraft(record: LawyerPetitionRecord): LawyerPetitionDraft {
   return {
+    clientId: record.clientId,
     clientName: record.clientName,
     templateKey: record.templateKey,
     authorityName: record.authorityName,
@@ -97,7 +106,6 @@ function recordToDraft(record: LawyerPetitionRecord): LawyerPetitionDraft {
 export default function LawyerPetitionComposerModal({
   petition,
   creating,
-  lawyerId,
   onClose,
   onUpdated,
 }: LawyerPetitionComposerModalProps) {
@@ -108,6 +116,15 @@ export default function LawyerPetitionComposerModal({
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  // --- جستجوی زنده‌ی موکل ---
+  const [clientQuery, setClientQuery] = useState('')
+  const [clientResults, setClientResults] = useState<Client[]>([])
+  const [clientSearchOpen, setClientSearchOpen] = useState(false)
+  const [clientSearchLoading, setClientSearchLoading] = useState(false)
+  const clientSearchDebounce = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
+
   const open = creating || Boolean(petition)
 
   useEffect(() => {
@@ -115,13 +132,17 @@ export default function LawyerPetitionComposerModal({
       const nextDraft = recordToDraft(petition)
       setDraft(nextDraft)
       setEvidenceText(nextDraft.evidence.join('\n'))
+      setClientQuery(nextDraft.clientName)
     } else if (creating) {
       setDraft(createEmptyDraft())
       setEvidenceText('')
+      setClientQuery('')
     }
 
     setShowPreview(false)
     setError(null)
+    setClientSearchOpen(false)
+    setClientResults([])
   }, [petition, creating])
 
   useEffect(() => {
@@ -134,6 +155,39 @@ export default function LawyerPetitionComposerModal({
       document.body.style.overflow = previousOverflow
     }
   }, [open])
+
+  useEffect(() => {
+    if (clientSearchDebounce.current) {
+      clearTimeout(clientSearchDebounce.current)
+    }
+
+    const query = clientQuery.trim()
+
+    if (!clientSearchOpen || query.length < 2) {
+      setClientResults([])
+      setClientSearchLoading(false)
+      return
+    }
+
+    setClientSearchLoading(true)
+
+    clientSearchDebounce.current = setTimeout(async () => {
+      try {
+        const result = await fetchClientsApi({ search: query, limit: 8 })
+        setClientResults(result.items)
+      } catch {
+        setClientResults([])
+      } finally {
+        setClientSearchLoading(false)
+      }
+    }, 350)
+
+    return () => {
+      if (clientSearchDebounce.current) {
+        clearTimeout(clientSearchDebounce.current)
+      }
+    }
+  }, [clientQuery, clientSearchOpen])
 
   const previewText = useMemo(
     () =>
@@ -159,6 +213,14 @@ export default function LawyerPetitionComposerModal({
     setError(null)
   }
 
+  const handleSelectClient = (client: Client) => {
+    updateField('clientId', client.id)
+    updateField('clientName', client.fullName)
+    setClientQuery(client.fullName)
+    setClientSearchOpen(false)
+    setClientResults([])
+  }
+
   const buildFinalDraft = (): LawyerPetitionDraft => ({
     ...draft,
     evidence: evidenceText
@@ -167,30 +229,30 @@ export default function LawyerPetitionComposerModal({
       .filter(Boolean),
   })
 
-  const handleSave = (status: ClientPetitionStatus) => {
-    setBusy(true)
+  const handleSave = async (status: ClientPetitionStatus) => {
     setError(null)
 
-    try {
-      saveLawyerPetition(
-        lawyerId,
-        buildFinalDraft(),
-        status,
-        petition?.id
-      )
+    if (!draft.clientId) {
+      setError('یک موکل را از لیست انتخاب کنید.')
+      return
+    }
 
+    setBusy(true)
+
+    try {
+      await savePetitionApi(buildFinalDraft(), status, petition?.id)
       onUpdated()
       onClose()
     } catch (caughtError) {
       setError(
-        caughtError instanceof Error ? caughtError.message : 'ذخیره لایحه انجام نشد.'
+        getPetitionApiErrorMessage(caughtError, 'ذخیره لایحه انجام نشد.')
       )
     } finally {
       setBusy(false)
     }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!petition) return
 
     const confirmed = window.confirm('این لایحه حذف شود؟')
@@ -200,12 +262,12 @@ export default function LawyerPetitionComposerModal({
     setError(null)
 
     try {
-      deleteLawyerPetition(petition.id, lawyerId)
+      await deletePetitionApi(petition.id)
       onUpdated()
       onClose()
     } catch (caughtError) {
       setError(
-        caughtError instanceof Error ? caughtError.message : 'حذف لایحه انجام نشد.'
+        getPetitionApiErrorMessage(caughtError, 'حذف لایحه انجام نشد.')
       )
     } finally {
       setBusy(false)
@@ -328,18 +390,81 @@ export default function LawyerPetitionComposerModal({
         <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
           {!showPreview ? (
             <div className="space-y-4">
-              <label className="block">
+              <div className="relative">
                 <span className="mb-2 block text-sm font-black text-slate-700">
-                  نام موکل
+                  موکل
                 </span>
 
-                <input
-                  value={draft.clientName}
-                  onChange={(event) => updateField('clientName', event.target.value)}
-                  placeholder="نام و نام خانوادگی موکل"
-                  className={INPUT_CLASS}
-                />
-              </label>
+                <div className="relative">
+                  <Search
+                    size={17}
+                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+
+                  <input
+                    value={clientQuery}
+                    onChange={(event) => {
+                      setClientQuery(event.target.value)
+                      setClientSearchOpen(true)
+
+                      if (draft.clientId) {
+                        updateField('clientId', '')
+                        updateField('clientName', '')
+                      }
+                    }}
+                    onFocus={() => setClientSearchOpen(true)}
+                    placeholder="جستجو بر اساس نام یا شماره موبایل موکل..."
+                    className={`${INPUT_CLASS} pr-11`}
+                  />
+
+                  {clientSearchLoading && (
+                    <Loader2
+                      size={16}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
+                    />
+                  )}
+                </div>
+
+                {clientSearchOpen && clientQuery.trim().length >= 2 && (
+                  <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                    {clientSearchLoading ? (
+                      <p className="px-4 py-3 text-xs font-semibold text-slate-400">
+                        در حال جستجو...
+                      </p>
+                    ) : clientResults.length > 0 ? (
+                      clientResults.map((client) => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          onClick={() => handleSelectClient(client)}
+                          className="flex w-full items-center gap-3 px-4 py-3 text-right transition hover:bg-slate-50"
+                        >
+                          <UserRound size={16} className="shrink-0 text-blue-600" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-black text-slate-800">
+                              {client.fullName}
+                            </span>
+                            <span dir="ltr" className="block text-right text-xs text-slate-400">
+                              {client.phoneNumber}
+                            </span>
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-4 py-3 text-xs font-semibold text-slate-400">
+                        موکلی پیدا نشد.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {draft.clientId && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+                    <CheckCircle2 size={14} />
+                    موکل انتخاب‌شده: {draft.clientName}
+                  </p>
+                )}
+              </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">
@@ -604,7 +729,7 @@ export default function LawyerPetitionComposerModal({
             <button
               type="button"
               disabled={busy}
-              onClick={handleDelete}
+              onClick={() => void handleDelete()}
               className="flex h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 text-sm font-black text-red-600 disabled:opacity-60"
             >
               حذف
@@ -614,7 +739,7 @@ export default function LawyerPetitionComposerModal({
           <button
             type="button"
             disabled={busy}
-            onClick={() => handleSave('draft')}
+            onClick={() => void handleSave('draft')}
             className="flex h-11 items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-black text-amber-700 disabled:opacity-60"
           >
             <Save size={16} />
@@ -624,7 +749,7 @@ export default function LawyerPetitionComposerModal({
           <button
             type="button"
             disabled={busy}
-            onClick={() => handleSave('ready')}
+            onClick={() => void handleSave('ready')}
             className="flex h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-black text-white disabled:opacity-60"
           >
             <ShieldCheck size={16} />

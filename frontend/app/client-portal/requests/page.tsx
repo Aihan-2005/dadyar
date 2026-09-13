@@ -754,7 +754,7 @@ function RequestCard({
             href={`/client-portal/requests/${record.id}`}
             className="inline-flex h-10 items-center rounded-xl bg-slate-900 px-4 text-xs font-black text-white"
           >
-            جزئیات و پیام‌ها
+           جزئیات درخواست
           </Link>
         </div>
       </div>

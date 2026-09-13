@@ -9,24 +9,18 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
-  MessageSquareText,
-  Send,
   UserRound,
   X,
   XCircle,
 } from 'lucide-react'
 
 import {
-  appendLawyerRequestMessage,
-  completeLawyerRequest,
-  confirmLawyerRequest,
-  declineLawyerRequest,
-  markLawyerRequestUnderReview,
-} from '@/features/client-portal/data/client-communication.repository'
+  getLawyerRequestApiErrorMessage,
+  updateLawyerRequestStatusApi,
+} from '@/features/dashboard/client-requests/api/lawyer-request.api'
 
 import type {
   ClientLawyerRequestRecord,
-  ClientRequestMessage,
 } from '@/features/client-portal/types/communication'
 
 import {
@@ -56,33 +50,34 @@ export default function LawyerRequestReviewModal({
   const [record, setRecord] =
     useState<ClientLawyerRequestRecord | null>(request)
 
-  const [message, setMessage] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     setRecord(request)
-    setMessage('')
     setError(null)
 
     if (request && request.status === 'submitted') {
-      try {
-        const updated = markLawyerRequestUnderReview(request.id)
-        setRecord(updated)
-        onUpdated()
-      } catch {
-     
-      }
+      updateLawyerRequestStatusApi(request.id, 'under_review')
+        .then((updated) => {
+          setRecord(updated)
+          onUpdated()
+        })
+        .catch(() => {
+          // اگر تغییر خودکار به under_review شکست بخورد، مودال همچنان با
+          // وضعیت فعلی قابل استفاده است؛ کاربر می‌تواند دستی تلاش کند.
+        })
     }
- 
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request?.id])
 
   if (!record) {
     return null
   }
 
-  const runAction = (
-    action: () => ClientLawyerRequestRecord,
+  const runAction = async (
+    action: () => Promise<ClientLawyerRequestRecord>,
     confirmMessage?: string
   ) => {
     if (confirmMessage && !window.confirm(confirmMessage)) {
@@ -93,38 +88,20 @@ export default function LawyerRequestReviewModal({
     setError(null)
 
     try {
-      const updated = action()
+      const updated = await action()
       setRecord(updated)
       onUpdated()
     } catch (caughtError) {
       setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'عملیات انجام نشد.'
+        getLawyerRequestApiErrorMessage(
+          caughtError,
+          'عملیات انجام نشد.'
+        )
       )
     } finally {
       setBusy(false)
     }
   }
-
-  const handleSendMessage = () => {
-    setError(null)
-
-    try {
-      const updated = appendLawyerRequestMessage(record.id, message)
-      setRecord(updated)
-      setMessage('')
-      onUpdated()
-    } catch (caughtError) {
-      setError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'ارسال پیام انجام نشد.'
-      )
-    }
-  }
-
-  const messagingDisabled = record.status === 'cancelled'
 
   return (
     <div
@@ -240,43 +217,6 @@ export default function LawyerRequestReviewModal({
             </p>
           </div>
 
-          <div className="mt-5">
-            <div className="flex items-center gap-2">
-              <MessageSquareText size={18} className="text-blue-600" />
-              <h3 className="font-black">پیام‌ها</h3>
-            </div>
-
-            <div className="mt-3 space-y-3">
-              {record.messages.map((item) => (
-                <MessageBubble key={item.id} message={item} />
-              ))}
-            </div>
-
-            {!messagingDisabled && (
-              <div className="mt-4 border-t border-slate-200 pt-4">
-                <textarea
-                  rows={3}
-                  value={message}
-                  onChange={(event) => {
-                    setMessage(event.target.value.slice(0, 1200))
-                    setError(null)
-                  }}
-                  placeholder="پاسخ خود را برای موکل بنویسید..."
-                  className="w-full resize-none rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold leading-7 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                />
-
-                <button
-                  type="button"
-                  onClick={handleSendMessage}
-                  className="mt-3 inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
-                >
-                  <Send size={16} />
-                  ارسال پاسخ
-                </button>
-              </div>
-            )}
-          </div>
-
           {error && (
             <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
               {error}
@@ -291,7 +231,9 @@ export default function LawyerRequestReviewModal({
                 type="button"
                 disabled={busy}
                 onClick={() =>
-                  runAction(() => confirmLawyerRequest(record.id))
+                  runAction(() =>
+                    updateLawyerRequestStatusApi(record.id, 'confirmed')
+                  )
                 }
                 className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 text-sm font-black text-white disabled:opacity-60"
               >
@@ -304,7 +246,8 @@ export default function LawyerRequestReviewModal({
                 disabled={busy}
                 onClick={() =>
                   runAction(
-                    () => declineLawyerRequest(record.id),
+                    () =>
+                      updateLawyerRequestStatusApi(record.id, 'declined'),
                     'این درخواست رد شود؟'
                   )
                 }
@@ -321,7 +264,9 @@ export default function LawyerRequestReviewModal({
               type="button"
               disabled={busy}
               onClick={() =>
-                runAction(() => completeLawyerRequest(record.id))
+                runAction(() =>
+                  updateLawyerRequestStatusApi(record.id, 'completed')
+                )
               }
               className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 text-sm font-black text-white disabled:opacity-60"
             >
@@ -330,48 +275,6 @@ export default function LawyerRequestReviewModal({
             </button>
           )}
         </div>
-      </div>
-    </div>
-  )
-}
-
-function MessageBubble({ message }: { message: ClientRequestMessage }) {
-  if (message.authorType === 'system') {
-    return (
-      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center">
-        <p className="text-xs font-bold leading-6 text-slate-500">
-          {message.body}
-        </p>
-
-        <p className="mt-1 text-[10px] text-slate-400">
-          {formatCommunicationDateTime(message.createdAt)}
-        </p>
-      </div>
-    )
-  }
-
-  const isLawyer = message.authorType === 'lawyer'
-
-  return (
-    <div className={`flex ${isLawyer ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[88%] rounded-2xl px-4 py-3 ${
-          isLawyer
-            ? 'rounded-tl-sm bg-blue-600 text-white'
-            : 'rounded-tr-sm border border-slate-200 bg-slate-50 text-slate-800'
-        }`}
-      >
-        <p className="text-[10px] font-black opacity-70">
-          {message.authorName}
-        </p>
-
-        <p className="mt-1 whitespace-pre-wrap text-sm font-semibold leading-7">
-          {message.body}
-        </p>
-
-        <p className="mt-2 text-[10px] opacity-60">
-          {formatCommunicationDateTime(message.createdAt)}
-        </p>
       </div>
     </div>
   )

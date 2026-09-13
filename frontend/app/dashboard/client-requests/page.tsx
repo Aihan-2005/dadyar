@@ -22,15 +22,14 @@ import LawyerRequestReviewModal from '@/components/dashboard/client-requests/Law
 import LawyerPetitionComposerModal from '@/components/dashboard/client-requests/LawyerPetitionComposerModal'
 
 import {
-  getAllLawyerRequests,
-  seedMockLawyerRequestsIfEmpty,
-  subscribeClientLawyerRequests,
-} from '@/features/client-portal/data/client-communication.repository'
+  fetchLawyerRequestsApi,
+  getLawyerRequestApiErrorMessage,
+} from '@/features/dashboard/client-requests/api/lawyer-request.api'
 
 import {
-  getLawyerPetitions,
-  subscribeLawyerPetitions,
-} from '@/features/dashboard/petitions/lawyer-petition.repository'
+  fetchPetitionsApi,
+  getPetitionApiErrorMessage,
+} from '@/features/dashboard/petitions/api/petition.api'
 
 import type {
   ClientLawyerRequestKind,
@@ -59,15 +58,13 @@ type MainTab = 'requests' | 'petitions'
 type KindFilter = 'all' | ClientLawyerRequestKind
 type StatusFilter = 'all' | ClientLawyerRequestStatus
 
-// ⚠️ TODO: موقتی — پل بین وکیل واقعی لاگین‌شده (useAuthStore) و این id
-// هنوز مشخص نشده. وقتی مشخص شد، این مقدار باید از session وکیل خوانده شود.
-const MOCK_LAWYER_ID = 'lawyer-mock-1'
-
 export default function ClientRequestsDashboardPage() {
   const [mainTab, setMainTab] = useState<MainTab>('requests')
 
   // --- state های مربوط به درخواست‌ها / رزروها ---
   const [records, setRecords] = useState<ClientLawyerRequestRecord[]>([])
+  const [requestsLoading, setRequestsLoading] = useState(true)
+  const [requestsError, setRequestsError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [kindFilter, setKindFilter] = useState<KindFilter>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -76,31 +73,51 @@ export default function ClientRequestsDashboardPage() {
 
   // --- state های مربوط به لوایح (نوشته‌شده توسط خودِ وکیل) ---
   const [petitions, setPetitions] = useState<LawyerPetitionRecord[]>([])
+  const [petitionsLoading, setPetitionsLoading] = useState(true)
+  const [petitionsError, setPetitionsError] = useState<string | null>(null)
   const [petitionSearch, setPetitionSearch] = useState('')
   const [selectedPetition, setSelectedPetition] =
     useState<LawyerPetitionRecord | null>(null)
   const [creatingPetition, setCreatingPetition] = useState(false)
 
-  const reload = () => {
-    setRecords(getAllLawyerRequests())
+  const reload = async () => {
+    setRequestsLoading(true)
+    setRequestsError(null)
+
+    try {
+      const data = await fetchLawyerRequestsApi()
+      setRecords(data)
+    } catch (error) {
+      setRequestsError(
+        getLawyerRequestApiErrorMessage(
+          error,
+          'دریافت درخواست‌ها با خطا مواجه شد.'
+        )
+      )
+    } finally {
+      setRequestsLoading(false)
+    }
   }
 
-  const reloadPetitions = () => {
-    setPetitions(getLawyerPetitions(MOCK_LAWYER_ID))
+  const reloadPetitions = async () => {
+    setPetitionsLoading(true)
+    setPetitionsError(null)
+
+    try {
+      const data = await fetchPetitionsApi()
+      setPetitions(data)
+    } catch (error) {
+      setPetitionsError(
+        getPetitionApiErrorMessage(error, 'دریافت لوایح با خطا مواجه شد.')
+      )
+    } finally {
+      setPetitionsLoading(false)
+    }
   }
 
   useEffect(() => {
-    seedMockLawyerRequestsIfEmpty()
     reload()
     reloadPetitions()
-
-    const unsubscribeRequests = subscribeClientLawyerRequests(reload)
-    const unsubscribePetitions = subscribeLawyerPetitions(reloadPetitions)
-
-    return () => {
-      unsubscribeRequests()
-      unsubscribePetitions()
-    }
   }, [])
 
   const stats = useMemo(
@@ -179,7 +196,8 @@ export default function ClientRequestsDashboardPage() {
               <button
                 type="button"
                 onClick={reload}
-                className="flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700"
+                disabled={requestsLoading}
+                className="flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 disabled:opacity-60"
               >
                 <RefreshCw size={17} />
                 بروزرسانی
@@ -272,8 +290,20 @@ export default function ClientRequestsDashboardPage() {
               </div>
             </section>
 
+            {requestsError && (
+              <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                {requestsError}
+              </p>
+            )}
+
             <section className="mt-5">
-              {filtered.length > 0 ? (
+              {requestsLoading ? (
+                <div className="rounded-[22px] border border-dashed border-slate-300 bg-white py-14 text-center">
+                  <p className="font-black text-slate-500">
+                    در حال بارگذاری درخواست‌ها...
+                  </p>
+                </div>
+              ) : filtered.length > 0 ? (
                 <div className="grid gap-4 xl:grid-cols-2">
                   {filtered.map((record) => (
                     <article
@@ -382,8 +412,20 @@ export default function ClientRequestsDashboardPage() {
               </div>
             </section>
 
+            {petitionsError && (
+              <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                {petitionsError}
+              </p>
+            )}
+
             <section className="mt-5">
-              {filteredPetitions.length > 0 ? (
+              {petitionsLoading ? (
+                <div className="rounded-[22px] border border-dashed border-slate-300 bg-white py-14 text-center">
+                  <p className="font-black text-slate-500">
+                    در حال بارگذاری لوایح...
+                  </p>
+                </div>
+              ) : filteredPetitions.length > 0 ? (
                 <div className="grid gap-4 xl:grid-cols-2">
                   {filteredPetitions.map((petition) => (
                     <article
@@ -470,7 +512,6 @@ export default function ClientRequestsDashboardPage() {
       <LawyerPetitionComposerModal
         petition={selectedPetition}
         creating={creatingPetition}
-        lawyerId={MOCK_LAWYER_ID}
         onClose={() => {
           setSelectedPetition(null)
           setCreatingPetition(false)

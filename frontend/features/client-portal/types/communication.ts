@@ -62,28 +62,6 @@ export type ClientLawyerRequestStatus =
   |  'declined'
   | 'cancelled'
 
-  
-
-export type ClientRequestMessageAuthor =
-  | 'client'
-  | 'lawyer'
-  | 'system'
-
-export interface ClientRequestMessage {
-  id: string
-
-  authorType:
-    ClientRequestMessageAuthor
-
-  authorName:
-    string
-
-  body:
-    string
-
-  createdAt:
-    string
-}
 
 
 
@@ -171,9 +149,6 @@ interface ClientLawyerRequestBase {
 
   history:
     ClientRequestStatusEvent[]
-
-  messages:
-    ClientRequestMessage[]
 }
 
 

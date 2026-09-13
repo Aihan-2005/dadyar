@@ -20,7 +20,6 @@ import {
   MapPin,
   MessageSquareText,
   Phone,
-  Send,
   UserRound,
   XCircle,
 } from 'lucide-react'
@@ -31,7 +30,6 @@ import {
 } from '@/features/client-portal/auth/client-session'
 
 import {
-  appendClientRequestMessage,
   cancelClientLawyerRequest,
   getClientLawyerRequestById,
   subscribeClientLawyerRequests,
@@ -39,7 +37,6 @@ import {
 
 import type {
   ClientLawyerRequestRecord,
-  ClientRequestMessage,
 } from '@/features/client-portal/types/communication'
 
 import {
@@ -91,12 +88,6 @@ export default function ClientRequestDetailsPage() {
     useState(false)
 
   const [
-    message,
-    setMessage,
-  ] =
-    useState('')
-
-  const [
     error,
     setError,
   ] =
@@ -145,43 +136,6 @@ export default function ClientRequestDetailsPage() {
     requestId,
     router,
   ])
-
-  const handleSendMessage =
-    () => {
-      if (!account) {
-        return
-      }
-
-      try {
-        const updated =
-          appendClientRequestMessage(
-            requestId,
-            account,
-            message
-          )
-
-        setRecord(
-          updated
-        )
-
-        setMessage(
-          ''
-        )
-
-        setError(
-          null
-        )
-      } catch (
-        caughtError
-      ) {
-        setError(
-          caughtError instanceof
-            Error
-            ? caughtError.message
-            : 'ارسال پیام انجام نشد.'
-        )
-      }
-    }
 
   const handleCancel =
     () => {
@@ -486,107 +440,11 @@ export default function ClientRequestDetailsPage() {
             </div>
           </section>
 
-          {/* Messages */}
-
-          <section className="mt-6 rounded-[24px] border border-slate-200 bg-white p-5 sm:p-6">
-            <div className="flex items-center gap-2">
-              <MessageSquareText
-                size={20}
-                className="text-blue-600"
-              />
-
-              <div>
-                <h2 className="font-black">
-                  پیام‌های درخواست
-                </h2>
-
-                <p className="mt-1 text-xs font-semibold text-slate-500">
-                  پیام‌های مرتبط با همین درخواست
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {record.messages.map(
-                (
-                  item
-                ) => (
-                  <MessageBubble
-                    key={
-                      item.id
-                    }
-                    message={
-                      item
-                    }
-                  />
-                )
-              )}
-            </div>
-
-            {record.status !==
-              'cancelled' && (
-              <div className="mt-5 border-t border-slate-200 pt-5">
-                <label className="block">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="text-sm font-black">
-                      پیام جدید
-                    </span>
-
-                    <span className="text-[11px] text-slate-400">
-                      {message.length.toLocaleString(
-                        'fa-IR'
-                      )}
-                      {' / '}
-                      ۱۲۰۰
-                    </span>
-                  </div>
-
-                  <textarea
-                    rows={4}
-                    value={
-                      message
-                    }
-                    onChange={(
-                      event
-                    ) => {
-                      setMessage(
-                        event.target.value.slice(
-                          0,
-                          1200
-                        )
-                      )
-
-                      setError(
-                        null
-                      )
-                    }}
-                    placeholder="پیام یا توضیح تکمیلی خود را بنویسید..."
-                    className="w-full resize-none rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold leading-7 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                  />
-                </label>
-
-                {error && (
-                  <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="button"
-                  onClick={
-                    handleSendMessage
-                  }
-                  className="mt-3 inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
-                >
-                  <Send
-                    size={16}
-                  />
-
-                  ارسال پیام
-                </button>
-              </div>
-            )}
-          </section>
+          {error && (
+            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              {error}
+            </p>
+          )}
         </div>
 
         {/* Sidebar */}
@@ -690,68 +548,6 @@ export default function ClientRequestDetailsPage() {
         </aside>
       </div>
     </main>
-  )
-}
-
-function MessageBubble({
-  message,
-}: {
-  message:
-    ClientRequestMessage
-}) {
-  if (
-    message.authorType ===
-    'system'
-  ) {
-    return (
-      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center">
-        <p className="text-xs font-bold leading-6 text-slate-500">
-          {message.body}
-        </p>
-
-        <p className="mt-1 text-[10px] text-slate-400">
-          {formatCommunicationDateTime(
-            message.createdAt
-          )}
-        </p>
-      </div>
-    )
-  }
-
-  const isClient =
-    message.authorType ===
-    'client'
-
-  return (
-    <div
-      className={`flex ${
-        isClient
-          ? 'justify-start'
-          : 'justify-end'
-      }`}
-    >
-      <div
-        className={`max-w-[88%] rounded-2xl px-4 py-3 ${
-          isClient
-            ? 'rounded-tr-sm bg-blue-600 text-white'
-            : 'rounded-tl-sm border border-slate-200 bg-slate-50 text-slate-800'
-        }`}
-      >
-        <p className="text-[10px] font-black opacity-70">
-          {message.authorName}
-        </p>
-
-        <p className="mt-1 whitespace-pre-wrap text-sm font-semibold leading-7">
-          {message.body}
-        </p>
-
-        <p className="mt-2 text-[10px] opacity-60">
-          {formatCommunicationDateTime(
-            message.createdAt
-          )}
-        </p>
-      </div>
-    </div>
   )
 }
 

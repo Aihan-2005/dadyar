@@ -9,7 +9,7 @@ import type {
 import type {
   ClientLawyerRequestRecord,
   ClientLawyerRequestStatus,
-  ClientRequestMessage,
+ 
   ClientRequestStatusEvent,
   ConsultationBookingRecord,
   CreateConsultationBookingInput,
@@ -210,28 +210,7 @@ function createStatusEvent(
   }
 }
 
-function createSystemMessage(
-  body:
-    string
-): ClientRequestMessage {
-  return {
-    id:
-      createId(
-        'message'
-      ),
 
-    authorType:
-      'system',
-
-    authorName:
-      'دادیار',
-
-    body,
-
-    createdAt:
-      new Date().toISOString(),
-  }
-}
 
 function createClientSnapshot(
   account:
@@ -463,11 +442,7 @@ export function createInitialLawyerRequest(
       ),
     ],
 
-    messages: [
-      createSystemMessage(
-        'درخواست شما ثبت شد و در انتظار بررسی وکیل است.'
-      ),
-    ],
+
   }
 
   writeRecords([
@@ -664,11 +639,7 @@ export function createConsultationBooking(
       ),
     ],
 
-    messages: [
-      createSystemMessage(
-        'درخواست رزرو ثبت شد و پس از بررسی وکیل وضعیت جلسه مشخص می‌شود.'
-      ),
-    ],
+
   }
 
   writeRecords([
@@ -682,121 +653,7 @@ export function createConsultationBooking(
 
 
 
-export function appendClientRequestMessage(
-  requestId:
-    string,
 
-  account:
-    ClientPortalAccount,
-
-  body:
-    string
-): ClientLawyerRequestRecord {
-  const normalizedBody =
-    body.trim()
-
-  if (
-    normalizedBody.length <
-    2
-  ) {
-    throw new Error(
-      'متن پیام را وارد کنید.'
-    )
-  }
-
-  if (
-    normalizedBody.length >
-    1200
-  ) {
-    throw new Error(
-      'پیام بیش از حد طولانی است.'
-    )
-  }
-
-  const records =
-    readRecords()
-
-  const index =
-    records.findIndex(
-      (
-        record
-      ) =>
-        record.id ===
-          requestId &&
-        record.client.id ===
-          account.id
-    )
-
-  if (
-    index ===
-    -1
-  ) {
-    throw new Error(
-      'درخواست پیدا نشد.'
-    )
-  }
-
-  const current =
-    records[
-      index
-    ]
-
-  if (
-    current.status ===
-      'cancelled'
-  ) {
-    throw new Error(
-      'امکان ارسال پیام برای درخواست لغوشده وجود ندارد.'
-    )
-  }
-
-  const now =
-    new Date().toISOString()
-
-  const message:
-    ClientRequestMessage = {
-    id:
-      createId(
-        'message'
-      ),
-
-    authorType:
-      'client',
-
-    authorName:
-      account.fullName,
-
-    body:
-      normalizedBody,
-
-    createdAt:
-      now,
-  }
-
-  const updated:
-    ClientLawyerRequestRecord = {
-    ...current,
-
-    updatedAt:
-      now,
-
-    messages: [
-      ...current.messages,
-      message,
-    ],
-  }
-
-  records[
-    index
-  ] =
-    updated
-
-  writeRecords(
-    records
-  )
-
-  return updated
-}
 
 
 
@@ -872,13 +729,7 @@ export function cancelClientLawyerRequest(
       ),
     ],
 
-    messages: [
-      ...current.messages,
 
-      createSystemMessage(
-        'این درخواست توسط موکل لغو شد.'
-      ),
-    ],
   }
 
   records[
@@ -941,10 +792,7 @@ function transitionLawyerRequestStatus(
       ...current.history,
       createStatusEvent(status, label),
     ],
-    messages: [
-      ...current.messages,
-      createSystemMessage(label),
-    ],
+
   }
 
   records[index] = updated
@@ -993,59 +841,7 @@ export function declineLawyerRequest(
   )
 }
 
-export function appendLawyerRequestMessage(
-  requestId: string,
-  body: string
-): ClientLawyerRequestRecord {
-  const normalizedBody = body.trim()
 
-  if (normalizedBody.length < 2) {
-    throw new Error('متن پیام را وارد کنید.')
-  }
-
-  if (normalizedBody.length > 1200) {
-    throw new Error('پیام بیش از حد طولانی است.')
-  }
-
-  const records = readRecords()
-
-  const index = records.findIndex(
-    (record) => record.id === requestId
-  )
-
-  if (index === -1) {
-    throw new Error('درخواست پیدا نشد.')
-  }
-
-  const current = records[index]
-
-  if (current.status === 'cancelled') {
-    throw new Error(
-      'امکان ارسال پیام برای درخواست لغوشده وجود ندارد.'
-    )
-  }
-
-  const now = new Date().toISOString()
-
-  const message: ClientRequestMessage = {
-    id: createId('message'),
-    authorType: 'lawyer',
-    authorName: current.lawyer.fullName,
-    body: normalizedBody,
-    createdAt: now,
-  }
-
-  const updated: ClientLawyerRequestRecord = {
-    ...current,
-    updatedAt: now,
-    messages: [...current.messages, message],
-  }
-
-  records[index] = updated
-  writeRecords(records)
-
-  return updated
-}
 export function seedMockLawyerRequestsIfEmpty(): void {
   if (!isBrowser()) {
     return
@@ -1105,15 +901,7 @@ export function seedMockLawyerRequestsIfEmpty(): void {
           createdAt: iso(60),
         },
       ],
-      messages: [
-        {
-          id: 'message-mock-1',
-          authorType: 'system',
-          authorName: 'دادیار',
-          body: 'درخواست شما ثبت شد و در انتظار بررسی وکیل است.',
-          createdAt: iso(60),
-        },
-      ],
+
     },
 
     {
@@ -1147,22 +935,7 @@ export function seedMockLawyerRequestsIfEmpty(): void {
           createdAt: iso(180),
         },
       ],
-      messages: [
-        {
-          id: 'message-mock-2a',
-          authorType: 'system',
-          authorName: 'دادیار',
-          body: 'درخواست شما ثبت شد و در انتظار بررسی وکیل است.',
-          createdAt: iso(240),
-        },
-        {
-          id: 'message-mock-2b',
-          authorType: 'lawyer',
-          authorName: mockLawyer.fullName,
-          body: 'سلام، پرونده شما رو بررسی می‌کنم و امروز باهاتون تماس می‌گیرم.',
-          createdAt: iso(175),
-        },
-      ],
+
     },
 
     {
@@ -1207,22 +980,7 @@ export function seedMockLawyerRequestsIfEmpty(): void {
           createdAt: iso(600),
         },
       ],
-      messages: [
-        {
-          id: 'message-mock-3a',
-          authorType: 'system',
-          authorName: 'دادیار',
-          body: 'درخواست رزرو ثبت شد و پس از بررسی وکیل وضعیت جلسه مشخص می‌شود.',
-          createdAt: iso(1440),
-        },
-        {
-          id: 'message-mock-3b',
-          authorType: 'lawyer',
-          authorName: mockLawyer.fullName,
-          body: 'جلسه شما تأیید شد، منتظرتون هستم.',
-          createdAt: iso(600),
-        },
-      ],
+
     },
   ]
 
