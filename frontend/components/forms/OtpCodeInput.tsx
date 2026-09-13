@@ -329,7 +329,7 @@ export default function OtpCodeInput({
   return (
     <div
       dir="ltr"
-      className="flex w-full items-center justify-center gap-2 sm:gap-3"
+      className="grid w-full grid-cols-6 items-center gap-2 sm:gap-3"
     >
       {Array.from({
         length,
@@ -392,7 +392,7 @@ export default function OtpCodeInput({
             onPaste={
               handlePaste
             }
-            className="h-13 min-w-0 flex-1 rounded-xl border border-slate-300 bg-white text-center text-xl font-black text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100 sm:h-14 sm:max-w-14 sm:text-2xl"
+            className="h-12 w-full min-w-0 rounded-xl border border-slate-300 bg-white text-center text-xl font-black text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:bg-slate-100 sm:h-14 sm:max-w-14 sm:text-2xl"
           />
         )
       )}
