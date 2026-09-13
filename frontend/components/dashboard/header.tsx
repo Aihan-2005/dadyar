@@ -1,147 +1,316 @@
+'use client'
 
-"use client";
-
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import Link from "next/link";
 import {
-  Search,
-  X,
-  User,
-  LogOut,
-  Settings,
+  type ChangeEvent,
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
+
+import Link from 'next/link'
+
+import {
   ChevronDown,
-  Menu,
-} from "lucide-react";
-import { useAuthStore } from "@/store/auth.store";
-import { useSearchStore } from "@/store/search.store";
-import { NotificationBell } from "@/components/notifications/NotificationBell";
+  LogOut,
+  Scale,
+  Search,
+  User,
+  X,
+} from 'lucide-react'
+
+import {
+  usePathname,
+  useRouter,
+} from 'next/navigation'
+
+import {
+  NotificationBell,
+} from '@/components/notifications/NotificationBell'
+
+import {
+  useAuthStore,
+} from '@/store/auth.store'
+
+import {
+  useSearchStore,
+} from '@/store/search.store'
 
 interface DashboardHeaderProps {
-  onMenuToggle?: () => void;
-  isSidebarOpen?: boolean;
+  onMenuToggle?: () => void
+
+  isSidebarOpen?: boolean
 }
 
 export function DashboardHeader({
   onMenuToggle,
-  isSidebarOpen,
 }: DashboardHeaderProps) {
-  const router = useRouter();
-  const pathname = usePathname();
+  const router =
+    useRouter()
 
-  const { user, logout } = useAuthStore();
-  const { query, setQuery, clearQuery, setSearchTerm } = useSearchStore();
+  const pathname =
+    usePathname()
 
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
+  const {
+    user,
+    logout,
+  } = useAuthStore()
 
-  const searchRef = useRef<HTMLInputElement>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
+  const {
+    query,
+    setQuery,
+    clearQuery,
+    setSearchTerm,
+  } = useSearchStore()
 
-  const userFullName = user
-    ? `${user.firstName} ${user.lastName}`.trim()
-    : "کاربر";
+  const [
+    userMenuOpen,
+    setUserMenuOpen,
+  ] = useState(false)
 
-  const userInitials = user
-    ? `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase() ||
-      "وک"
-    : "وک";
+  const [
+    focused,
+    setFocused,
+  ] = useState(false)
+
+  const searchRef =
+    useRef<HTMLInputElement>(
+      null,
+    )
+
+  const menuRef =
+    useRef<HTMLDivElement>(
+      null,
+    )
+
+  const isClient =
+    user?.role ===
+    'CLIENT'
+
+  const fullName =
+    user
+      ? `${user.firstName ?? ''} ${
+          user.lastName ?? ''
+        }`.trim()
+      : 'کاربر'
+
+  const initials =
+    user
+      ? `${
+          user.firstName?.[0] ??
+          ''
+        }${
+          user.lastName?.[0] ??
+          ''
+        }`.trim() ||
+        (isClient
+          ? 'م'
+          : 'و')
+      : 'ک'
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
+    function clickOutside(
+      event: MouseEvent,
+    ) {
       if (
-        userMenuRef.current &&
-        !userMenuRef.current.contains(e.target as Node)
+        menuRef.current &&
+        !menuRef.current.contains(
+          event.target as Node,
+        )
       ) {
-        setIsUserMenuOpen(false);
+        setUserMenuOpen(
+          false,
+        )
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setQuery(e.target.value);
-  };
+    document.addEventListener(
+      'mousedown',
+      clickOutside,
+    )
 
-  const handleSearchSubmit = useCallback(() => {
-    const trimmedQuery = query.trim();
+    return () =>
+      document.removeEventListener(
+        'mousedown',
+        clickOutside,
+      )
+  }, [])
 
-    setSearchTerm(trimmedQuery);
+  const submitSearch =
+    useCallback(() => {
+      const value =
+        query.trim()
 
-    if (!trimmedQuery) {
-      router.push("/dashboard/cases");
-      return;
+      if (isClient) {
+        const target =
+          value
+            ? `/dashboard/lawyers?search=${encodeURIComponent(
+                value,
+              )}`
+            : '/dashboard/lawyers'
+
+        router.push(
+          target,
+        )
+
+        return
+      }
+
+      setSearchTerm(
+        value,
+      )
+
+      router.push(
+        value
+          ? `/dashboard/cases?search=${encodeURIComponent(
+              value,
+            )}`
+          : '/dashboard/cases',
+      )
+    }, [
+      isClient,
+      query,
+      router,
+      setSearchTerm,
+    ])
+
+  function handleSearchChange(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    setQuery(
+      event.target.value,
+    )
+  }
+
+  function handleSearchKeyDown(
+    event: KeyboardEvent<HTMLInputElement>,
+  ) {
+    if (
+      event.key ===
+      'Enter'
+    ) {
+      event.preventDefault()
+
+      submitSearch()
+    }
+  }
+
+  function handleClear() {
+    clearQuery()
+
+    if (
+      isClient &&
+      pathname.startsWith(
+        '/dashboard/lawyers',
+      )
+    ) {
+      router.push(
+        '/dashboard/lawyers',
+      )
     }
 
-    router.push(`/dashboard/cases?search=${encodeURIComponent(trimmedQuery)}`);
-  }, [query, router, setSearchTerm]);
-
-  const handleClearSearch = () => {
-    clearQuery();
-
-    if (pathname === "/dashboard/cases") {
-      router.push("/dashboard/cases");
+    if (
+      !isClient &&
+      pathname ===
+        '/dashboard/cases'
+    ) {
+      router.push(
+        '/dashboard/cases',
+      )
     }
 
-    searchRef.current?.focus();
-  };
+    searchRef.current?.focus()
+  }
 
-  const handleLogout = useCallback(() => {
-    logout();
-    router.push("/login");
-  }, [logout, router]);
+  async function handleLogout() {
+    setUserMenuOpen(
+      false,
+    )
+
+    await logout()
+
+    router.replace(
+      '/login',
+    )
+  }
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-gray-200 bg-white">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-        <button
-          onClick={onMenuToggle}
-          className="lg:hidden rounded-md p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
-          aria-label="Toggle menu"
-        >
-          <Menu className="h-6 w-6" />
-        </button>
+        {onMenuToggle && (
+          <button
+            type="button"
+            onClick={
+              onMenuToggle
+            }
+            className="sr-only"
+          >
+            باز کردن منو
+          </button>
+        )}
 
-        <div className="flex-1 max-w-2xl mx-4">
+        <div className="mx-4 max-w-2xl flex-1">
           <div
-            className={`relative transition-all duration-200 ${
-              isFocused ? "ring-2 ring-blue-500" : ""
+            className={`relative rounded-lg transition ${
+              focused
+                ? 'ring-2 ring-blue-500'
+                : ''
             }`}
           >
             <button
               type="button"
-              onClick={handleSearchSubmit}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label="Search"
+              onClick={
+                submitSearch
+              }
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-gray-600"
+              aria-label="جستجو"
             >
-              <Search className="h-5 w-5" />
+              <Search
+                className="h-5 w-5"
+              />
             </button>
 
             <input
-              ref={searchRef}
-              type="text"
+              ref={
+                searchRef
+              }
               value={query}
-              onChange={handleSearchChange}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleSearchSubmit();
-                }
-              }}
-              placeholder="جستجو در پرونده‌ها..."
-              className="w-full rounded-lg border border-gray-300 bg-white py-2 pr-10 pl-10 text-sm text-gray-900 placeholder-gray-500 focus:border-transparent focus:outline-none focus:ring-0"
+              onChange={
+                handleSearchChange
+              }
+              onKeyDown={
+                handleSearchKeyDown
+              }
+              onFocus={() =>
+                setFocused(
+                  true,
+                )
+              }
+              onBlur={() =>
+                setFocused(
+                  false,
+                )
+              }
+              placeholder={
+                isClient
+                  ? 'جستجو بین وکلا...'
+                  : 'جستجو در پرونده‌ها...'
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white py-2 pr-10 pl-10 text-sm text-gray-900 placeholder-gray-500 focus:border-transparent focus:outline-none"
             />
 
             {query && (
               <button
-                onClick={handleClearSearch}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label="Clear search"
+                type="button"
+                onClick={
+                  handleClear
+                }
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                <X className="h-4 w-4" />
+                <X
+                  className="h-4 w-4"
+                />
               </button>
             )}
           </div>
@@ -150,56 +319,98 @@ export function DashboardHeader({
         <div className="flex items-center gap-3">
           <NotificationBell />
 
-          <div className="relative" ref={userMenuRef}>
+          <div
+            ref={menuRef}
+            className="relative"
+          >
             <button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+              type="button"
+              onClick={() =>
+                setUserMenuOpen(
+                  (current) =>
+                    !current,
+                )
+              }
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-semibold">
-                {userInitials}
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
+                {initials}
               </div>
-              <span className="hidden sm:inline">{userFullName}</span>
+
+              <span className="hidden sm:inline">
+                {fullName}
+              </span>
+
               <ChevronDown
                 className={`h-4 w-4 transition-transform ${
-                  isUserMenuOpen ? "rotate-180" : ""
+                  userMenuOpen
+                    ? 'rotate-180'
+                    : ''
                 }`}
               />
             </button>
 
-            {isUserMenuOpen && (
-              <div className="absolute left-0 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-lg z-50">
-                <div className="p-3 border-b border-gray-200">
-                  <p className="text-sm font-medium text-gray-900">
-                    {userFullName}
+            {userMenuOpen && (
+              <div className="absolute left-0 z-50 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
+                <div className="border-b border-gray-200 p-3">
+                  <p className="text-sm font-bold text-gray-900">
+                    {fullName}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">{user?.email}</p>
+
+                  <p className="mt-1 truncate text-xs text-gray-500">
+                    {user?.email ||
+                      user?.phone ||
+                      ''}
+                  </p>
                 </div>
 
                 <div className="py-1">
-                  <Link
-                    href="/dashboard/profile"
-                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    <User className="h-4 w-4" />
-                    <span>پروفایل</span>
-                  </Link>
+                  {isClient ? (
+                    <Link
+                      href="/dashboard/lawyers"
+                      onClick={() =>
+                        setUserMenuOpen(
+                          false,
+                        )
+                      }
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
+                    >
+                      <Scale
+                        size={16}
+                      />
 
-                  <Link
-                    href="/dashboard/settings"
-                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    <Settings className="h-4 w-4" />
-                    <span>تنظیمات</span>
-                  </Link>
+                      انتخاب وکیل
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/dashboard/profile"
+                      onClick={() =>
+                        setUserMenuOpen(
+                          false,
+                        )
+                      }
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
+                    >
+                      <User
+                        size={16}
+                      />
+
+                      پروفایل
+                    </Link>
+                  )}
 
                   <button
-                    onClick={handleLogout}
-                    className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    type="button"
+                    onClick={() =>
+                      void handleLogout()
+                    }
+                    className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-600 transition hover:bg-red-50"
                   >
-                    <LogOut className="h-4 w-4" />
-                    <span>خروج</span>
+                    <LogOut
+                      size={16}
+                    />
+
+                    خروج
                   </button>
                 </div>
               </div>
@@ -208,5 +419,5 @@ export function DashboardHeader({
         </div>
       </div>
     </header>
-  );
+  )
 }

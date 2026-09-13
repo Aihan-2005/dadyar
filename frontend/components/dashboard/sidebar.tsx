@@ -7,17 +7,25 @@ import Link from 'next/link'
 
 import {
   usePathname,
+  useRouter,
 } from 'next/navigation'
 
 import {
-  CirclePlus,
-  FileText,
+  Bell,
   FolderOpen,
   LayoutDashboard,
+<<<<<<< HEAD
   MessageSquareText,
   NotebookPen,
   Ticket,
   UsersRound,
+=======
+  LogOut,
+  Plus,
+  Scale,
+  User,
+  Users2,
+>>>>>>> 1e69bc1 (added feature to client part)
   X,
 } from 'lucide-react'
 
@@ -29,15 +37,17 @@ import {
 import SupportButton from './support'
 
 import {
+  useAuthStore,
+} from '@/store/auth.store'
+
+import {
   useNotificationStore,
 } from '@/store/notification.store'
 
 interface DashboardSidebarProps {
-  isOpen:
-    boolean
+  isOpen: boolean
 
-  onClose:
-    () => void
+  onClose: () => void
 }
 
 export default function DashboardSidebar({
@@ -47,19 +57,35 @@ export default function DashboardSidebar({
   const pathname =
     usePathname()
 
+  const router =
+    useRouter()
+
+  const user =
+    useAuthStore(
+      (state) =>
+        state.user,
+    )
+
+  const logout =
+    useAuthStore(
+      (state) =>
+        state.logout,
+    )
+
   const notifications =
     useNotificationStore(
       (state) =>
-        state.notifications
+        state.notifications,
     )
 
   const unreadCount =
     notifications.filter(
-      (item) =>
-        item.status ===
-        'unread'
+      (notification) =>
+        notification.status ===
+        'unread',
     ).length
 
+<<<<<<< HEAD
     const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
 
       useEffect(() => {
@@ -75,10 +101,13 @@ export default function DashboardSidebar({
 
         return subscribeClientLawyerRequests(reload)
       }, [])
+=======
+  const isClient =
+    user?.role ===
+    'CLIENT'
+>>>>>>> 1e69bc1 (added feature to client part)
 
-    
-
-  const navItems = [
+  const lawyerNavItems = [
     {
       href:
         '/dashboard',
@@ -103,80 +132,96 @@ export default function DashboardSidebar({
 
     {
       href:
+        '/dashboard/profile',
+
+      label:
+        'پروفایل',
+
+      icon:
+        User,
+    },
+
+    {
+      href:
         '/dashboard/customers',
 
       label:
         'موکلین',
 
       icon:
-        UsersRound,
+        Users2,
+    },
+  ]
+
+  const clientNavItems = [
+    {
+      href:
+        '/dashboard',
+
+      label:
+        'داشبورد',
+
+      icon:
+        LayoutDashboard,
     },
 
     {
       href:
-        '/dashboard/contracts',
+        '/dashboard/lawyers',
 
       label:
-        'قراردادهای آنلاین',
+        'انتخاب وکیل',
 
       icon:
-        FileText,
+        Scale,
     },
   ]
 
- 
-  
+  const navItems =
+    isClient
+      ? clientNavItems
+      : lawyerNavItems
 
-  const handleNavClick =
-    () => {
-      if (
-        typeof window !==
-          'undefined' &&
-        window.innerWidth <
-          1024
-      ) {
-        onClose()
-      }
+  function handleNavClick() {
+    if (
+      window.innerWidth <
+      1024
+    ) {
+      onClose()
     }
+  }
 
-  const isPathActive =
-    (
-      href:
-        string
-    ) => {
-      if (
-        href ===
-        '/dashboard'
-      ) {
-        return (
-          pathname ===
-          '/dashboard'
-        )
-      }
-
+  function isActive(
+    href: string,
+  ) {
+    if (
+      href ===
+      '/dashboard'
+    ) {
       return (
         pathname ===
-          href ||
-        pathname.startsWith(
-          `${href}/`
-        )
+        '/dashboard'
       )
     }
 
-  const notificationActive =
-    pathname.startsWith(
-      '/dashboard/notifications'
+    return (
+      pathname === href ||
+      pathname.startsWith(
+        `${href}/`,
+      )
     )
+  }
 
-  const ticketsActive =
-    pathname.startsWith(
-      '/dashboard/tickets'
+  async function handleLogout() {
+    await logout()
+
+    router.replace(
+      '/login',
     )
+  }
 
   return (
     <>
-
-
       {isOpen && (
         <button
           type="button"
@@ -184,62 +229,58 @@ export default function DashboardSidebar({
           onClick={
             onClose
           }
-          className="fixed inset-0 z-[60] bg-slate-950/40 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm lg:hidden"
         />
       )}
 
       <aside
-        className={`fixed right-0 top-0 z-[70] flex h-screen w-72 flex-col border-l border-slate-200 bg-white shadow-xl shadow-slate-200/40 transition-transform duration-300 lg:sticky lg:w-64 lg:translate-x-0 lg:shadow-none ${
+        className={`fixed right-0 top-0 z-[70] flex h-screen w-64 flex-col border-l border-zinc-200 bg-white transition-transform duration-300 ease-in-out lg:sticky lg:translate-x-0 ${
           isOpen
             ? 'translate-x-0'
             : 'translate-x-full lg:translate-x-0'
         }`}
       >
-        
+        <div className="flex items-center justify-between border-b border-zinc-200 p-6">
+          <Link
+            href="/dashboard"
+            onClick={
+              handleNavClick
+            }
+          >
+            <h1 className="text-xl font-bold text-zinc-900">
+              دادیار
+            </h1>
 
-        <div className="flex items-center justify-between border-b border-slate-200 p-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-lg font-black text-white shadow-md shadow-blue-200">
-              د
-            </div>
-
-            <div>
-              <h1 className="text-xl font-black text-slate-950">
-                دادیار
-              </h1>
-
-              <p className="mt-0.5 text-xs font-semibold text-slate-600">
-                مدیریت دفتر وکالت
-              </p>
-            </div>
-          </div>
+            <p className="mt-1 text-sm text-zinc-500">
+              {isClient
+                ? 'پنل موکل'
+                : 'سیستم مدیریت پرونده'}
+            </p>
+          </Link>
 
           <button
             type="button"
             onClick={
               onClose
             }
+            className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 lg:hidden"
             aria-label="بستن منو"
-            className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
           >
             <X
-              size={21}
+              size={20}
             />
           </button>
         </div>
 
-
-        <nav className="flex-1 space-y-1.5 overflow-y-auto p-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-4">
           {navItems.map(
-            (
-              item
-            ) => {
+            (item) => {
               const Icon =
                 item.icon
 
               const active =
-                isPathActive(
-                  item.href
+                isActive(
+                  item.href,
                 )
 
               return (
@@ -253,30 +294,29 @@ export default function DashboardSidebar({
                   onClick={
                     handleNavClick
                   }
-                  className={`group flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-black transition ${
+                  className={`group flex items-center gap-3 rounded-xl px-4 py-3 font-medium transition-all duration-200 ${
                     active
-                      ? 'bg-gradient-to-l from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-200'
-                      : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                      : 'text-zinc-700 hover:bg-zinc-100 hover:text-blue-600'
                   }`}
                 >
-                  <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                  <Icon
+                    size={20}
+                    className={
                       active
-                        ? 'bg-white/15'
-                        : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
-                    }`}
-                  >
-                    <Icon
-                      size={20}
-                    />
-                  </div>
+                        ? 'text-white'
+                        : 'text-zinc-500 transition-colors group-hover:text-blue-500'
+                    }
+                  />
 
-                  {
-                    item.label
-                  }
+                  <span>
+                    {
+                      item.label
+                    }
+                  </span>
                 </Link>
               )
-            }
+            },
           )}
           <Link
           href="/dashboard/client-requests"
@@ -296,6 +336,7 @@ export default function DashboardSidebar({
           >
             <MessageSquareText size={20} />
 
+<<<<<<< HEAD
             {pendingRequestsCount > 0 && (
               <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-white">
                 {pendingRequestsCount > 99 ? '99+' : pendingRequestsCount}
@@ -306,31 +347,36 @@ export default function DashboardSidebar({
           ارتباط با موکلین
         </Link>
 
+=======
+>>>>>>> 1e69bc1 (added feature to client part)
           <Link
             href="/dashboard/notifications"
             onClick={
               handleNavClick
             }
-            className={`group flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-black transition ${
-              notificationActive
-                ? 'bg-gradient-to-l from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-200'
-                : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+            className={`group relative flex items-center gap-3 rounded-xl px-4 py-3 font-medium transition-all duration-200 ${
+              isActive(
+                '/dashboard/notifications',
+              )
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+                : 'text-zinc-700 hover:bg-zinc-100 hover:text-blue-600'
             }`}
           >
-            <div
-              className={`relative flex h-9 w-9 items-center justify-center rounded-xl ${
-                notificationActive
-                  ? 'bg-white/15'
-                  : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
-              }`}
-            >
-              <NotebookPen
+            <div className="relative">
+              <Bell
                 size={20}
+                className={
+                  isActive(
+                    '/dashboard/notifications',
+                  )
+                    ? 'text-white'
+                    : 'text-zinc-500 group-hover:text-blue-500'
+                }
               />
 
               {unreadCount >
                 0 && (
-                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-white">
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white">
                   {unreadCount >
                   99
                     ? '99+'
@@ -339,18 +385,20 @@ export default function DashboardSidebar({
               )}
             </div>
 
-            یادداشت‌ها
+            <span>
+              یادداشت‌ها
+            </span>
           </Link>
 
-
-          <div className="pt-4">
+          {!isClient && (
             <Link
               href="/dashboard/cases/new"
               onClick={
                 handleNavClick
               }
-              className="group flex items-center gap-3 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-600 px-4 py-4 text-sm font-black text-white shadow-lg shadow-emerald-200 transition hover:-translate-y-0.5 hover:from-emerald-600 hover:to-teal-700"
+              className="group mt-4 flex items-center gap-3 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 px-4 py-3 text-white shadow-md shadow-emerald-200 transition-all duration-200 hover:from-emerald-600 hover:to-green-600"
             >
+<<<<<<< HEAD
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
                 <CirclePlus
                   size={22}
@@ -387,19 +435,65 @@ export default function DashboardSidebar({
               }`}
             >
               <Ticket
+=======
+              <Plus
+>>>>>>> 1e69bc1 (added feature to client part)
                 size={20}
               />
-            </div>
 
+              <span className="font-medium">
+                پرونده جدید
+              </span>
+            </Link>
+          )}
+        </nav>
+
+        <SupportButton />
+
+        <div className="border-t border-zinc-200 p-4">
+          {user && (
+            <div className="mb-3 px-4">
+              <p className="truncate text-xs font-bold text-zinc-700">
+                {[
+                  user.firstName,
+                  user.lastName,
+                ]
+                  .filter(
+                    Boolean,
+                  )
+                  .join(' ')}
+              </p>
+
+              <p className="mt-1 text-[10px] text-zinc-400">
+                {isClient
+                  ? 'موکل'
+                  : 'وکیل'}
+              </p>
+            </div>
+          )}
+
+<<<<<<< HEAD
             سوالات و پیشنهادات (تیکت)
           </Link>
         </nav>
 
+=======
+          <button
+            type="button"
+            onClick={() =>
+              void handleLogout()
+            }
+            className="group flex w-full items-center gap-3 rounded-xl px-4 py-3 font-medium text-red-600 transition hover:bg-red-50"
+          >
+            <LogOut
+              size={20}
+            />
+>>>>>>> 1e69bc1 (added feature to client part)
 
-        {/* Support */}
-
-        <div className="border-t border-slate-200 p-4">
-          <SupportButton />
+            <span>
+              خروج
+            </span>
+          </button>
         </div>
       </aside>
     </>
