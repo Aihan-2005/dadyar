@@ -7,9 +7,9 @@ export interface PublicLawyer {
 
   fullName: string
 
-  phone?: string
+  phone: string | null
 
-  email?: string
+  email: string | null
 
   specialization: string
 
@@ -17,11 +17,11 @@ export interface PublicLawyer {
 
   yearsOfExperience: number
 
-  address?: string
+  website: string | null
 
-  website?: string
+  address: string
 
-  bio?: string
+  bio: string
 
   skills: string[]
 
@@ -30,7 +30,10 @@ export interface PublicLawyer {
   isFeatured: boolean
 
   displayOrder: number
+
+  publishedAt: string | null
 }
+
 
 export interface PublicLawyerListParams {
   search?: string
@@ -38,4 +41,26 @@ export interface PublicLawyerListParams {
   specialization?: string
 
   featuredOnly?: boolean
+
+  page?: number
+
+  limit?: number
+}
+
+
+export interface PublicLawyerPagination {
+  page: number
+
+  limit: number
+
+  total: number
+
+  totalPages: number
+}
+
+
+export interface PublicLawyerPage {
+  items: PublicLawyer[]
+
+  pagination: PublicLawyerPagination
 }

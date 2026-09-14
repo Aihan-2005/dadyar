@@ -1,306 +1,450 @@
+import axios from 'axios'
+
+import {
+  api,
+  getApiErrorMessage,
+} from '@/lib/api'
+
 import type {
   PublicLawyer,
   PublicLawyerListParams,
+  PublicLawyerPage,
+  PublicLawyerPagination,
 } from '@/types/public-lawyer'
 
-/**
- * TEMPORARY FRONTEND DATA
- *
- * این داده‌ها فقط تا زمانی هستند که
- * endpoint عمومی وکلای قابل نمایش به موکلین
- * در backend ساخته شود.
- *
- * بعداً implementation این service
- * با GET /lawyers/public جایگزین می‌شود.
- */
-const TEMPORARY_PUBLIC_LAWYERS: PublicLawyer[] = [
-  {
-    id: 'temporary-lawyer-1',
 
-    firstName: 'علی',
+type ApiEnvelope<T> = {
+  success: boolean
 
-    lastName: 'رضایی',
+  data: T
 
-    fullName: 'علی رضایی',
-
-    phone: '09120000001',
-
-    email: 'ali.rezaei@example.com',
-
-    specialization:
-      'حقوق خانواده',
-
-    licenseNumber:
-      'LAW-1001',
-
-    yearsOfExperience:
-      12,
-
-    address:
-      'تهران',
-
-    bio:
-      'وکیل دادگستری با تمرکز بر پرونده‌های خانواده، طلاق، حضانت و دعاوی مرتبط.',
-
-    skills: [
-      'حقوق خانواده',
-      'طلاق',
-      'حضانت',
-      'مهریه',
-    ],
-
-    languages: [
-      'فارسی',
-    ],
-
-    isFeatured: true,
-
-    displayOrder: 1,
-  },
-
-  {
-    id: 'temporary-lawyer-2',
-
-    firstName: 'سارا',
-
-    lastName: 'محمدی',
-
-    fullName: 'سارا محمدی',
-
-    phone: '09120000002',
-
-    email: 'sara.mohammadi@example.com',
-
-    specialization:
-      'حقوق کیفری',
-
-    licenseNumber:
-      'LAW-1002',
-
-    yearsOfExperience:
-      9,
-
-    address:
-      'تهران',
-
-    bio:
-      'فعال در حوزه پرونده‌های کیفری و ارائه مشاوره و دفاع تخصصی.',
-
-    skills: [
-      'حقوق کیفری',
-      'دفاع کیفری',
-      'جرایم مالی',
-    ],
-
-    languages: [
-      'فارسی',
-      'انگلیسی',
-    ],
-
-    isFeatured: true,
-
-    displayOrder: 2,
-  },
-
-  {
-    id: 'temporary-lawyer-3',
-
-    firstName: 'محمد',
-
-    lastName: 'احمدی',
-
-    fullName: 'محمد احمدی',
-
-    phone: '09120000003',
-
-    email: 'mohammad.ahmadi@example.com',
-
-    specialization:
-      'حقوق قراردادها',
-
-    licenseNumber:
-      'LAW-1003',
-
-    yearsOfExperience:
-      15,
-
-    address:
-      'کرج',
-
-    bio:
-      'متخصص در تنظیم و بررسی قراردادهای تجاری و دعاوی ناشی از قراردادها.',
-
-    skills: [
-      'قراردادها',
-      'حقوق تجاری',
-      'داوری',
-    ],
-
-    languages: [
-      'فارسی',
-      'انگلیسی',
-    ],
-
-    isFeatured: false,
-
-    displayOrder: 3,
-  },
-
-  {
-    id: 'temporary-lawyer-4',
-
-    firstName: 'مریم',
-
-    lastName: 'کاظمی',
-
-    fullName: 'مریم کاظمی',
-
-    phone: '09120000004',
-
-    email: 'maryam.kazemi@example.com',
-
-    specialization:
-      'حقوق ملکی',
-
-    licenseNumber:
-      'LAW-1004',
-
-    yearsOfExperience:
-      7,
-
-    address:
-      'تهران',
-
-    bio:
-      'فعال در حوزه دعاوی ملکی، قراردادهای املاک و اختلافات مالک و مستأجر.',
-
-    skills: [
-      'حقوق ملکی',
-      'املاک',
-      'اجاره',
-    ],
-
-    languages: [
-      'فارسی',
-    ],
-
-    isFeatured: false,
-
-    displayOrder: 4,
-  },
-]
-
-function normalizeSearch(
-  value: string,
-) {
-  return value
-    .trim()
-    .toLocaleLowerCase(
-      'fa-IR',
-    )
+  message?: string
 }
 
-export async function getPublicLawyers(
-  params: PublicLawyerListParams = {},
-): Promise<PublicLawyer[]> {
-  const search =
-    normalizeSearch(
-      params.search ?? '',
+
+type LawyerListEnvelope = {
+  success: boolean
+
+  data: PublicLawyer[]
+
+  pagination: PublicLawyerPagination
+
+  message?: string
+}
+
+
+const DIRECTORY_ENDPOINT =
+  '/lawyers/directory'
+
+
+function normalizeString(
+  value: unknown,
+): string {
+  return typeof value === 'string'
+    ? value.trim()
+    : ''
+}
+
+
+function normalizeNullableString(
+  value: unknown,
+): string | null {
+  const normalized =
+    normalizeString(value)
+
+  return normalized || null
+}
+
+
+function normalizeStringArray(
+  value: unknown,
+): string[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .filter(
+      (
+        item,
+      ): item is string =>
+        typeof item === 'string',
     )
+    .map(
+      (item) =>
+        item.trim(),
+    )
+    .filter(Boolean)
+}
+
+
+function normalizeLawyer(
+  value: PublicLawyer,
+): PublicLawyer {
+  const firstName =
+    normalizeString(
+      value.firstName,
+    )
+
+  const lastName =
+    normalizeString(
+      value.lastName,
+    )
+
+  const fullName =
+    normalizeString(
+      value.fullName,
+    ) ||
+    [
+      firstName,
+      lastName,
+    ]
+      .filter(Boolean)
+      .join(' ')
+
+  return {
+    id:
+      normalizeString(
+        value.id,
+      ),
+
+    firstName,
+
+    lastName,
+
+    fullName,
+
+    phone:
+      normalizeNullableString(
+        value.phone,
+      ),
+
+    email:
+      normalizeNullableString(
+        value.email,
+      ),
+
+    specialization:
+      normalizeString(
+        value.specialization,
+      ),
+
+    licenseNumber:
+      normalizeString(
+        value.licenseNumber,
+      ),
+
+    yearsOfExperience:
+      Number.isFinite(
+        value.yearsOfExperience,
+      )
+        ? Math.max(
+            0,
+            Number(
+              value.yearsOfExperience,
+            ),
+          )
+        : 0,
+
+    website:
+      normalizeNullableString(
+        value.website,
+      ),
+
+    address:
+      normalizeString(
+        value.address,
+      ),
+
+    bio:
+      normalizeString(
+        value.bio,
+      ),
+
+    skills:
+      normalizeStringArray(
+        value.skills,
+      ),
+
+    languages:
+      normalizeStringArray(
+        value.languages,
+      ),
+
+    isFeatured:
+      value.isFeatured === true,
+
+    displayOrder:
+      Number.isFinite(
+        value.displayOrder,
+      )
+        ? Math.max(
+            0,
+            Number(
+              value.displayOrder,
+            ),
+          )
+        : 0,
+
+    publishedAt:
+      normalizeNullableString(
+        value.publishedAt,
+      ),
+  }
+}
+
+
+function buildDirectoryParams(
+  params: PublicLawyerListParams,
+) {
+  const search =
+    params.search?.trim()
 
   const specialization =
-    params.specialization
-      ?.trim()
+    params.specialization?.trim()
 
-  let items = [
-    ...TEMPORARY_PUBLIC_LAWYERS,
-  ]
+  return {
+    ...(search
+      ? {
+          search,
+        }
+      : {}),
 
-  if (search) {
-    items =
-      items.filter(
-        (lawyer) =>
-          [
-            lawyer.fullName,
-            lawyer.specialization,
-            lawyer.address,
-            lawyer.licenseNumber,
-            ...lawyer.skills,
-            ...lawyer.languages,
-          ].some(
-            (value) =>
-              value
-                ?.toLocaleLowerCase(
-                  'fa-IR',
-                )
-                .includes(
-                  search,
-                ),
-          ),
-      )
-  }
-
-  if (
-    specialization &&
-    specialization !==
-      'ALL'
-  ) {
-    items =
-      items.filter(
-        (lawyer) =>
-          lawyer.specialization ===
+    ...(specialization
+      ? {
           specialization,
-      )
+        }
+      : {}),
+
+    ...(params.featuredOnly !==
+    undefined
+      ? {
+          featuredOnly:
+            params.featuredOnly,
+        }
+      : {}),
+
+    page:
+      Math.max(
+        params.page ?? 1,
+        1,
+      ),
+
+    limit:
+      Math.min(
+        Math.max(
+          params.limit ?? 20,
+          1,
+        ),
+        100,
+      ),
   }
+}
+
+
+function assertListEnvelope(
+  payload: LawyerListEnvelope,
+): void {
+  if (
+    payload.success !== true ||
+    !Array.isArray(
+      payload.data,
+    ) ||
+    !payload.pagination
+  ) {
+    throw new Error(
+      'ساختار پاسخ فهرست وکلا معتبر نیست.',
+    )
+  }
+}
+
+
+function assertItemEnvelope(
+  payload: ApiEnvelope<PublicLawyer>,
+): void {
+  if (
+    payload.success !== true ||
+    !payload.data ||
+    typeof payload.data !==
+      'object'
+  ) {
+    throw new Error(
+      'ساختار پاسخ اطلاعات وکیل معتبر نیست.',
+    )
+  }
+}
+
+
+export async function getPublicLawyersPage(
+  params:
+    PublicLawyerListParams = {},
+): Promise<PublicLawyerPage> {
+  try {
+    const response =
+      await api.get<LawyerListEnvelope>(
+        DIRECTORY_ENDPOINT,
+        {
+          params:
+            buildDirectoryParams(
+              params,
+            ),
+        },
+      )
+
+    assertListEnvelope(
+      response.data,
+    )
+
+    return {
+      items:
+        response.data.data.map(
+          normalizeLawyer,
+        ),
+
+      pagination:
+        response.data.pagination,
+    }
+  } catch (error: unknown) {
+    throw new Error(
+      getApiErrorMessage(
+        error,
+        'دریافت فهرست وکلا ناموفق بود.',
+      ),
+    )
+  }
+}
+
+
+export async function getPublicLawyers(
+  params:
+    PublicLawyerListParams = {},
+): Promise<PublicLawyer[]> {
+  const firstPage =
+    await getPublicLawyersPage({
+      ...params,
+
+      page:
+        params.page ?? 1,
+
+      limit:
+        params.limit ?? 100,
+    })
 
   if (
-    params.featuredOnly
+    params.page !== undefined ||
+    firstPage.pagination.totalPages <=
+      1
   ) {
-    items =
-      items.filter(
-        (lawyer) =>
-          lawyer.isFeatured,
-      )
+    return firstPage.items
   }
 
-  return items.sort(
-    (a, b) =>
-      a.displayOrder -
-      b.displayOrder,
-  )
+  const remainingPages =
+    await Promise.all(
+      Array.from(
+        {
+          length:
+            firstPage.pagination
+              .totalPages - 1,
+        },
+        (
+          _,
+          index,
+        ) =>
+          getPublicLawyersPage({
+            ...params,
+
+            page:
+              index + 2,
+
+            limit:
+              firstPage.pagination
+                .limit,
+          }),
+      ),
+    )
+
+  return [
+    ...firstPage.items,
+
+    ...remainingPages.flatMap(
+      (page) =>
+        page.items,
+    ),
+  ]
 }
+
 
 export async function getPublicLawyerById(
   id: string,
 ): Promise<PublicLawyer | null> {
-  const lawyer =
-    TEMPORARY_PUBLIC_LAWYERS.find(
-      (item) =>
-        item.id === id,
+  const lawyerId =
+    id.trim()
+
+  if (!lawyerId) {
+    return null
+  }
+
+  try {
+    const response =
+      await api.get<
+        ApiEnvelope<PublicLawyer>
+      >(
+        `${DIRECTORY_ENDPOINT}/${encodeURIComponent(
+          lawyerId,
+        )}`,
+      )
+
+    assertItemEnvelope(
+      response.data,
     )
 
-  return lawyer
-    ? {
-        ...lawyer,
-      }
-    : null
+    return normalizeLawyer(
+      response.data.data,
+    )
+  } catch (error: unknown) {
+    if (
+      axios.isAxiosError(
+        error,
+      ) &&
+      error.response?.status ===
+        404
+    ) {
+      return null
+    }
+
+    throw new Error(
+      getApiErrorMessage(
+        error,
+        'دریافت اطلاعات وکیل ناموفق بود.',
+      ),
+    )
+  }
 }
+
 
 export async function getPublicLawyerSpecializations(): Promise<
   string[]
 > {
-  const values =
-    TEMPORARY_PUBLIC_LAWYERS.map(
-      (lawyer) =>
-        lawyer.specialization,
-    )
+  const lawyers =
+    await getPublicLawyers()
 
   return Array.from(
-    new Set(values),
+    new Set(
+      lawyers
+        .map(
+          (lawyer) =>
+            lawyer.specialization.trim(),
+        )
+        .filter(Boolean),
+    ),
   ).sort(
-    (a, b) =>
-      a.localeCompare(
-        b,
-        'fa-IR',
+    (
+      first,
+      second,
+    ) =>
+      first.localeCompare(
+        second,
+        'fa',
       ),
-  ) }
+  )
+}
