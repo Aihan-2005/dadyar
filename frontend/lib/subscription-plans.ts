@@ -1,202 +1,186 @@
+export const SUBSCRIPTION_PLAN_KEYS = [
+  'trial',
+  'monthly',
+  'three_month',
+  'six_month',
+] as const
+
+
 export type SubscriptionPlanKey =
-  | 'free'
-  | '1m'
-  | '3m'
-  | '6m'
+  (typeof SUBSCRIPTION_PLAN_KEYS)[number]
 
-export type SubscriptionPlan = {
-  key:
-    SubscriptionPlanKey
 
-  title:
-    string
 
-  shortTitle:
-    string
+export interface SubscriptionPlan {
 
-  price:
-    string
+  key: SubscriptionPlanKey
 
-  period:
-    string
+  title: string
 
-  description:
-    string
+  price: number
 
-  action:
-    string
+  priceLabel: string
 
-  popular:
-    boolean
+  duration: string
 
-  features:
-    string[]
+  description: string
+
+  features: readonly string[]
+
+  popular: boolean
+
 }
 
 
 
-export const SUBSCRIPTION_PLANS:
-  readonly SubscriptionPlan[] = [
-    {
-      key:
-        'free',
+export const SUBSCRIPTION_PLANS: readonly SubscriptionPlan[] = [
 
-      title:
-        'دوره آزمایشی رایگان',
+  {
+    key: 'trial',
 
-      shortTitle:
-        'رایگان',
+    title: 'دوره آزمایشی',
 
-      price:
-        '۰',
+    price: 0,
 
-      period:
-        '۱۴ روز',
+    priceLabel: 'رایگان',
 
-      description:
-        'دو هفته فرصت برای تجربه دادیار و بررسی امکانات اصلی سامانه بدون پرداخت هزینه.',
+    duration: '۱۴ روز',
 
-      action:
-        'شروع ۱۴ روز رایگان',
+    description:
+      'تجربه کامل امکانات دادیار قبل از خرید اشتراک.',
 
-      popular:
-        false,
+    features: [
+      'مدیریت پرونده‌ها',
+      'مدیریت موکلین',
+      'گزارش مالی',
+      'مدیریت امور دفتر',
+    ],
 
-      features: [
-        '۱۴ روز دسترسی رایگان',
-        'مدیریت پرونده‌ها و موکلین',
-        'مدیریت امور مالی',
-        'بدون نیاز به پرداخت اولیه',
-      ],
-    },
+    popular: false,
+  },
 
-    {
-      key:
-        '1m',
 
-      title:
-        'اشتراک ۱ ماهه',
+  {
+    key: 'monthly',
 
-      shortTitle:
-        'پلن ۱ ماهه',
+    title: 'اشتراک یک ماهه',
 
-      price:
-        '۲۹۹,۰۰۰',
+    price: 250000,
 
-      period:
-        '۱ ماه',
+    priceLabel:
+      '۲۵۰,۰۰۰ تومان',
 
-      description:
-        'برای وکلایی که می‌خواهند دادیار را بدون تعهد بلندمدت وارد جریان کاری دفتر کنند.',
+    duration:
+      '۱ ماه',
 
-      action:
-        'انتخاب پلن ۱ ماهه',
+    description:
+      'شروع حرفه‌ای مدیریت دفتر وکالت.',
 
-      popular:
-        false,
+    features: [
+      'مدیریت پرونده‌ها',
+      'مدیریت موکلین',
+      'گزارش مالی',
+      'پشتیبانی',
+    ],
 
-      features: [
-        'دسترسی کامل به امکانات دادیار',
-        'مدیریت نامحدود پرونده‌ها',
-        'مدیریت موکلین',
-        'گزارش و کنترل امور مالی',
-      ],
-    },
+    popular: false,
+  },
 
-    {
-      key:
-        '3m',
 
-      title:
-        'اشتراک ۳ ماهه',
+  {
+    key: 'three_month',
 
-      shortTitle:
-        'پلن ۳ ماهه',
+    title:
+      'اشتراک سه ماهه',
 
-      price:
-        '۷۹۹,۰۰۰',
+    price:
+      650000,
 
-      period:
-        '۳ ماه',
+    priceLabel:
+      '۶۵۰,۰۰۰ تومان',
 
-      description:
-        'انتخاب متعادل برای استفاده مستمر از دادیار با هزینه کمتر نسبت به تمدید ماهانه.',
+    duration:
+      '۳ ماه',
 
-      action:
-        'انتخاب پلن ۳ ماهه',
+    description:
+      'مناسب استفاده مستمر و حرفه‌ای.',
 
-      popular:
-        true,
+    features:[
+      'تمام امکانات یک ماهه',
+      'مدیریت قراردادها',
+      'یادآورها',
+      'امکانات حرفه‌ای',
+    ],
 
-      features: [
-        'تمام امکانات پلن ماهانه',
-        'حدود ۱۱٪ صرفه‌جویی',
-        'مدیریت حرفه‌ای پرونده و موکل',
-        'گزارش‌های مالی و مدیریتی',
-      ],
-    },
+    popular:false,
+  },
 
-    {
-      key:
-        '6m',
 
-      title:
-        'اشتراک ۶ ماهه',
+  {
+    key:'six_month',
 
-      shortTitle:
-        'پلن ۶ ماهه',
+    title:
+      'اشتراک شش ماهه',
 
-      price:
-        '۱,۳۹۹,۰۰۰',
+    price:
+      1100000,
 
-      period:
-        '۶ ماه',
+    priceLabel:
+      '۱,۱۰۰,۰۰۰ تومان',
 
-      description:
-        'اقتصادی‌ترین انتخاب فعلی دادیار برای دفاتری که استفاده بلندمدت و مستمر دارند.',
+    duration:
+      '۶ ماه',
 
-      action:
-        'انتخاب پلن ۶ ماهه',
+    description:
+      'بهترین انتخاب برای دفاتر فعال.',
 
-      popular:
-        false,
+    features:[
+      'تمام امکانات دادیار',
+      'گزارش‌های پیشرفته',
+      'اولویت پشتیبانی',
+      'امکانات آینده',
+    ],
 
-      features: [
-        'تمام امکانات حرفه‌ای دادیار',
-        'حدود ۲۲٪ صرفه‌جویی',
-        'دسترسی کامل به مدیریت مالی',
-        'شش ماه استفاده بدون نیاز به تمدید',
-      ],
-    },
-  ]
+    popular:true,
+  },
 
-export function isSubscriptionPlanKey(
-  value:
-    unknown
-): value is SubscriptionPlanKey {
-  return SUBSCRIPTION_PLANS.some(
-    (plan) =>
-      plan.key ===
-      value
-  )
-}
+]
+
+
+
+
 
 export function getSubscriptionPlan(
-  key:
-    SubscriptionPlanKey
-): SubscriptionPlan {
-  const plan =
-    SUBSCRIPTION_PLANS.find(
-      (item) =>
-        item.key ===
-        key
-    )
+  key: SubscriptionPlanKey
+){
 
-  if (!plan) {
-    throw new Error(
-      `Unknown subscription plan: ${key}`
-    )
-  }
+  return SUBSCRIPTION_PLANS.find(
+    plan =>
+      plan.key === key
+  )
 
-  return plan
 }
+
+
+
+
+
+export function isSubscriptionPlanKey(
+  value:string | null | undefined
+): value is SubscriptionPlanKey {
+
+
+  return Boolean(
+
+    value &&
+
+    SUBSCRIPTION_PLAN_KEYS.includes(
+      value as SubscriptionPlanKey
+    )
+
+  )
+
+}
+
+
+

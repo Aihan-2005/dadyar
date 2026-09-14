@@ -1,22 +1,27 @@
 import { Suspense } from 'react'
 
-import CheckoutClient from './checkout/CheckoutClient'
+import PaymentResultClient from './PaymentResultClient'
 
 
-export default function CheckoutPage(){
+
+export default function PaymentResultPage(){
+
 
   return (
 
     <Suspense
+
       fallback={
+
         <main
           dir="rtl"
           className="
-          flex
           min-h-screen
+          flex
           items-center
           justify-center
           bg-slate-100
+          px-4
           "
         >
 
@@ -36,16 +41,20 @@ export default function CheckoutPage(){
               text-slate-700
               "
             >
-              در حال بارگذاری...
+              در حال بررسی نتیجه پرداخت...
             </p>
+
 
           </div>
 
+
         </main>
+
       }
+
     >
 
-      <CheckoutClient />
+      <PaymentResultClient />
 
     </Suspense>
 

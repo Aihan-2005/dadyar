@@ -1,14 +1,18 @@
 import { Suspense } from 'react'
 
-import CheckoutClient from './checkout/CheckoutClient'
+import CheckoutClient from './CheckoutClient'
+
 
 
 export default function CheckoutPage(){
 
+
   return (
 
     <Suspense
+
       fallback={
+
         <main
           dir="rtl"
           className="
@@ -42,7 +46,9 @@ export default function CheckoutPage(){
           </div>
 
         </main>
+
       }
+
     >
 
       <CheckoutClient />
