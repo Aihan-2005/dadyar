@@ -1,582 +1,996 @@
 'use client'
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
 } from 'react'
 
-import type { LucideIcon } from 'lucide-react'
-
-import {
-  CalendarDays,
-  Clock3,
-  FileQuestion,
-  FileText,
-  MessageSquareText,
-  RefreshCw,
-  Search,
+import type {
+  LucideIcon,
 } from 'lucide-react'
 
-import LawyerRequestReviewModal from '@/components/dashboard/client-requests/LawyerRequestReviewModal'
-import LawyerPetitionComposerModal from '@/components/dashboard/client-requests/LawyerPetitionComposerModal'
+import {
+  CheckCircle2,
+  Clock3,
+  Loader2,
+  Mail,
+  MessageSquareText,
+  Phone,
+  RefreshCw,
+  Search,
+  XCircle,
+} from 'lucide-react'
 
 import {
-  fetchLawyerRequestsApi,
-  getLawyerRequestApiErrorMessage,
-} from '@/features/dashboard/client-requests/api/lawyer-request.api'
+  getLawyerClientInquiries,
+  updateLawyerClientInquiry,
+} from '@/services/client-lawyer-inquiry.service'
 
 import {
-  fetchPetitionsApi,
-  getPetitionApiErrorMessage,
-} from '@/features/dashboard/petitions/api/petition.api'
+  useAuthStore,
+} from '@/store/auth.store'
 
 import type {
-  ClientLawyerRequestKind,
-  ClientLawyerRequestRecord,
-  ClientLawyerRequestStatus,
-} from '@/features/client-portal/types/communication'
+  ClientLawyerInquiryStatus,
+  LawyerClientInquiry,
+  LawyerInquiryDecisionInput,
+} from '@/types/client-lawyer-inquiry'
 
-import type { LawyerPetitionRecord } from '@/features/dashboard/petitions/types'
 
-import {
-  CONSULTATION_MODE_LABELS,
-  CONTACT_METHOD_LABELS,
-  LEGAL_CATEGORY_LABELS,
-  REQUEST_STATUS_LABELS,
-  formatCommunicationDateTime,
-  formatToman,
-  getRequestStatusClassName,
-} from '@/features/client-portal/utils/communication'
+type LawyerFilter =
+  | 'ALL'
+  | ClientLawyerInquiryStatus
 
-import {
-  PETITION_STATUS_LABELS,
-  getPetitionStatusClassName,
-} from '@/features/client-portal/utils/petition'
 
-type MainTab = 'requests' | 'petitions'
-type KindFilter = 'all' | ClientLawyerRequestKind
-type StatusFilter = 'all' | ClientLawyerRequestStatus
-
-export default function ClientRequestsDashboardPage() {
-  const [mainTab, setMainTab] = useState<MainTab>('requests')
-
-  // --- state های مربوط به درخواست‌ها / رزروها ---
-  const [records, setRecords] = useState<ClientLawyerRequestRecord[]>([])
-  const [requestsLoading, setRequestsLoading] = useState(true)
-  const [requestsError, setRequestsError] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
-  const [kindFilter, setKindFilter] = useState<KindFilter>('all')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [selected, setSelected] =
-    useState<ClientLawyerRequestRecord | null>(null)
-
-  // --- state های مربوط به لوایح (نوشته‌شده توسط خودِ وکیل) ---
-  const [petitions, setPetitions] = useState<LawyerPetitionRecord[]>([])
-  const [petitionsLoading, setPetitionsLoading] = useState(true)
-  const [petitionsError, setPetitionsError] = useState<string | null>(null)
-  const [petitionSearch, setPetitionSearch] = useState('')
-  const [selectedPetition, setSelectedPetition] =
-    useState<LawyerPetitionRecord | null>(null)
-  const [creatingPetition, setCreatingPetition] = useState(false)
-
-  const reload = async () => {
-    setRequestsLoading(true)
-    setRequestsError(null)
-
-    try {
-      const data = await fetchLawyerRequestsApi()
-      setRecords(data)
-    } catch (error) {
-      setRequestsError(
-        getLawyerRequestApiErrorMessage(
-          error,
-          'دریافت درخواست‌ها با خطا مواجه شد.'
-        )
-      )
-    } finally {
-      setRequestsLoading(false)
+const statusMeta:
+  Record<
+    ClientLawyerInquiryStatus,
+    {
+      label: string
+      className: string
     }
+  > = {
+    SUBMITTED: {
+      label:
+        'جدید',
+
+      className:
+        'border-blue-200 bg-blue-50 text-blue-700',
+    },
+
+    IN_REVIEW: {
+      label:
+        'در حال بررسی',
+
+      className:
+        'border-amber-200 bg-amber-50 text-amber-700',
+    },
+
+    ACCEPTED: {
+      label:
+        'پذیرفته‌شده',
+
+      className:
+        'border-emerald-200 bg-emerald-50 text-emerald-700',
+    },
+
+    REJECTED: {
+      label:
+        'ردشده',
+
+      className:
+        'border-red-200 bg-red-50 text-red-700',
+    },
+
+    CANCELLED: {
+      label:
+        'لغوشده توسط موکل',
+
+      className:
+        'border-slate-200 bg-slate-100 text-slate-600',
+    },
+
+    CLOSED: {
+      label:
+        'بسته‌شده',
+
+      className:
+        'border-slate-300 bg-slate-100 text-slate-700',
+    },
   }
 
-  const reloadPetitions = async () => {
-    setPetitionsLoading(true)
-    setPetitionsError(null)
 
-    try {
-      const data = await fetchPetitionsApi()
-      setPetitions(data)
-    } catch (error) {
-      setPetitionsError(
-        getPetitionApiErrorMessage(error, 'دریافت لوایح با خطا مواجه شد.')
-      )
-    } finally {
-      setPetitionsLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    reload()
-    reloadPetitions()
-  }, [])
-
-  const stats = useMemo(
-    () => ({
-      total: records.length,
-      pending: records.filter((r) => r.status === 'submitted').length,
-      inProgress: records.filter(
-        (r) => r.status === 'under_review' || r.status === 'confirmed'
-      ).length,
-      completed: records.filter((r) => r.status === 'completed').length,
-    }),
-    [records]
-  )
-
-  const filtered = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase('fa-IR')
-
-    return records.filter((record) => {
-      if (kindFilter !== 'all' && record.kind !== kindFilter) return false
-      if (statusFilter !== 'all' && record.status !== statusFilter) return false
-      if (!query) return true
-
-      return [
-        record.reference,
-        record.subject,
-        record.client.fullName,
-        record.description,
-      ]
-        .join(' ')
-        .toLocaleLowerCase('fa-IR')
-        .includes(query)
-    })
-  }, [records, search, kindFilter, statusFilter])
-
-  const filteredPetitions = useMemo(() => {
-    const query = petitionSearch.trim().toLocaleLowerCase('fa-IR')
-
-    if (!query) return petitions
-
-    return petitions.filter((petition) =>
-      [
-        petition.reference,
-        petition.subject,
-        petition.clientName,
-        petition.authorityName,
-        petition.caseNumber ?? '',
-      ]
-        .join(' ')
-        .toLocaleLowerCase('fa-IR')
-        .includes(query)
+function formatDate(
+  value:
+    string,
+): string {
+  const date =
+    new Date(
+      value,
     )
-  }, [petitions, petitionSearch])
 
-  return (
-    <>
-      <div dir="rtl" className="mx-auto max-w-7xl">
-        <section className="rounded-[26px] border border-slate-200 bg-gradient-to-l from-blue-50 via-white to-emerald-50 p-6 sm:p-7">
-          <div className="flex flex-wrap items-center justify-between gap-5">
-            <div>
-              <p className="text-sm font-black text-blue-700">
-                ارتباط با موکلین
-              </p>
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    return value
+  }
 
-              <h1 className="mt-1 text-2xl font-black sm:text-3xl">
-                {mainTab === 'requests' ? 'درخواست‌های موکلین' : 'لوایح'}
-              </h1>
+  return new Intl.DateTimeFormat(
+    'fa-IR',
 
-              <p className="mt-2 text-sm font-semibold text-slate-600">
-                {mainTab === 'requests'
-                  ? 'درخواست‌های بررسی اولیه و رزرو مشاوره‌ای که موکلین برای شما ثبت کرده‌اند.'
-                  : 'لوایحی که برای موکلین خود تنظیم کرده‌اید.'}
-              </p>
-            </div>
+    {
+      dateStyle:
+        'medium',
 
-            {mainTab === 'requests' ? (
-              <button
-                type="button"
-                onClick={reload}
-                disabled={requestsLoading}
-                className="flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 disabled:opacity-60"
-              >
-                <RefreshCw size={17} />
-                بروزرسانی
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setCreatingPetition(true)}
-                className="flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-black text-white"
-              >
-                <FileText size={17} />
-                لایحه جدید
-              </button>
-            )}
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-200 pt-4">
-            <TabButton
-              active={mainTab === 'requests'}
-              icon={MessageSquareText}
-              onClick={() => setMainTab('requests')}
-            >
-              درخواست‌ها و رزروها
-            </TabButton>
-
-            <TabButton
-              active={mainTab === 'petitions'}
-              icon={FileText}
-              onClick={() => setMainTab('petitions')}
-            >
-              لوایح
-            </TabButton>
-          </div>
-        </section>
-
-        {mainTab === 'requests' ? (
-          <>
-            <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <Stat label="کل درخواست‌ها" value={stats.total} icon={MessageSquareText} />
-              <Stat label="در انتظار بررسی" value={stats.pending} icon={FileQuestion} />
-              <Stat label="در حال پیگیری" value={stats.inProgress} icon={Clock3} />
-              <Stat label="انجام‌شده" value={stats.completed} icon={CalendarDays} />
-            </section>
-
-            <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_200px_200px]">
-                <div className="relative">
-                  <Search
-                    size={17}
-                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-
-                  <input
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="جستجو بر اساس موکل، موضوع یا کد پیگیری..."
-                    className="h-11 w-full rounded-xl border border-slate-300 pr-11 pl-3 text-sm font-bold outline-none focus:border-blue-500"
-                  />
-                </div>
-
-                <select
-                  value={kindFilter}
-                  onChange={(event) =>
-                    setKindFilter(event.target.value as KindFilter)
-                  }
-                  className="h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-black outline-none"
-                >
-                  <option value="all">همه خدمات</option>
-                  <option value="initial_request">بررسی اولیه</option>
-                  <option value="consultation_booking">رزرو مشاوره</option>
-                </select>
-
-                <select
-                  value={statusFilter}
-                  onChange={(event) =>
-                    setStatusFilter(event.target.value as StatusFilter)
-                  }
-                  className="h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-black outline-none"
-                >
-                  <option value="all">همه وضعیت‌ها</option>
-
-                  {(
-                    Object.keys(REQUEST_STATUS_LABELS) as ClientLawyerRequestStatus[]
-                  ).map((value) => (
-                    <option key={value} value={value}>
-                      {REQUEST_STATUS_LABELS[value]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </section>
-
-            {requestsError && (
-              <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-                {requestsError}
-              </p>
-            )}
-
-            <section className="mt-5">
-              {requestsLoading ? (
-                <div className="rounded-[22px] border border-dashed border-slate-300 bg-white py-14 text-center">
-                  <p className="font-black text-slate-500">
-                    در حال بارگذاری درخواست‌ها...
-                  </p>
-                </div>
-              ) : filtered.length > 0 ? (
-                <div className="grid gap-4 xl:grid-cols-2">
-                  {filtered.map((record) => (
-                    <article
-                      key={record.id}
-                      className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${getRequestStatusClassName(record.status)}`}
-                            >
-                              {REQUEST_STATUS_LABELS[record.status]}
-                            </span>
-
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
-                              {record.kind === 'consultation_booking'
-                                ? 'رزرو مشاوره'
-                                : 'بررسی اولیه'}
-                            </span>
-                          </div>
-
-                          <h2 className="mt-3 text-lg font-black">
-                            {record.subject}
-                          </h2>
-
-                          <p className="mt-1 text-sm font-semibold text-slate-500">
-                            {record.client.fullName}
-                          </p>
-                        </div>
-
-                        <p dir="ltr" className="text-xs font-black text-blue-700">
-                          {record.reference}
-                        </p>
-                      </div>
-
-                      {record.kind === 'consultation_booking' ? (
-                        <div className="mt-4 grid grid-cols-2 gap-3">
-                          <InfoBox label="تاریخ" value={record.dateLabel} />
-                          <InfoBox label="ساعت" value={record.time} />
-                          <InfoBox
-                            label="نوع"
-                            value={CONSULTATION_MODE_LABELS[record.consultationMode]}
-                          />
-                          <InfoBox
-                            label="مبلغ"
-                            value={formatToman(record.priceToman)}
-                          />
-                        </div>
-                      ) : (
-                        <div className="mt-4 grid grid-cols-2 gap-3">
-                          <InfoBox
-                            label="حوزه"
-                            value={LEGAL_CATEGORY_LABELS[record.category]}
-                          />
-                          <InfoBox
-                            label="روش ارتباط"
-                            value={CONTACT_METHOD_LABELS[record.preferredContactMethod]}
-                          />
-                        </div>
-                      )}
-
-                      <p className="mt-4 line-clamp-2 text-sm font-semibold leading-7 text-slate-600">
-                        {record.description}
-                      </p>
-
-                      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                        <p className="text-xs font-semibold text-slate-400">
-                          {formatCommunicationDateTime(record.createdAt)}
-                        </p>
-
-                        <button
-                          type="button"
-                          onClick={() => setSelected(record)}
-                          className="inline-flex h-10 items-center rounded-xl bg-slate-900 px-4 text-xs font-black text-white"
-                        >
-                          مشاهده و پاسخ
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-[22px] border border-dashed border-slate-300 bg-white py-14 text-center">
-                  <MessageSquareText size={26} className="mx-auto text-slate-400" />
-                  <p className="mt-4 font-black">درخواستی پیدا نشد</p>
-                </div>
-              )}
-            </section>
-          </>
-        ) : (
-          <>
-            <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="relative">
-                <Search
-                  size={17}
-                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-
-                <input
-                  value={petitionSearch}
-                  onChange={(event) => setPetitionSearch(event.target.value)}
-                  placeholder="جستجو بر اساس موکل، موضوع، شماره پرونده یا کد پیگیری..."
-                  className="h-11 w-full rounded-xl border border-slate-300 pr-11 pl-3 text-sm font-bold outline-none focus:border-blue-500"
-                />
-              </div>
-            </section>
-
-            {petitionsError && (
-              <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-                {petitionsError}
-              </p>
-            )}
-
-            <section className="mt-5">
-              {petitionsLoading ? (
-                <div className="rounded-[22px] border border-dashed border-slate-300 bg-white py-14 text-center">
-                  <p className="font-black text-slate-500">
-                    در حال بارگذاری لوایح...
-                  </p>
-                </div>
-              ) : filteredPetitions.length > 0 ? (
-                <div className="grid gap-4 xl:grid-cols-2">
-                  {filteredPetitions.map((petition) => (
-                    <article
-                      key={petition.id}
-                      className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <span
-                            className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${getPetitionStatusClassName(petition.status)}`}
-                          >
-                            {PETITION_STATUS_LABELS[petition.status]}
-                          </span>
-
-                          <h2 className="mt-3 text-lg font-black">
-                            {petition.subject}
-                          </h2>
-
-                          <p className="mt-1 text-sm font-semibold text-slate-500">
-                            {petition.clientName}
-                            {' — '}
-                            {petition.authorityName}
-                          </p>
-                        </div>
-
-                        <p dir="ltr" className="text-xs font-black text-blue-700">
-                          {petition.reference}
-                        </p>
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-2 gap-3">
-                        <InfoBox label="شماره پرونده" value={petition.caseNumber || '—'} />
-                        <InfoBox label="شعبه" value={petition.branch || '—'} />
-                      </div>
-
-                      <p className="mt-4 line-clamp-2 text-sm font-semibold leading-7 text-slate-600">
-                        {petition.facts}
-                      </p>
-
-                      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
-                        <p className="text-xs font-semibold text-slate-400">
-                          نسخه {petition.version.toLocaleString('fa-IR')}
-                          {' — '}
-                          {formatCommunicationDateTime(petition.updatedAt)}
-                        </p>
-
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPetition(petition)}
-                          className="inline-flex h-10 items-center rounded-xl bg-slate-900 px-4 text-xs font-black text-white"
-                        >
-                          مدیریت و ویرایش
-                        </button>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-[22px] border border-dashed border-slate-300 bg-white py-14 text-center">
-                  <FileText size={26} className="mx-auto text-slate-400" />
-                  <p className="mt-4 font-black">هنوز لایحه‌ای ثبت نشده</p>
-
-                  <button
-                    type="button"
-                    onClick={() => setCreatingPetition(true)}
-                    className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
-                  >
-                    <FileText size={16} />
-                    ساخت لایحه جدید
-                  </button>
-                </div>
-              )}
-            </section>
-          </>
-        )}
-      </div>
-
-      <LawyerRequestReviewModal
-        request={selected}
-        onClose={() => setSelected(null)}
-        onUpdated={reload}
-      />
-
-      <LawyerPetitionComposerModal
-        petition={selectedPetition}
-        creating={creatingPetition}
-        onClose={() => {
-          setSelectedPetition(null)
-          setCreatingPetition(false)
-        }}
-        onUpdated={reloadPetitions}
-      />
-    </>
+      timeStyle:
+        'short',
+    },
+  ).format(
+    date,
   )
 }
 
-function TabButton({
-  active,
-  icon: Icon,
+
+export default function LawyerClientRequestsPage() {
+  const user =
+    useAuthStore(
+      (state) =>
+        state.user,
+    )
+
+  const hasHydrated =
+    useAuthStore(
+      (state) =>
+        state.hasHydrated,
+    )
+
+  const [
+    items,
+    setItems,
+  ] =
+    useState<
+      LawyerClientInquiry[]
+    >([])
+
+  const [
+    filter,
+    setFilter,
+  ] =
+    useState<LawyerFilter>(
+      'ALL',
+    )
+
+  const [
+    search,
+    setSearch,
+  ] =
+    useState('')
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(
+      true,
+    )
+
+  const [
+    error,
+    setError,
+  ] =
+    useState<
+      string | null
+    >(null)
+
+  const [
+    selectedId,
+    setSelectedId,
+  ] =
+    useState<
+      string | null
+    >(null)
+
+  const [
+    responseText,
+    setResponseText,
+  ] =
+    useState('')
+
+  const [
+    action,
+    setAction,
+  ] =
+    useState<
+      LawyerInquiryDecisionInput['status'] |
+      null
+    >(null)
+
+
+  const load =
+    useCallback(
+      async () => {
+        if (
+          !hasHydrated ||
+          user?.role !==
+            'LAWYER'
+        ) {
+          return
+        }
+
+        try {
+          setLoading(
+            true,
+          )
+
+          setError(
+            null,
+          )
+
+          const page =
+            await getLawyerClientInquiries({
+              ...(filter !==
+              'ALL'
+                ? {
+                    status:
+                      filter,
+                  }
+                : {}),
+
+              ...(search.trim()
+                ? {
+                    search:
+                      search.trim(),
+                  }
+                : {}),
+
+              page:
+                1,
+
+              limit:
+                100,
+            })
+
+          setItems(
+            page.items,
+          )
+        } catch (
+          caughtError:
+            unknown
+        ) {
+          setError(
+            caughtError instanceof
+              Error
+              ? caughtError.message
+              : 'دریافت درخواست‌های موکلین ناموفق بود.',
+          )
+        } finally {
+          setLoading(
+            false,
+          )
+        }
+      },
+
+      [
+        filter,
+        hasHydrated,
+        search,
+        user?.role,
+      ],
+    )
+
+
+  useEffect(
+    () => {
+      void load()
+    },
+
+    [
+      load,
+    ],
+  )
+
+
+  const selectedItem =
+    useMemo(
+      () =>
+        items.find(
+          (
+            item,
+          ) =>
+            item.id ===
+            selectedId,
+        ) ??
+        null,
+
+      [
+        items,
+        selectedId,
+      ],
+    )
+
+
+  useEffect(
+    () => {
+      setResponseText(
+        selectedItem
+          ?.lawyerResponse ??
+          '',
+      )
+    },
+
+    [
+      selectedItem,
+    ],
+  )
+
+
+  async function decide(
+    status:
+      LawyerInquiryDecisionInput['status'],
+  ) {
+    if (
+      !selectedItem ||
+      action
+    ) {
+      return
+    }
+
+    const response =
+      responseText.trim()
+
+    if (
+      (
+        status ===
+          'ACCEPTED' ||
+        status ===
+          'REJECTED'
+      ) &&
+      !response
+    ) {
+      setError(
+        'برای پذیرش یا رد درخواست، پاسخ وکیل را وارد کنید.',
+      )
+
+      return
+    }
+
+    try {
+      setAction(
+        status,
+      )
+
+      setError(
+        null,
+      )
+
+      const updated =
+        await updateLawyerClientInquiry(
+          selectedItem.id,
+
+          {
+            status,
+
+            ...(response
+              ? {
+                  response,
+                }
+              : {}),
+          },
+        )
+
+      setItems(
+        (
+          current,
+        ) =>
+          current.map(
+            (
+              item,
+            ) =>
+              item.id ===
+              updated.id
+                ? updated
+                : item,
+          ),
+      )
+
+      setResponseText(
+        updated.lawyerResponse,
+      )
+    } catch (
+      caughtError:
+        unknown
+    ) {
+      setError(
+        caughtError instanceof
+          Error
+          ? caughtError.message
+          : 'بروزرسانی درخواست ناموفق بود.',
+      )
+    } finally {
+      setAction(
+        null,
+      )
+    }
+  }
+
+
+  if (
+    !hasHydrated
+  ) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Loader2
+          size={28}
+          className="animate-spin text-blue-600"
+        />
+      </div>
+    )
+  }
+
+
+  if (
+    !user ||
+    user.role !==
+      'LAWYER'
+  ) {
+    return (
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <h1 className="text-xl font-black text-slate-900">
+          دسترسی غیرمجاز
+        </h1>
+
+        <p className="mt-2 text-sm font-semibold text-slate-600">
+          این بخش فقط برای حساب وکیل قابل دسترسی است.
+        </p>
+      </div>
+    )
+  }
+
+
+  return (
+    <div dir="rtl">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+          <h1 className="text-2xl font-black text-slate-950 sm:text-3xl">
+            درخواست‌های موکلین
+          </h1>
+
+          <p className="mt-2 text-sm font-semibold leading-7 text-slate-600">
+            درخواست‌های این صفحه مستقیم از Backend دریافت می‌شوند و پاسخ شما برای همان موکل ذخیره می‌شود.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          disabled={
+            loading
+          }
+          onClick={() =>
+            void load()
+          }
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 transition hover:border-blue-300 hover:text-blue-700 disabled:opacity-60"
+        >
+          <RefreshCw
+            size={17}
+            className={
+              loading
+                ? 'animate-spin'
+                : ''
+            }
+          />
+
+          بروزرسانی
+        </button>
+      </div>
+
+      <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+        <label className="relative block">
+          <Search
+            size={17}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+          />
+
+          <input
+            value={
+              search
+            }
+            onChange={(
+              event,
+            ) =>
+              setSearch(
+                event.target.value,
+              )
+            }
+            placeholder="جستجو در موضوع یا متن درخواست..."
+            className="h-12 w-full rounded-2xl border border-slate-300 bg-white pr-11 pl-4 text-sm font-semibold outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          />
+        </label>
+
+        <select
+          value={
+            filter
+          }
+          onChange={(
+            event,
+          ) =>
+            setFilter(
+              event.target.value as
+                LawyerFilter,
+            )
+          }
+          className="h-12 rounded-2xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 outline-none focus:border-blue-500"
+        >
+          <option value="ALL">
+            همه وضعیت‌ها
+          </option>
+
+          <option value="SUBMITTED">
+            جدید
+          </option>
+
+          <option value="IN_REVIEW">
+            در حال بررسی
+          </option>
+
+          <option value="ACCEPTED">
+            پذیرفته‌شده
+          </option>
+
+          <option value="REJECTED">
+            ردشده
+          </option>
+
+          <option value="CANCELLED">
+            لغوشده
+          </option>
+
+          <option value="CLOSED">
+            بسته‌شده
+          </option>
+        </select>
+      </div>
+
+      {error && (
+        <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-7 text-red-700">
+          {error}
+        </div>
+      )}
+
+      <div className="mt-7 grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="space-y-3">
+          {loading ? (
+            <div className="flex min-h-64 items-center justify-center rounded-3xl border border-slate-200 bg-white">
+              <Loader2
+                size={28}
+                className="animate-spin text-blue-600"
+              />
+            </div>
+          ) : items.length ===
+            0 ? (
+            <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
+              <MessageSquareText
+                size={34}
+                className="mx-auto text-slate-400"
+              />
+
+              <p className="mt-3 font-black text-slate-700">
+                درخواستی پیدا نشد.
+              </p>
+            </div>
+          ) : (
+            items.map(
+              (
+                item,
+              ) => {
+                const meta =
+                  statusMeta[
+                    item.status
+                  ]
+
+                return (
+                  <button
+                    key={
+                      item.id
+                    }
+                    type="button"
+                    onClick={() =>
+                      setSelectedId(
+                        item.id,
+                      )
+                    }
+                    className={`block w-full rounded-3xl border bg-white p-5 text-right transition hover:border-blue-300 hover:shadow-md ${
+                      selectedId ===
+                      item.id
+                        ? 'border-blue-400 ring-4 ring-blue-100'
+                        : 'border-slate-200'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span
+                        className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.className}`}
+                      >
+                        {meta.label}
+                      </span>
+
+                      <span className="text-[11px] font-bold text-slate-400">
+                        {formatDate(
+                          item.createdAt,
+                        )}
+                      </span>
+                    </div>
+
+                    <h2 className="mt-3 font-black text-slate-900">
+                      {item.subject}
+                    </h2>
+
+                    <p className="mt-2 line-clamp-2 text-sm font-medium leading-7 text-slate-600">
+                      {item.description}
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap gap-3 text-xs font-bold text-slate-500">
+                      {item.client.phone && (
+                        <span className="inline-flex items-center gap-1">
+                          <Phone
+                            size={13}
+                          />
+
+                          {item.client.phone}
+                        </span>
+                      )}
+
+                      {item.client.email && (
+                        <span className="inline-flex items-center gap-1">
+                          <Mail
+                            size={13}
+                          />
+
+                          {item.client.email}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                )
+              },
+            )
+          )}
+        </section>
+
+        <aside className="xl:sticky xl:top-24 xl:self-start">
+          {!selectedItem ? (
+            <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+              <MessageSquareText
+                size={32}
+                className="mx-auto text-slate-400"
+              />
+
+              <p className="mt-3 text-sm font-black text-slate-700">
+                یک درخواست را برای مشاهده جزئیات انتخاب کنید.
+              </p>
+            </div>
+          ) : (
+            <RequestDetail
+              item={
+                selectedItem
+              }
+              responseText={
+                responseText
+              }
+              onResponseChange={
+                setResponseText
+              }
+              action={
+                action
+              }
+              onDecision={(
+                status,
+              ) =>
+                void decide(
+                  status,
+                )
+              }
+            />
+          )}
+        </aside>
+      </div>
+    </div>
+  )
+}
+
+
+function RequestDetail({
+  item,
+  responseText,
+  onResponseChange,
+  action,
+  onDecision,
+}: {
+  item:
+    LawyerClientInquiry
+
+  responseText:
+    string
+
+  onResponseChange:
+    (
+      value:
+        string,
+    ) => void
+
+  action:
+    LawyerInquiryDecisionInput['status'] |
+    null
+
+  onDecision:
+    (
+      status:
+        LawyerInquiryDecisionInput['status'],
+    ) => void
+}) {
+  const meta =
+    statusMeta[
+      item.status
+    ]
+
+  const canStartReview =
+    item.status ===
+    'SUBMITTED'
+
+  const canDecide =
+    item.status ===
+      'SUBMITTED' ||
+    item.status ===
+      'IN_REVIEW'
+
+  const canClose =
+    item.status ===
+      'ACCEPTED' ||
+    item.status ===
+      'REJECTED'
+
+  const terminal =
+    item.status ===
+      'CANCELLED' ||
+    item.status ===
+      'CLOSED'
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span
+          className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.className}`}
+        >
+          {meta.label}
+        </span>
+
+        <span className="text-[11px] font-bold text-slate-400">
+          {formatDate(
+            item.createdAt,
+          )}
+        </span>
+      </div>
+
+      <h2 className="mt-4 text-xl font-black text-slate-950">
+        {item.subject}
+      </h2>
+
+      <p className="mt-4 whitespace-pre-wrap text-sm font-medium leading-8 text-slate-700">
+        {item.description}
+      </p>
+
+      <div className="mt-5 grid gap-2 rounded-2xl bg-slate-50 p-4 text-xs font-bold text-slate-600">
+        <p>
+          شماره تماس:
+          {' '}
+          {item.client.phone ||
+            'ثبت نشده'}
+        </p>
+
+        <p>
+          ایمیل:
+          {' '}
+          {item.client.email ||
+            'ثبت نشده'}
+        </p>
+      </div>
+
+      {!terminal && (
+        <label className="mt-5 block">
+          <span className="text-sm font-black text-slate-800">
+            پاسخ وکیل
+          </span>
+
+          <textarea
+            value={
+              responseText
+            }
+            onChange={(
+              event,
+            ) =>
+              onResponseChange(
+                event.target.value,
+              )
+            }
+            maxLength={5000}
+            rows={7}
+            placeholder="پاسخ یا توضیح خود را برای موکل وارد کنید..."
+            className="mt-2 w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-7 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          />
+        </label>
+      )}
+
+      {item.lawyerResponse &&
+        terminal && (
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-xs font-black text-slate-500">
+            پاسخ ثبت‌شده
+          </p>
+
+          <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-7 text-slate-800">
+            {item.lawyerResponse}
+          </p>
+        </div>
+      )}
+
+      <div className="mt-5 grid gap-2 sm:grid-cols-2">
+        {canStartReview && (
+          <DecisionButton
+            loading={
+              action ===
+              'IN_REVIEW'
+            }
+            disabled={
+              Boolean(
+                action,
+              )
+            }
+            onClick={() =>
+              onDecision(
+                'IN_REVIEW',
+              )
+            }
+            className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+            icon={
+              Clock3
+            }
+          >
+            شروع بررسی
+          </DecisionButton>
+        )}
+
+        {canDecide && (
+          <>
+            <DecisionButton
+              loading={
+                action ===
+                'ACCEPTED'
+              }
+              disabled={
+                Boolean(
+                  action,
+                )
+              }
+              onClick={() =>
+                onDecision(
+                  'ACCEPTED',
+                )
+              }
+              className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              icon={
+                CheckCircle2
+              }
+            >
+              پذیرش درخواست
+            </DecisionButton>
+
+            <DecisionButton
+              loading={
+                action ===
+                'REJECTED'
+              }
+              disabled={
+                Boolean(
+                  action,
+                )
+              }
+              onClick={() =>
+                onDecision(
+                  'REJECTED',
+                )
+              }
+              className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+              icon={
+                XCircle
+              }
+            >
+              رد درخواست
+            </DecisionButton>
+          </>
+        )}
+
+        {canClose && (
+          <DecisionButton
+            loading={
+              action ===
+              'CLOSED'
+            }
+            disabled={
+              Boolean(
+                action,
+              )
+            }
+            onClick={() =>
+              onDecision(
+                'CLOSED',
+              )
+            }
+            className="border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
+            icon={
+              CheckCircle2
+            }
+          >
+            بستن درخواست
+          </DecisionButton>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+function DecisionButton({
+  loading,
+  disabled,
   onClick,
+  className,
+  icon:
+    Icon,
   children,
 }: {
-  active: boolean
-  icon: LucideIcon
-  onClick: () => void
-  children: string
+  loading:
+    boolean
+
+  disabled:
+    boolean
+
+  onClick:
+    () => void
+
+  className:
+    string
+
+  icon:
+    LucideIcon
+
+  children:
+    React.ReactNode
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-black transition ${
-        active
-          ? 'bg-slate-900 text-white'
-          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-      }`}
+      disabled={
+        disabled
+      }
+      onClick={
+        onClick
+      }
+      className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     >
-      <Icon size={16} />
+      {loading ? (
+        <Loader2
+          size={16}
+          className="animate-spin"
+        />
+      ) : (
+        <Icon
+          size={16}
+        />
+      )}
+
       {children}
     </button>
-  )
-}
-
-function Stat({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string
-  value: number
-  icon: LucideIcon
-}) {
-  return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center gap-2 text-xs font-black text-slate-600">
-        <Icon size={16} className="text-blue-600" />
-        {label}
-      </div>
-
-      <p className="mt-3 text-2xl font-black">
-        {value.toLocaleString('fa-IR')}
-      </p>
-    </article>
-  )
-}
-
-function InfoBox({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-      <p className="text-[10px] font-bold text-slate-500">{label}</p>
-      <p className="mt-1.5 text-sm font-black text-slate-900">{value}</p>
-    </div>
   )
 }
