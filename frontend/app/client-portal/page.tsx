@@ -544,9 +544,8 @@ export default function ClientPortalPage() {
                 </span>
               </h1>
 
-              <p className="mt-3 max-w-3xl text-sm font-semibold leading-8 text-slate-600 sm:text-base">
-                پس از ورود با حساب موکل، فهرست وکلایی را می‌بینید که در Backend برای بخش موکلین منتشر شده‌اند. بعد از پذیرش درخواست توسط وکیل، رابطه واقعی موکل و وکیل روی سرور ایجاد می‌شود.
-              </p>
+            
+            
 
               <div className="mt-7 max-w-3xl">
                 <div className="relative">
@@ -595,9 +594,8 @@ export default function ClientPortalPage() {
                 برای مشاهده فهرست وکلا وارد حساب موکل شوید
               </h2>
 
-              <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-7 text-slate-600">
-                فهرست وکلا از API محافظت‌شده دادیار دریافت می‌شود و فقط حساب CLIENT به آن دسترسی دارد.
-              </p>
+             
+             
 
               <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
                 <Link
