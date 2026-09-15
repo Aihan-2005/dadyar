@@ -4,76 +4,90 @@ import type {
 } from '@/features/client-portal/types/lawyer'
 
 
-
-
 function normalizeSearchText(
   value:
-    string
+    string,
 ): string {
   return value
     .trim()
     .toLocaleLowerCase(
-      'fa-IR'
+      'fa-IR',
     )
     .replace(
       /ي/g,
-      'ی'
+
+      'ی',
     )
     .replace(
       /ك/g,
-      'ک'
+
+      'ک',
     )
     .replace(
       /\s+/g,
-      ' '
+
+      ' ',
     )
 }
-
 
 
 export function getLawyerCities(
   lawyers:
-    readonly ClientPortalLawyer[]
+    readonly ClientPortalLawyer[],
 ): string[] {
   return Array.from(
     new Set(
-      lawyers.map(
-        (lawyer) =>
-          lawyer.city
-      )
-    )
+      lawyers
+        .map(
+          (
+            lawyer,
+          ) =>
+            lawyer.city
+              .trim(),
+        )
+        .filter(
+          Boolean,
+        ),
+    ),
   ).sort(
     (
       first,
-      second
+
+      second,
     ) =>
       first.localeCompare(
         second,
-        'fa'
-      )
+
+        'fa',
+      ),
   )
 }
 
+
 export function getLawyerSpecialties(
   lawyers:
-    readonly ClientPortalLawyer[]
+    readonly ClientPortalLawyer[],
 ): string[] {
   return Array.from(
     new Set(
       lawyers.flatMap(
-        (lawyer) =>
-          lawyer.specialties
-      )
-    )
+        (
+          lawyer,
+        ) =>
+          lawyer.specialties,
+      ),
+    ),
   ).sort(
     (
       first,
-      second
+
+      second,
     ) =>
       first.localeCompare(
         second,
-        'fa'
-      )
+
+        'fa',
+      ),
   )
 }
 
@@ -83,14 +97,16 @@ function matchesSearch(
     ClientPortalLawyer,
 
   rawSearch:
-    string
+    string,
 ): boolean {
   const search =
     normalizeSearchText(
-      rawSearch
+      rawSearch,
     )
 
-  if (!search) {
+  if (
+    !search
+  ) {
     return true
   }
 
@@ -98,25 +114,29 @@ function matchesSearch(
     normalizeSearchText(
       [
         lawyer.fullName,
+
         lawyer.title,
-        lawyer.city,
-        lawyer.province,
-        lawyer.barAssociation,
+
+        lawyer.officeAddress,
+
+        lawyer.phone,
+
+        lawyer.licenseNumber,
+
         lawyer.bio,
+
         ...lawyer.specialties,
+
         ...lawyer.languages,
       ].join(
-        ' '
-      )
+        ' ',
+      ),
     )
 
   return searchableText.includes(
-    search
+    search,
   )
 }
-
-
-
 
 
 export function filterLawyers(
@@ -124,15 +144,18 @@ export function filterLawyers(
     readonly ClientPortalLawyer[],
 
   filters:
-    LawyerDirectoryFilters
+    LawyerDirectoryFilters,
 ): ClientPortalLawyer[] {
   const filtered =
     lawyers.filter(
-      (lawyer) => {
+      (
+        lawyer,
+      ) => {
         if (
           !matchesSearch(
             lawyer,
-            filters.search
+
+            filters.search,
           )
         ) {
           return false
@@ -149,7 +172,7 @@ export function filterLawyers(
         if (
           filters.specialty &&
           !lawyer.specialties.includes(
-            filters.specialty
+            filters.specialty,
           )
         ) {
           return false
@@ -159,7 +182,7 @@ export function filterLawyers(
           filters.consultationMode !==
             'all' &&
           !lawyer.consultationModes.includes(
-            filters.consultationMode
+            filters.consultationMode,
           )
         ) {
           return false
@@ -173,7 +196,7 @@ export function filterLawyers(
         }
 
         return true
-      }
+      },
     )
 
   return [
@@ -181,7 +204,8 @@ export function filterLawyers(
   ].sort(
     (
       first,
-      second
+
+      second,
     ) => {
       switch (
         filters.sort
@@ -201,51 +225,12 @@ export function filterLawyers(
           )
 
         case 'recommended':
-        default: {
-          
-
-          const firstScore =
-            first.rating *
-              10 +
-            Math.min(
-              first.yearsExperience,
-              15
-            ) +
-            (
-              first.verified
-                ? 5
-                : 0
-            ) +
-            (
-              first.acceptsNewClients
-                ? 3
-                : 0
-            )
-
-          const secondScore =
-            second.rating *
-              10 +
-            Math.min(
-              second.yearsExperience,
-              15
-            ) +
-            (
-              second.verified
-                ? 5
-                : 0
-            ) +
-            (
-              second.acceptsNewClients
-                ? 3
-                : 0
-            )
-
-          return (
-            secondScore -
-            firstScore
-          )
-        }
+        default:
+      
+        
+        
+          return 0
       }
-    }
+    },
   )
 }

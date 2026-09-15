@@ -12,7 +12,13 @@ import {
   useRouter,
 } from 'next/navigation'
 
+import type {
+  LucideIcon,
+} from 'lucide-react'
+
 import {
+  CalendarClock,
+  CalendarDays,
   CirclePlus,
   FileText,
   FolderOpen,
@@ -28,9 +34,14 @@ import {
 } from 'lucide-react'
 
 import {
-  getAllLawyerRequests,
-  subscribeClientLawyerRequests,
-} from '@/features/client-portal/data/client-communication.repository'
+  getLawyerClientInquiries,
+  subscribeClientLawyerInquiryChanges,
+} from '@/services/client-lawyer-inquiry.service'
+
+import {
+  getLawyerConsultationBookings,
+  subscribeConsultationBookingChanges,
+} from '@/services/consultation-booking.service'
 
 import {
   useAuthStore,
@@ -44,13 +55,29 @@ import SupportButton from './support'
 
 
 interface DashboardSidebarProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen:
+    boolean
+
+  onClose:
+    () => void
+}
+
+
+interface NavItem {
+  href:
+    string
+
+  label:
+    string
+
+  icon:
+    LucideIcon
 }
 
 
 export default function DashboardSidebar({
   isOpen,
+
   onClose,
 }: DashboardSidebarProps) {
   const pathname =
@@ -61,150 +88,318 @@ export default function DashboardSidebar({
 
   const user =
     useAuthStore(
-      (state) =>
+      (
+        state,
+      ) =>
         state.user,
     )
 
   const logout =
     useAuthStore(
-      (state) =>
+      (
+        state,
+      ) =>
         state.logout,
     )
 
   const notifications =
     useNotificationStore(
-      (state) =>
+      (
+        state,
+      ) =>
         state.notifications,
     )
 
   const [
     pendingRequestsCount,
+
     setPendingRequestsCount,
-  ] = useState(0)
+  ] =
+    useState(
+      0,
+    )
+
+  const [
+    pendingBookingsCount,
+
+    setPendingBookingsCount,
+  ] =
+    useState(
+      0,
+    )
 
 
   const isClient =
     user?.role ===
     'CLIENT'
 
+  const isLawyer =
+    user?.role ===
+    'LAWYER'
+
 
   const unreadCount =
     notifications.filter(
-      (notification) =>
+      (
+        notification,
+      ) =>
         notification.status ===
         'unread',
     ).length
 
 
-  useEffect(() => {
-    if (isClient) {
-      setPendingRequestsCount(0)
+  useEffect(
+    () => {
+      if (
+        !isLawyer
+      ) {
+        setPendingRequestsCount(
+          0,
+        )
 
-      return
-    }
+        setPendingBookingsCount(
+          0,
+        )
 
-    const reload = () => {
-      const count =
-        getAllLawyerRequests().filter(
-          (record) =>
-            record.status ===
-            'submitted',
-        ).length
+        return
+      }
 
-      setPendingRequestsCount(
-        count,
+
+      let active =
+        true
+
+      let loading =
+        false
+
+
+      const reload =
+        async () => {
+          if (
+            loading
+          ) {
+            return
+          }
+
+          loading =
+            true
+
+          try {
+            const [
+              inquiryResult,
+
+              bookingResult,
+            ] =
+              await Promise.allSettled([
+                getLawyerClientInquiries({
+                  status:
+                    'SUBMITTED',
+
+                  page:
+                    1,
+
+                  limit:
+                    1,
+                }),
+
+                getLawyerConsultationBookings(),
+              ])
+
+
+            if (
+              !active
+            ) {
+              return
+            }
+
+
+            if (
+              inquiryResult.status ===
+              'fulfilled'
+            ) {
+              setPendingRequestsCount(
+                inquiryResult
+                  .value
+                  .pagination
+                  .total,
+              )
+            }
+
+
+            if (
+              bookingResult.status ===
+              'fulfilled'
+            ) {
+              setPendingBookingsCount(
+                bookingResult
+                  .value
+                  .filter(
+                    (
+                      booking,
+                    ) =>
+                      booking.status ===
+                      'PENDING',
+                  )
+                  .length,
+              )
+            }
+          } finally {
+            loading =
+              false
+          }
+        }
+
+
+      const handleFocus =
+        () => {
+          void reload()
+        }
+
+
+      void reload()
+
+
+      const intervalId =
+        window.setInterval(
+          () => {
+            void reload()
+          },
+
+          30_000,
+        )
+
+
+      const unsubscribeInquiries =
+        subscribeClientLawyerInquiryChanges(
+          () => {
+            void reload()
+          },
+        )
+
+
+      const unsubscribeBookings =
+        subscribeConsultationBookingChanges(
+          () => {
+            void reload()
+          },
+        )
+
+
+      window.addEventListener(
+        'focus',
+
+        handleFocus,
       )
-    }
-
-    reload()
-
-    return subscribeClientLawyerRequests(
-      reload,
-    )
-  }, [isClient])
 
 
-  const lawyerNavItems = [
-    {
-      href:
-        '/dashboard',
+      return () => {
+        active =
+          false
 
-      label:
-        'داشبورد',
+        window.clearInterval(
+          intervalId,
+        )
 
-      icon:
-        LayoutDashboard,
+        unsubscribeInquiries()
+
+        unsubscribeBookings()
+
+        window.removeEventListener(
+          'focus',
+
+          handleFocus,
+        )
+      }
     },
 
-    {
-      href:
-        '/dashboard/cases',
-
-      label:
-        'پرونده‌ها',
-
-      icon:
-        FolderOpen,
-    },
-
-    {
-      href:
-        '/dashboard/customers',
-
-      label:
-        'موکلین',
-
-      icon:
-        Users2,
-    },
-
-    {
-      href:
-        '/dashboard/contracts',
-
-      label:
-        'قراردادهای آنلاین',
-
-      icon:
-        FileText,
-    },
-
-    {
-      href:
-        '/dashboard/profile',
-
-      label:
-        'پروفایل',
-
-      icon:
-        User,
-    },
-  ]
+    [
+      isLawyer,
+    ],
+  )
 
 
-  const clientNavItems = [
-    {
-      href:
-        '/dashboard',
+  const lawyerNavItems:
+    NavItem[] = [
+      {
+        href:
+          '/dashboard',
 
-      label:
-        'داشبورد',
+        label:
+          'داشبورد',
 
-      icon:
-        LayoutDashboard,
-    },
+        icon:
+          LayoutDashboard,
+      },
 
-    {
-      href:
-        '/dashboard/lawyers',
+      {
+        href:
+          '/dashboard/cases',
 
-      label:
-        'انتخاب وکیل',
+        label:
+          'پرونده‌ها',
 
-      icon:
-        Scale,
-    },
-  ]
+        icon:
+          FolderOpen,
+      },
+
+      {
+        href:
+          '/dashboard/customers',
+
+        label:
+          'موکلین',
+
+        icon:
+          Users2,
+      },
+
+      {
+        href:
+          '/dashboard/contracts',
+
+        label:
+          'قراردادهای آنلاین',
+
+        icon:
+          FileText,
+      },
+
+      {
+        href:
+          '/dashboard/profile',
+
+        label:
+          'پروفایل',
+
+        icon:
+          User,
+      },
+    ]
+
+
+  const clientNavItems:
+    NavItem[] = [
+      {
+        href:
+          '/dashboard',
+
+        label:
+          'داشبورد',
+
+        icon:
+          LayoutDashboard,
+      },
+
+      {
+        href:
+          '/dashboard/lawyers',
+
+        label:
+          'انتخاب وکیل',
+
+        icon:
+          Scale,
+      },
+    ]
 
 
   const navItems =
@@ -226,8 +421,9 @@ export default function DashboardSidebar({
 
 
   function isActive(
-    href: string,
-  ) {
+    href:
+      string,
+  ): boolean {
     if (
       href ===
       '/dashboard'
@@ -239,7 +435,8 @@ export default function DashboardSidebar({
     }
 
     return (
-      pathname === href ||
+      pathname ===
+        href ||
       pathname.startsWith(
         `${href}/`,
       )
@@ -256,17 +453,10 @@ export default function DashboardSidebar({
   }
 
 
-  const clientRequestsActive =
-    pathname.startsWith(
-      '/dashboard/client-requests',
-    )
-
-
   const notificationsActive =
     pathname.startsWith(
       '/dashboard/notifications',
     )
-
 
   const ticketsActive =
     pathname.startsWith(
@@ -283,17 +473,9 @@ export default function DashboardSidebar({
           onClick={
             onClose
           }
-          className="
-            fixed
-            inset-0
-            z-[60]
-            bg-slate-950/40
-            backdrop-blur-sm
-            lg:hidden
-          "
+          className="fixed inset-0 z-[60] bg-slate-950/40 backdrop-blur-sm lg:hidden"
         />
       )}
-
 
       <aside
         className={`
@@ -324,67 +506,24 @@ export default function DashboardSidebar({
           }
         `}
       >
-        <div
-          className="
-            flex
-            items-center
-            justify-between
-            border-b
-            border-slate-200
-            p-5
-          "
-        >
+        <div className="flex items-center justify-between border-b border-slate-200 p-5">
           <Link
             href="/dashboard"
             onClick={
               handleNavClick
             }
-            className="
-              flex
-              items-center
-              gap-3
-            "
+            className="flex items-center gap-3"
           >
-            <div
-              className="
-                flex
-                h-11
-                w-11
-                items-center
-                justify-center
-                rounded-2xl
-                bg-gradient-to-br
-                from-blue-500
-                to-blue-700
-                text-lg
-                font-black
-                text-white
-                shadow-md
-                shadow-blue-200
-              "
-            >
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 text-lg font-black text-white shadow-md shadow-blue-200">
               د
             </div>
 
             <div>
-              <h1
-                className="
-                  text-xl
-                  font-black
-                  text-slate-950
-                "
-              >
+              <h1 className="text-xl font-black text-slate-950">
                 دادیار
               </h1>
 
-              <p
-                className="
-                  mt-0.5
-                  text-xs
-                  font-semibold
-                  text-slate-600
-                "
-              >
+              <p className="mt-0.5 text-xs font-semibold text-slate-600">
                 {isClient
                   ? 'پنل موکل'
                   : 'مدیریت دفتر وکالت'}
@@ -392,21 +531,13 @@ export default function DashboardSidebar({
             </div>
           </Link>
 
-
           <button
             type="button"
             onClick={
               onClose
             }
             aria-label="بستن منو"
-            className="
-              rounded-xl
-              p-2
-              text-slate-600
-              transition
-              hover:bg-slate-100
-              lg:hidden
-            "
+            className="rounded-xl p-2 text-slate-600 transition hover:bg-slate-100 lg:hidden"
           >
             <X
               size={21}
@@ -414,344 +545,135 @@ export default function DashboardSidebar({
           </button>
         </div>
 
-
-        <nav
-          className="
-            flex-1
-            space-y-1.5
-            overflow-y-auto
-            p-4
-          "
-        >
+        <nav className="flex-1 space-y-1.5 overflow-y-auto p-4">
           {navItems.map(
-            (item) => {
-              const Icon =
-                item.icon
-
-              const active =
-                isActive(
-                  item.href,
-                )
-
-              return (
-                <Link
-                  key={
-                    item.href
-                  }
-                  href={
-                    item.href
-                  }
-                  onClick={
-                    handleNavClick
-                  }
-                  className={`
-                    group
-                    flex
-                    items-center
-                    gap-3
-                    rounded-2xl
-                    px-4
-                    py-3.5
-                    text-sm
-                    font-black
-                    transition
-
-                    ${
-                      active
-                        ? 'bg-gradient-to-l from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-200'
-                        : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
-                    }
-                  `}
-                >
-                  <div
-                    className={`
-                      flex
-                      h-9
-                      w-9
-                      items-center
-                      justify-center
-                      rounded-xl
-
-                      ${
-                        active
-                          ? 'bg-white/15'
-                          : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
-                      }
-                    `}
-                  >
-                    <Icon
-                      size={20}
-                    />
-                  </div>
-
-                  <span>
-                    {item.label}
-                  </span>
-                </Link>
-              )
-            },
-          )}
-
-
-          {!isClient && (
-            <Link
-              href="/dashboard/client-requests"
-              onClick={
-                handleNavClick
-              }
-              className={`
-                group
-                flex
-                items-center
-                gap-3
-                rounded-2xl
-                px-4
-                py-3.5
-                text-sm
-                font-black
-                transition
-
-                ${
-                  clientRequestsActive
-                    ? 'bg-gradient-to-l from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-200'
-                    : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+            (
+              item,
+            ) => (
+              <SidebarLink
+                key={
+                  item.href
                 }
-              `}
-            >
-              <div
-                className={`
-                  relative
-                  flex
-                  h-9
-                  w-9
-                  items-center
-                  justify-center
-                  rounded-xl
-
-                  ${
-                    clientRequestsActive
-                      ? 'bg-white/15'
-                      : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
-                  }
-                `}
-              >
-                <MessageSquareText
-                  size={20}
-                />
-
-                {pendingRequestsCount >
-                  0 && (
-                  <span
-                    className="
-                      absolute
-                      -right-1.5
-                      -top-1.5
-                      flex
-                      h-5
-                      min-w-5
-                      items-center
-                      justify-center
-                      rounded-full
-                      bg-red-500
-                      px-1
-                      text-[10px]
-                      font-black
-                      text-white
-                      ring-2
-                      ring-white
-                    "
-                  >
-                    {pendingRequestsCount >
-                    99
-                      ? '99+'
-                      : pendingRequestsCount}
-                  </span>
-                )}
-              </div>
-
-              <span>
-                ارتباط با موکلین
-              </span>
-            </Link>
+                href={
+                  item.href
+                }
+                label={
+                  item.label
+                }
+                icon={
+                  item.icon
+                }
+                active={
+                  isActive(
+                    item.href,
+                  )
+                }
+                onClick={
+                  handleNavClick
+                }
+              />
+            ),
           )}
 
+          {isLawyer && (
+            <>
+              <SidebarLink
+                href="/dashboard/client-requests"
+                label="ارتباط با موکلین"
+                icon={
+                  MessageSquareText
+                }
+                active={
+                  isActive(
+                    '/dashboard/client-requests',
+                  )
+                }
+                badge={
+                  pendingRequestsCount
+                }
+                onClick={
+                  handleNavClick
+                }
+              />
 
-          <Link
+              <SidebarLink
+                href="/dashboard/availability"
+                label="زمان‌های آزاد"
+                icon={
+                  CalendarDays
+                }
+                active={
+                  isActive(
+                    '/dashboard/availability',
+                  )
+                }
+                onClick={
+                  handleNavClick
+                }
+              />
+
+              <SidebarLink
+                href="/dashboard/client-bookings"
+                label="رزروهای مشاوره"
+                icon={
+                  CalendarClock
+                }
+                active={
+                  isActive(
+                    '/dashboard/client-bookings',
+                  )
+                }
+                badge={
+                  pendingBookingsCount
+                }
+                onClick={
+                  handleNavClick
+                }
+              />
+            </>
+          )}
+
+          <SidebarLink
             href="/dashboard/notifications"
+            label="یادداشت‌ها"
+            icon={
+              NotebookPen
+            }
+            active={
+              notificationsActive
+            }
+            badge={
+              unreadCount
+            }
             onClick={
               handleNavClick
             }
-            className={`
-              group
-              flex
-              items-center
-              gap-3
-              rounded-2xl
-              px-4
-              py-3.5
-              text-sm
-              font-black
-              transition
+          />
 
-              ${
-                notificationsActive
-                  ? 'bg-gradient-to-l from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-200'
-                  : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
-              }
-            `}
-          >
-            <div
-              className={`
-                relative
-                flex
-                h-9
-                w-9
-                items-center
-                justify-center
-                rounded-xl
-
-                ${
-                  notificationsActive
-                    ? 'bg-white/15'
-                    : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
-                }
-              `}
-            >
-              <NotebookPen
-                size={20}
-              />
-
-              {unreadCount >
-                0 && (
-                <span
-                  className="
-                    absolute
-                    -right-1.5
-                    -top-1.5
-                    flex
-                    h-5
-                    min-w-5
-                    items-center
-                    justify-center
-                    rounded-full
-                    bg-red-500
-                    px-1
-                    text-[10px]
-                    font-black
-                    text-white
-                    ring-2
-                    ring-white
-                  "
-                >
-                  {unreadCount >
-                  99
-                    ? '99+'
-                    : unreadCount}
-                </span>
-              )}
-            </div>
-
-            <span>
-              یادداشت‌ها
-            </span>
-          </Link>
-
-
-          <Link
+          <SidebarLink
             href="/dashboard/tickets"
+            label="سوالات و پیشنهادات"
+            icon={
+              Ticket
+            }
+            active={
+              ticketsActive
+            }
             onClick={
               handleNavClick
             }
-            className={`
-              group
-              flex
-              items-center
-              gap-3
-              rounded-2xl
-              px-4
-              py-3.5
-              text-sm
-              font-black
-              transition
+          />
 
-              ${
-                ticketsActive
-                  ? 'bg-gradient-to-l from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-200'
-                  : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
-              }
-            `}
-          >
-            <div
-              className={`
-                flex
-                h-9
-                w-9
-                items-center
-                justify-center
-                rounded-xl
-
-                ${
-                  ticketsActive
-                    ? 'bg-white/15'
-                    : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
-                }
-              `}
-            >
-              <Ticket
-                size={20}
-              />
-            </div>
-
-            <span>
-              سوالات و پیشنهادات
-            </span>
-          </Link>
-
-
-          {!isClient && (
-            <div
-              className="
-                pt-4
-              "
-            >
+          {isLawyer && (
+            <div className="pt-4">
               <Link
                 href="/dashboard/cases/new"
                 onClick={
                   handleNavClick
                 }
-                className="
-                  group
-                  flex
-                  items-center
-                  gap-3
-                  rounded-2xl
-                  bg-gradient-to-l
-                  from-emerald-500
-                  to-teal-600
-                  px-4
-                  py-4
-                  text-sm
-                  font-black
-                  text-white
-                  shadow-lg
-                  shadow-emerald-200
-                  transition
-                  hover:-translate-y-0.5
-                  hover:from-emerald-600
-                  hover:to-teal-700
-                "
+                className="group flex items-center gap-3 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-600 px-4 py-4 text-sm font-black text-white shadow-lg shadow-emerald-200 transition hover:-translate-y-0.5 hover:from-emerald-600 hover:to-teal-700"
               >
-                <div
-                  className="
-                    flex
-                    h-9
-                    w-9
-                    items-center
-                    justify-center
-                    rounded-xl
-                    bg-white/15
-                  "
-                >
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
                   <CirclePlus
                     size={22}
                   />
@@ -762,14 +684,7 @@ export default function DashboardSidebar({
                     پرونده جدید
                   </p>
 
-                  <p
-                    className="
-                      mt-0.5
-                      text-[11px]
-                      font-semibold
-                      text-emerald-50
-                    "
-                  >
+                  <p className="mt-0.5 text-[11px] font-semibold text-emerald-50">
                     ثبت سریع پرونده
                   </p>
                 </div>
@@ -778,61 +693,31 @@ export default function DashboardSidebar({
           )}
         </nav>
 
-
-        <div
-          className="
-            border-t
-            border-slate-200
-            p-4
-          "
-        >
+        <div className="border-t border-slate-200 p-4">
           <SupportButton />
         </div>
 
-
-        <div
-          className="
-            border-t
-            border-slate-200
-            p-4
-          "
-        >
+        <div className="border-t border-slate-200 p-4">
           {user && (
-            <div
-              className="
-                mb-3
-                rounded-xl
-                bg-slate-50
-                px-4
-                py-3
-              "
-            >
-              <p
-                className="
-                  truncate
-                  text-xs
-                  font-black
-                  text-slate-800
-                "
-              >
+            <div className="mb-3 rounded-xl bg-slate-50 px-4 py-3">
+              <p className="truncate text-xs font-black text-slate-800">
                 {[
                   user.firstName,
+
                   user.lastName,
                 ]
                   .filter(
                     Boolean,
                   )
-                  .join(' ')}
+                  .join(
+                    ' ',
+                  ) ||
+                  user.phone ||
+                  user.email ||
+                  'کاربر دادیار'}
               </p>
 
-              <p
-                className="
-                  mt-1
-                  text-[10px]
-                  font-semibold
-                  text-slate-500
-                "
-              >
+              <p className="mt-1 text-[10px] font-semibold text-slate-500">
                 {isClient
                   ? 'موکل'
                   : 'وکیل'}
@@ -840,27 +725,12 @@ export default function DashboardSidebar({
             </div>
           )}
 
-
           <button
             type="button"
             onClick={() =>
               void handleLogout()
             }
-            className="
-              group
-              flex
-              w-full
-              items-center
-              gap-3
-              rounded-xl
-              px-4
-              py-3
-              text-sm
-              font-black
-              text-red-600
-              transition
-              hover:bg-red-50
-            "
+            className="group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-black text-red-600 transition hover:bg-red-50"
           >
             <LogOut
               size={20}
@@ -873,5 +743,107 @@ export default function DashboardSidebar({
         </div>
       </aside>
     </>
+  )
+}
+
+
+function SidebarLink({
+  href,
+
+  label,
+
+  icon:
+    Icon,
+
+  active,
+
+  badge = 0,
+
+  onClick,
+}: {
+  href:
+    string
+
+  label:
+    string
+
+  icon:
+    LucideIcon
+
+  active:
+    boolean
+
+  badge?:
+    number
+
+  onClick:
+    () => void
+}) {
+  return (
+    <Link
+      href={
+        href
+      }
+      onClick={
+        onClick
+      }
+      className={`
+        group
+        flex
+        items-center
+        gap-3
+        rounded-2xl
+        px-4
+        py-3.5
+        text-sm
+        font-black
+        transition
+
+        ${
+          active
+            ? 'bg-gradient-to-l from-blue-500 to-blue-700 text-white shadow-lg shadow-blue-200'
+            : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+        }
+      `}
+    >
+      <div
+        className={`
+          relative
+          flex
+          h-9
+          w-9
+          shrink-0
+          items-center
+          justify-center
+          rounded-xl
+
+          ${
+            active
+              ? 'bg-white/15'
+              : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700'
+          }
+        `}
+      >
+        <Icon
+          size={20}
+        />
+
+        {badge >
+          0 && (
+          <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-white">
+            {badge >
+            99
+              ? '99+'
+              : badge.toLocaleString(
+                  'fa-IR',
+                )}
+          </span>
+        )}
+      </div>
+
+      <span className="min-w-0 truncate">
+        {label}
+      </span>
+    </Link>
   )
 }

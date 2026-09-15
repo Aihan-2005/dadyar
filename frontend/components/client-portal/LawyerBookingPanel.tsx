@@ -1,6 +1,8 @@
 'use client'
 
 import {
+  type FormEvent,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -9,589 +11,717 @@ import {
 import Link from 'next/link'
 
 import {
-  ArrowRight,
   CalendarDays,
   CheckCircle2,
-  CircleDollarSign,
   Clock3,
+  Laptop,
+  Loader2,
   MapPin,
   Phone,
-  Send,
-  Video,
+  RefreshCw,
+  RotateCcw,
 } from 'lucide-react'
 
-import ClientAuthGateModal from '@/components/client-portal/ClientAuthGateModal'
-
-import {
-  getCurrentClientPortalAccount,
-  type ClientPortalAccount,
-} from '@/features/client-portal/auth/client-session'
-
-import {
-  createConsultationBooking,
-  isConsultationSlotReserved,
-  subscribeClientLawyerRequests,
-} from '@/features/client-portal/data/client-communication.repository'
-
-import type {
-  ConsultationBookingRecord,
-  LegalCaseStage,
-  LegalMatterCategory,
-} from '@/features/client-portal/types/communication'
+import ClientProfileRequirement from '@/components/client-portal/ClientProfileRequirement'
 
 import type {
   ClientPortalLawyer,
 } from '@/features/client-portal/types/lawyer'
 
-import type {
-  LawyerMarketplaceProfile,
-} from '@/features/client-portal/types/marketplace'
+import {
+  createClientConsultationBooking,
+} from '@/services/consultation-booking.service'
 
 import {
-  CASE_STAGE_LABELS,
-  CONSULTATION_MODE_LABELS,
-  LEGAL_CATEGORY_LABELS,
-  formatToman,
-} from '@/features/client-portal/utils/communication'
+  getClientLawyerAvailability,
+} from '@/services/lawyer-availability.service'
+
+import {
+  useAuthStore,
+} from '@/store/auth.store'
+
+import type {
+  ConsultationBooking,
+  ConsultationType,
+} from '@/types/consultation-booking'
+
+import type {
+  LawyerAvailability,
+} from '@/types/lawyer-availability'
+
 
 interface LawyerBookingPanelProps {
   lawyer:
     ClientPortalLawyer
-
-  profile:
-    LawyerMarketplaceProfile
 }
 
-type BookingStage =
-  | 'form'
-  | 'review'
-  | 'submitted'
 
-const INPUT_CLASS =
-  'h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
+const CONSULTATION_TYPE_OPTIONS:
+  Array<{
+    value:
+      ConsultationType
+
+    label:
+      string
+
+    description:
+      string
+
+    icon:
+      typeof Laptop
+  }> = [
+    {
+      value:
+        'ONLINE',
+
+      label:
+        'مشاوره آنلاین',
+
+      description:
+        'جلسه آنلاین در زمان آزاد ثبت‌شده توسط وکیل.',
+
+      icon:
+        Laptop,
+    },
+
+    {
+      value:
+        'PHONE',
+
+      label:
+        'مشاوره تلفنی',
+
+      description:
+        'تماس تلفنی در بازه‌ای که وکیل فعال کرده است.',
+
+      icon:
+        Phone,
+    },
+
+    {
+      value:
+        'IN_PERSON',
+
+      label:
+        'مشاوره حضوری',
+
+      description:
+        'جلسه حضوری در یکی از زمان‌های آزاد وکیل.',
+
+      icon:
+        MapPin,
+    },
+  ]
+
+
+function addDays(
+  date:
+    Date,
+
+  days:
+    number,
+): Date {
+  return new Date(
+    date.getTime() +
+      days *
+        24 *
+        60 *
+        60 *
+        1000,
+  )
+}
+
+
+function formatDayLabel(
+  iso:
+    string,
+): string {
+  return new Intl.DateTimeFormat(
+    'fa-IR',
+
+    {
+      weekday:
+        'long',
+
+      day:
+        'numeric',
+
+      month:
+        'long',
+    },
+  ).format(
+    new Date(
+      iso,
+    ),
+  )
+}
+
+
+function formatTime(
+  iso:
+    string,
+): string {
+  return new Intl.DateTimeFormat(
+    'fa-IR',
+
+    {
+      hour:
+        '2-digit',
+
+      minute:
+        '2-digit',
+
+      hour12:
+        false,
+    },
+  ).format(
+    new Date(
+      iso,
+    ),
+  )
+}
+
+
+function formatDuration(
+  startsAt:
+    string,
+
+  endsAt:
+    string,
+): string {
+  const minutes =
+    Math.max(
+      0,
+
+      Math.round(
+        (
+          new Date(
+            endsAt,
+          ).getTime() -
+          new Date(
+            startsAt,
+          ).getTime()
+        ) /
+          60_000,
+      ),
+    )
+
+  return `${minutes.toLocaleString(
+    'fa-IR',
+  )} دقیقه`
+}
+
+
+function getLocalDayKey(
+  iso:
+    string,
+): string {
+  const date =
+    new Date(
+      iso,
+    )
+
+  const year =
+    date.getFullYear()
+
+  const month =
+    String(
+      date.getMonth() +
+        1,
+    ).padStart(
+      2,
+
+      '0',
+    )
+
+  const day =
+    String(
+      date.getDate(),
+    ).padStart(
+      2,
+
+      '0',
+    )
+
+  return `${year}-${month}-${day}`
+}
+
+
+function getConsultationTypeLabel(
+  type:
+    ConsultationType,
+): string {
+  switch (
+    type
+  ) {
+    case 'ONLINE':
+      return 'آنلاین'
+
+    case 'PHONE':
+      return 'تلفنی'
+
+    case 'IN_PERSON':
+      return 'حضوری'
+  }
+}
+
 
 export default function LawyerBookingPanel({
   lawyer,
-  profile,
 }: LawyerBookingPanelProps) {
-  const firstOffer =
-    profile.consultationOffers[0]
+  const user =
+    useAuthStore(
+      (
+        state,
+      ) =>
+        state.user,
+    )
 
+  const hasHydrated =
+    useAuthStore(
+      (
+        state,
+      ) =>
+        state.hasHydrated,
+    )
+
+
+  if (
+    !hasHydrated
+  ) {
+    return (
+      <PanelLoader />
+    )
+  }
+
+
+  if (
+    !user ||
+    user.role !==
+      'CLIENT'
+  ) {
+    return (
+      <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-center">
+        <CalendarDays
+          size={30}
+          className="mx-auto text-blue-600"
+        />
+
+        <h3 className="mt-3 font-black text-slate-900">
+          برای رزرو مشاوره وارد شوید
+        </h3>
+
+        <p className="mt-2 text-sm font-semibold leading-7 text-slate-600">
+          زمان‌های آزاد وکیل و ثبت رزرو فقط برای حساب موکل در دسترس هستند.
+        </p>
+
+        <Link
+          href="/client-login?returnTo=/client-portal&mode=login"
+          className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
+        >
+          ورود موکل
+        </Link>
+      </section>
+    )
+  }
+
+
+  return (
+    <ClientProfileRequirement
+      title="برای رزرو مشاوره، پروفایل را کامل کنید"
+      description="نام واقعی شما همراه رزرو برای وکیل نمایش داده می‌شود."
+    >
+      <ReadyBookingPanel
+        lawyer={
+          lawyer
+        }
+      />
+    </ClientProfileRequirement>
+  )
+}
+
+
+function ReadyBookingPanel({
+  lawyer,
+}: {
+  lawyer:
+    ClientPortalLawyer
+}) {
   const [
-    stage,
-    setStage,
+    consultationType,
+
+    setConsultationType,
   ] =
-    useState<BookingStage>(
-      'form'
+    useState<ConsultationType>(
+      'ONLINE',
     )
 
   const [
-    offerId,
-    setOfferId,
+    slots,
+
+    setSlots,
+  ] =
+    useState<LawyerAvailability[]>(
+      [],
+    )
+
+  const [
+    selectedAvailabilityId,
+
+    setSelectedAvailabilityId,
   ] =
     useState(
-      firstOffer?.id ??
-        ''
+      '',
     )
-
-  const [
-    durationMinutes,
-    setDurationMinutes,
-  ] =
-    useState(
-      firstOffer
-        ?.durations[0]
-        ?.minutes ??
-        0
-    )
-
-  const [
-    selectedDate,
-    setSelectedDate,
-  ] =
-    useState('')
-
-  const [
-    selectedTime,
-    setSelectedTime,
-  ] =
-    useState('')
-
-  const [
-    category,
-    setCategory,
-  ] =
-    useState<LegalMatterCategory>(
-      'other'
-    )
-
-  const [
-    caseStage,
-    setCaseStage,
-  ] =
-    useState<LegalCaseStage>(
-      'pre_filing'
-    )
-
-  const [
-    opposingPartyName,
-    setOpposingPartyName,
-  ] =
-    useState('')
-
-  const [
-    subject,
-    setSubject,
-  ] =
-    useState('')
 
   const [
     description,
+
     setDescription,
   ] =
-    useState('')
+    useState(
+      '',
+    )
+
+  const [
+    loadingSlots,
+
+    setLoadingSlots,
+  ] =
+    useState(
+      false,
+    )
+
+  const [
+    submitting,
+
+    setSubmitting,
+  ] =
+    useState(
+      false,
+    )
 
   const [
     error,
+
     setError,
   ] =
-    useState<string | null>(
-      null
+    useState<
+      string | null
+    >(
+      null,
     )
 
   const [
-    authOpen,
-    setAuthOpen,
+    createdBooking,
+
+    setCreatedBooking,
   ] =
-    useState(false)
-
-  const [
-    submittedBooking,
-    setSubmittedBooking,
-  ] =
-    useState<ConsultationBookingRecord | null>(
-      null
+    useState<ConsultationBooking | null>(
+      null,
     )
 
-  const [
-    availabilityRevision,
-    setAvailabilityRevision,
-  ] =
-    useState(0)
 
-  useEffect(() => {
-    const offer =
-      profile.consultationOffers[0]
+  const loadSlots =
+    useCallback(
+      async () => {
+        try {
+          setLoadingSlots(
+            true,
+          )
 
-    setStage(
-      'form'
+          setError(
+            null,
+          )
+
+          const now =
+            new Date()
+
+          const result =
+            await getClientLawyerAvailability(
+              lawyer.id,
+
+              {
+                from:
+                  now.toISOString(),
+
+                to:
+                  addDays(
+                    now,
+
+                    60,
+                  ).toISOString(),
+
+                type:
+                  consultationType,
+              },
+            )
+
+          setSlots(
+            result,
+          )
+
+          setSelectedAvailabilityId(
+            (
+              current,
+            ) =>
+              result.some(
+                (
+                  slot,
+                ) =>
+                  slot.id ===
+                  current,
+              )
+                ? current
+                : '',
+          )
+        } catch (
+          caughtError:
+            unknown
+        ) {
+          setSlots(
+            [],
+          )
+
+          setSelectedAvailabilityId(
+            '',
+          )
+
+          setError(
+            caughtError instanceof
+              Error
+              ? caughtError.message
+              : 'دریافت زمان‌های آزاد وکیل ناموفق بود.',
+          )
+        } finally {
+          setLoadingSlots(
+            false,
+          )
+        }
+      },
+
+      [
+        consultationType,
+
+        lawyer.id,
+      ],
     )
 
-    setOfferId(
-      offer?.id ??
-        ''
+
+  useEffect(
+    () => {
+      void loadSlots()
+    },
+
+    [
+      loadSlots,
+    ],
+  )
+
+
+  const slotsByDay =
+    useMemo(
+      () => {
+        const groups =
+          new Map<
+            string,
+            LawyerAvailability[]
+          >()
+
+        for (
+          const slot of
+            slots
+        ) {
+          const key =
+            getLocalDayKey(
+              slot.startsAt,
+            )
+
+          const current =
+            groups.get(
+              key,
+            ) ??
+            []
+
+          current.push(
+            slot,
+          )
+
+          groups.set(
+            key,
+
+            current,
+          )
+        }
+
+        return Array.from(
+          groups.entries(),
+        )
+      },
+
+      [
+        slots,
+      ],
     )
 
-    setDurationMinutes(
-      offer
-        ?.durations[0]
-        ?.minutes ??
-        0
+
+  const selectedSlot =
+    useMemo(
+      () =>
+        slots.find(
+          (
+            slot,
+          ) =>
+            slot.id ===
+            selectedAvailabilityId,
+        ) ??
+        null,
+
+      [
+        selectedAvailabilityId,
+
+        slots,
+      ],
     )
 
-    setSelectedDate(
-      ''
-    )
 
-    setSelectedTime(
-      ''
-    )
-
-    setCategory(
-      'other'
-    )
-
-    setCaseStage(
-      'pre_filing'
-    )
-
-    setOpposingPartyName(
-      ''
-    )
-
-    setSubject(
-      ''
-    )
-
+  function resetForm() {
     setDescription(
-      ''
+      '',
+    )
+
+    setCreatedBooking(
+      null,
+    )
+
+    setSelectedAvailabilityId(
+      '',
     )
 
     setError(
-      null
+      null,
     )
 
-    setAuthOpen(
-      false
-    )
+    void loadSlots()
+  }
 
-    setSubmittedBooking(
-      null
-    )
-  }, [
-    lawyer.id,
-    profile.lawyerId,
-  ])
 
-  useEffect(
-    () =>
-      subscribeClientLawyerRequests(
-        () =>
-          setAvailabilityRevision(
+  async function handleSubmit(
+    event:
+      FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault()
+
+    if (
+      submitting
+    ) {
+      return
+    }
+
+    if (
+      !selectedSlot
+    ) {
+      setError(
+        'یکی از زمان‌های آزاد وکیل را انتخاب کنید.',
+      )
+
+      return
+    }
+
+    const normalizedDescription =
+      description.trim()
+
+    if (
+      normalizedDescription.length >
+      3000
+    ) {
+      setError(
+        'توضیحات رزرو نمی‌تواند بیشتر از ۳۰۰۰ کاراکتر باشد.',
+      )
+
+      return
+    }
+
+    try {
+      setSubmitting(
+        true,
+      )
+
+      setError(
+        null,
+      )
+
+      const booking =
+        await createClientConsultationBooking({
+          lawyerId:
+            lawyer.id,
+
+          availabilityId:
+            selectedSlot.id,
+
+          type:
+            consultationType,
+
+          ...(normalizedDescription
+            ? {
+                description:
+                  normalizedDescription,
+              }
+            : {}),
+        })
+
+      setCreatedBooking(
+        booking,
+      )
+
+      setSlots(
+        (
+          current,
+        ) =>
+          current.filter(
             (
-              current
+              slot,
             ) =>
-              current +
-              1
-          )
-      ),
-    []
-  )
-
-  const selectedOffer =
-    useMemo(
-      () =>
-        profile.consultationOffers.find(
-          (
-            offer
-          ) =>
-            offer.id ===
-            offerId
-        ) ??
-        null,
-      [
-        offerId,
-        profile.consultationOffers,
-      ]
-    )
-
-  const selectedDuration =
-    useMemo(
-      () =>
-        selectedOffer?.durations.find(
-          (
-            duration
-          ) =>
-            duration.minutes ===
-            durationMinutes
-        ) ??
-        null,
-      [
-        durationMinutes,
-        selectedOffer,
-      ]
-    )
-
-  const availability =
-    useMemo(
-      () =>
-        profile.availability.map(
-          (
-            day
-          ) => ({
-            ...day,
-
-            slots:
-              day.slots.map(
-                (
-                  time
-                ) => ({
-                  time,
-
-                  reserved:
-                    isConsultationSlotReserved(
-                      lawyer.id,
-                      day.value,
-                      time
-                    ),
-                })
-              ),
-          })
-        ),
-      [
-        availabilityRevision,
-        lawyer.id,
-        profile.availability,
-      ]
-    )
-
-  const selectedDay =
-    availability.find(
-      (
-        day
-      ) =>
-        day.value ===
-        selectedDate
-    )
-
-  const selectOffer =
-    (
-      nextOfferId:
-        string
-    ) => {
-      const nextOffer =
-        profile.consultationOffers.find(
-          (
-            offer
-          ) =>
-            offer.id ===
-            nextOfferId
-        )
-
-      setOfferId(
-        nextOfferId
+              slot.id !==
+              selectedSlot.id,
+          ),
       )
-
-      setDurationMinutes(
-        nextOffer
-          ?.durations[0]
-          ?.minutes ??
-          0
-      )
-
-      setSelectedDate(
-        ''
-      )
-
-      setSelectedTime(
-        ''
-      )
-
-      setStage(
-        'form'
-      )
-
+    } catch (
+      caughtError:
+        unknown
+    ) {
       setError(
-        null
-      )
-    }
-
-  const validate =
-    (): boolean => {
-      setError(
-        null
+        caughtError instanceof
+          Error
+          ? caughtError.message
+          : 'ثبت رزرو مشاوره ناموفق بود.',
       )
 
-      if (
-        !selectedOffer ||
-        !selectedDuration
-      ) {
-        setError(
-          'نوع و مدت مشاوره را انتخاب کنید.'
-        )
-
-        return false
-      }
-
-      if (
-        !selectedDate ||
-        !selectedDay
-      ) {
-        setError(
-          'روز جلسه را انتخاب کنید.'
-        )
-
-        return false
-      }
-
-      if (!selectedTime) {
-        setError(
-          'ساعت جلسه را انتخاب کنید.'
-        )
-
-        return false
-      }
-
-      if (
-        isConsultationSlotReserved(
-          lawyer.id,
-          selectedDate,
-          selectedTime
-        )
-      ) {
-        setError(
-          'این ساعت دیگر در دسترس نیست.'
-        )
-
-        setSelectedTime(
-          ''
-        )
-
-        return false
-      }
-
-      if (
-        subject.trim().length <
-        5
-      ) {
-        setError(
-          'موضوع مشاوره را کامل‌تر وارد کنید.'
-        )
-
-        return false
-      }
-
-      return true
-    }
-
-  const handleReview =
-    () => {
-      if (!validate()) {
-        return
-      }
-
-      setStage(
-        'review'
+      void loadSlots()
+    } finally {
+      setSubmitting(
+        false,
       )
     }
+  }
 
-  const completeSubmission =
-    (
-      account:
-        ClientPortalAccount
-    ) => {
-      if (
-        !selectedOffer ||
-        !selectedDuration ||
-        !selectedDay ||
-        !selectedTime
-      ) {
-        setError(
-          'اطلاعات جلسه کامل نیست.'
-        )
-
-        setStage(
-          'form'
-        )
-
-        return
-      }
-
-      try {
-        const created =
-          createConsultationBooking(
-            account,
-            lawyer,
-            {
-              category,
-
-              caseStage,
-
-              opposingPartyName:
-                opposingPartyName.trim() ||
-                undefined,
-
-              offerId:
-                selectedOffer.id,
-
-              consultationMode:
-                selectedOffer.mode,
-
-              consultationTitle:
-                selectedOffer.title,
-
-              durationMinutes:
-                selectedDuration.minutes,
-
-              priceToman:
-                selectedDuration.priceToman,
-
-              date:
-                selectedDay.value,
-
-              dateLabel:
-                selectedDay.label,
-
-              time:
-                selectedTime,
-
-              subject,
-
-              description,
-            }
-          )
-
-        setSubmittedBooking(
-          created
-        )
-
-        setAuthOpen(
-          false
-        )
-
-        setError(
-          null
-        )
-
-        setStage(
-          'submitted'
-        )
-      } catch (
-        caughtError
-      ) {
-        setStage(
-          'form'
-        )
-
-        setSelectedTime(
-          ''
-        )
-
-        setError(
-          caughtError instanceof
-            Error
-            ? caughtError.message
-            : 'ثبت رزرو انجام نشد.'
-        )
-      }
-    }
-
-  const handleFinalSubmit =
-    () => {
-      if (!validate()) {
-        setStage(
-          'form'
-        )
-
-        return
-      }
-
-      const account =
-        getCurrentClientPortalAccount()
-
-      if (!account) {
-        setAuthOpen(
-          true
-        )
-
-        return
-      }
-
-      completeSubmission(
-        account
-      )
-    }
 
   if (
-    stage ===
-      'submitted' &&
-    submittedBooking
+    createdBooking
   ) {
+    const start =
+      createdBooking.startsAt ??
+      null
+
+    const end =
+      createdBooking.endsAt ??
+      null
+
     return (
-      <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+      <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
         <div className="flex items-start gap-3">
           <CheckCircle2
-            size={25}
+            size={28}
             className="mt-0.5 shrink-0 text-emerald-600"
           />
 
@@ -601,808 +731,441 @@ export default function LawyerBookingPanel({
             </h3>
 
             <p className="mt-2 text-sm font-semibold leading-7 text-emerald-800">
-              درخواست جلسه برای
-              {' '}
-              {lawyer.fullName}
-              {' '}
-              ارسال شد و از صفحه پیگیری قابل
-              مشاهده است.
+              این زمان برای شما قفل شده و تا زمان لغو یا رد درخواست برای موکل دیگری قابل رزرو نیست.
             </p>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <SummaryItem
-                label="کد پیگیری"
-                value={
-                  submittedBooking.reference
-                }
-                dir="ltr"
-              />
+            {start && (
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <SummaryItem
+                  label="روز"
+                  value={
+                    formatDayLabel(
+                      start,
+                    )
+                  }
+                />
 
-              <SummaryItem
-                label="نوع جلسه"
-                value={
-                  CONSULTATION_MODE_LABELS[
-                    submittedBooking.consultationMode
-                  ]
-                }
-              />
+                <SummaryItem
+                  label="ساعت"
+                  value={
+                    end
+                      ? `${formatTime(
+                          start,
+                        )} تا ${formatTime(
+                          end,
+                        )}`
+                      : formatTime(
+                          start,
+                        )
+                  }
+                />
 
-              <SummaryItem
-                label="زمان"
-                value={`${submittedBooking.dateLabel} - ${submittedBooking.time}`}
-              />
+                <SummaryItem
+                  label="نوع مشاوره"
+                  value={
+                    getConsultationTypeLabel(
+                      createdBooking.type,
+                    )
+                  }
+                />
 
-              <SummaryItem
-                label="هزینه"
-                value={
-                  formatToman(
-                    submittedBooking.priceToman
-                  )
+                <SummaryItem
+                  label="وضعیت"
+                  value="در انتظار بررسی وکیل"
+                />
+              </div>
+            )}
+
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <Link
+                href="/client-portal/bookings"
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-black text-white"
+              >
+                مشاهده رزروهای من
+              </Link>
+
+              <button
+                type="button"
+                onClick={
+                  resetForm
                 }
-              />
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-5 text-sm font-black text-emerald-700"
+              >
+                <RotateCcw
+                  size={16}
+                />
+
+                رزرو جدید
+              </button>
             </div>
-
-            <Link
-              href={`/client-portal/requests/${submittedBooking.id}`}
-              className="mt-5 inline-flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-black text-white"
-            >
-              مشاهده جزئیات رزرو
-            </Link>
           </div>
         </div>
       </section>
     )
   }
 
-  if (
-    stage ===
-      'review' &&
-    selectedOffer &&
-    selectedDuration &&
-    selectedDay &&
-    selectedTime
-  ) {
-    return (
-      <>
-        <section className="rounded-2xl border border-blue-200 bg-white p-5">
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
-            <div>
-              <p className="text-xs font-black text-blue-700">
-                تأیید اطلاعات
-              </p>
-
-              <h3 className="mt-1 text-lg font-black text-slate-950">
-                جزئیات جلسه را بررسی کنید
-              </h3>
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                setStage(
-                  'form'
-                )
-              }
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-300 px-3 text-xs font-black text-slate-700"
-            >
-              <ArrowRight
-                size={15}
-              />
-
-              ویرایش
-            </button>
-          </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <ReviewItem
-              label="وکیل"
-              value={
-                lawyer.fullName
-              }
-            />
-
-            <ReviewItem
-              label="نوع مشاوره"
-              value={
-                selectedOffer.title
-              }
-            />
-
-            <ReviewItem
-              label="مدت"
-              value={`${selectedDuration.minutes.toLocaleString(
-                'fa-IR'
-              )} دقیقه`}
-            />
-
-            <ReviewItem
-              label="زمان"
-              value={`${selectedDay.label} - ${selectedTime}`}
-            />
-
-            <ReviewItem
-              label="حوزه حقوقی"
-              value={
-                LEGAL_CATEGORY_LABELS[
-                  category
-                ]
-              }
-            />
-
-            <ReviewItem
-              label="مبلغ"
-              value={
-                formatToman(
-                  selectedDuration.priceToman
-                )
-              }
-            />
-          </div>
-
-          {selectedOffer.mode ===
-            'in_person' && (
-            <ModeInfo
-              icon={
-                MapPin
-              }
-              title="جلسه حضوری"
-            >
-              {lawyer.officeAddress}
-            </ModeInfo>
-          )}
-
-          {selectedOffer.mode ===
-            'phone' && (
-            <ModeInfo
-              icon={
-                Phone
-              }
-              title="جلسه تلفنی"
-            >
-              شماره موبایل حساب موکل برای
-              هماهنگی جلسه استفاده می‌شود.
-            </ModeInfo>
-          )}
-
-          {selectedOffer.mode ===
-            'online' && (
-            <ModeInfo
-              icon={
-                Video
-              }
-              title="جلسه آنلاین"
-            >
-              اطلاعات ورود به جلسه پس از
-              تأیید نهایی رزرو قابل مشاهده
-              خواهد بود.
-            </ModeInfo>
-          )}
-
-          <div className="mt-4 rounded-xl bg-slate-50 p-4">
-            <p className="text-xs font-bold text-slate-500">
-              موضوع جلسه
-            </p>
-
-            <p className="mt-2 text-sm font-black text-slate-900">
-              {subject}
-            </p>
-
-            {description.trim() && (
-              <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-7 text-slate-600">
-                {description}
-              </p>
-            )}
-          </div>
-
-          {error && (
-            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-              {error}
-            </p>
-          )}
-
-          <button
-            type="button"
-            onClick={
-              handleFinalSubmit
-            }
-            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-black text-white transition hover:bg-blue-700"
-          >
-            <Send
-              size={18}
-            />
-
-            ثبت درخواست رزرو
-          </button>
-        </section>
-
-        <ClientAuthGateModal
-          open={
-            authOpen
-          }
-          title="برای ثبت رزرو وارد شوید"
-          onClose={() =>
-            setAuthOpen(
-              false
-            )
-          }
-          onAuthenticated={
-            completeSubmission
-          }
-        />
-      </>
-    )
-  }
 
   return (
-    <>
-      <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
-        <p className="text-xs font-black text-blue-700">
-          رزرو مشاوره
+    <form
+      onSubmit={
+        handleSubmit
+      }
+      className="space-y-5"
+    >
+      <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+        <p className="text-sm font-black text-blue-950">
+          رزرو مشاوره با{' '}
+          {lawyer.fullName}
         </p>
 
-        <h3 className="mt-1 text-lg font-black text-slate-950">
-          نوع ارتباط و زمان جلسه را انتخاب
-          کنید
-        </h3>
-
-        <p className="mt-2 text-sm font-semibold leading-7 text-slate-600">
-          رزرو پس از بررسی و تأیید وکیل قطعی
-          خواهد شد.
+        <p className="mt-1 text-xs font-semibold leading-6 text-blue-700">
+          فقط زمان‌های واقعی ثبت‌شده توسط وکیل نمایش داده می‌شوند.
         </p>
+      </div>
 
-        <div className="mt-5">
-          <p className="text-sm font-black text-slate-800">
-            نوع مشاوره
-          </p>
-
-          <div className="mt-2 grid gap-2 sm:grid-cols-3">
-            {profile.consultationOffers.map(
-              (
-                offer
-              ) => (
-                <button
-                  key={
-                    offer.id
-                  }
-                  type="button"
-                  onClick={() =>
-                    selectOffer(
-                      offer.id
-                    )
-                  }
-                  className={`rounded-xl border p-3 text-right transition ${
-                    offer.id ===
-                    offerId
-                      ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-100'
-                      : 'border-slate-200 bg-white hover:border-blue-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {offer.mode ===
-                    'phone' ? (
-                      <Phone
-                        size={17}
-                        className="text-blue-600"
-                      />
-                    ) : offer.mode ===
-                      'online' ? (
-                      <Video
-                        size={17}
-                        className="text-violet-600"
-                      />
-                    ) : (
-                      <MapPin
-                        size={17}
-                        className="text-emerald-600"
-                      />
-                    )}
-
-                    <span className="text-sm font-black">
-                      {
-                        CONSULTATION_MODE_LABELS[
-                          offer.mode
-                        ]
-                      }
-                    </span>
-                  </div>
-
-                  <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-                    {offer.description}
-                  </p>
-                </button>
-              )
-            )}
-          </div>
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-7 text-red-700">
+          {error}
         </div>
+      )}
 
-        {selectedOffer && (
-          <div className="mt-5">
-            <p className="flex items-center gap-2 text-sm font-black">
-              <CircleDollarSign
-                size={17}
-                className="text-emerald-600"
-              />
+      <fieldset>
+        <legend className="text-sm font-black text-slate-800">
+          نوع مشاوره
+        </legend>
 
-              مدت و مبلغ جلسه
-            </p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-3">
+          {CONSULTATION_TYPE_OPTIONS.map(
+            (
+              option,
+            ) => {
+              const Icon =
+                option.icon
 
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              {selectedOffer.durations.map(
-                (
-                  duration
-                ) => (
-                  <button
-                    key={
-                      duration.minutes
-                    }
-                    type="button"
-                    onClick={() =>
-                      setDurationMinutes(
-                        duration.minutes
-                      )
-                    }
-                    className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
-                      duration.minutes ===
-                      durationMinutes
-                        ? 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-100'
-                        : 'border-slate-200 bg-white'
-                    }`}
-                  >
-                    <span className="flex items-center gap-2 text-sm font-black">
-                      <Clock3
-                        size={16}
-                      />
+              const active =
+                consultationType ===
+                option.value
 
-                      {duration.minutes.toLocaleString(
-                        'fa-IR'
-                      )}
-                      {' '}
-                      دقیقه
-                    </span>
-
-                    <span className="text-sm font-black text-emerald-700">
-                      {formatToman(
-                        duration.priceToman
-                      )}
-                    </span>
-                  </button>
-                )
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className="mt-5">
-          <p className="flex items-center gap-2 text-sm font-black">
-            <CalendarDays
-              size={17}
-              className="text-blue-600"
-            />
-
-            روز جلسه
-          </p>
-
-          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {availability.map(
-              (
-                day
-              ) => (
+              return (
                 <button
                   key={
-                    day.value
+                    option.value
                   }
                   type="button"
                   onClick={() => {
-                    setSelectedDate(
-                      day.value
+                    setConsultationType(
+                      option.value,
                     )
 
-                    setSelectedTime(
-                      ''
+                    setSelectedAvailabilityId(
+                      '',
                     )
 
                     setError(
-                      null
+                      null,
                     )
                   }}
-                  className={`rounded-xl border px-3 py-3 text-xs font-black ${
-                    selectedDate ===
-                    day.value
-                      ? 'border-blue-400 bg-blue-50 text-blue-800'
-                      : 'border-slate-200 bg-white'
+                  className={`rounded-2xl border p-4 text-right transition ${
+                    active
+                      ? 'border-blue-400 bg-blue-50 ring-4 ring-blue-100'
+                      : 'border-slate-200 bg-white hover:border-blue-200'
                   }`}
                 >
-                  {day.label}
+                  <Icon
+                    size={20}
+                    className={
+                      active
+                        ? 'text-blue-700'
+                        : 'text-slate-500'
+                    }
+                  />
+
+                  <p className="mt-3 text-sm font-black text-slate-900">
+                    {option.label}
+                  </p>
+
+                  <p className="mt-1 text-[11px] font-semibold leading-5 text-slate-500">
+                    {option.description}
+                  </p>
                 </button>
               )
+            },
+          )}
+        </div>
+      </fieldset>
+
+      <section>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-black text-slate-800">
+              زمان‌های آزاد
+            </h3>
+
+            <p className="mt-1 text-xs font-semibold text-slate-500">
+              یکی از بازه‌های ثبت‌شده توسط وکیل را انتخاب کنید.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              void loadSlots()
+            }
+            disabled={
+              loadingSlots
+            }
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-xs font-black text-slate-600 disabled:opacity-60"
+          >
+            <RefreshCw
+              size={14}
+              className={
+                loadingSlots
+                  ? 'animate-spin'
+                  : ''
+              }
+            />
+
+            بروزرسانی
+          </button>
+        </div>
+
+        {loadingSlots ? (
+          <div className="mt-3 flex min-h-36 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50">
+            <Loader2
+              size={23}
+              className="animate-spin text-blue-600"
+            />
+          </div>
+        ) : slotsByDay.length ===
+          0 ? (
+          <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+            <CalendarDays
+              size={28}
+              className="mx-auto text-slate-400"
+            />
+
+            <p className="mt-3 text-sm font-black text-slate-700">
+              برای این نوع مشاوره زمان آزادی ثبت نشده است.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-3 max-h-[360px] space-y-4 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            {slotsByDay.map(
+              ([
+                dayKey,
+
+                daySlots,
+              ]) => (
+                <div
+                  key={
+                    dayKey
+                  }
+                >
+                  <p className="px-1 text-xs font-black text-slate-600">
+                    {formatDayLabel(
+                      daySlots[0].startsAt,
+                    )}
+                  </p>
+
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {daySlots.map(
+                      (
+                        slot,
+                      ) => {
+                        const active =
+                          selectedAvailabilityId ===
+                          slot.id
+
+                        return (
+                          <button
+                            key={
+                              slot.id
+                            }
+                            type="button"
+                            onClick={() => {
+                              setSelectedAvailabilityId(
+                                slot.id,
+                              )
+
+                              setError(
+                                null,
+                              )
+                            }}
+                            className={`rounded-xl border px-3 py-3 text-right transition ${
+                              active
+                                ? 'border-emerald-400 bg-emerald-50 ring-4 ring-emerald-100'
+                                : 'border-slate-200 bg-white hover:border-emerald-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                dir="ltr"
+                                className="text-sm font-black text-slate-900"
+                              >
+                                {formatTime(
+                                  slot.startsAt,
+                                )}{' '}
+                                -{' '}
+                                {formatTime(
+                                  slot.endsAt,
+                                )}
+                              </span>
+
+                              <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-500">
+                                {formatDuration(
+                                  slot.startsAt,
+
+                                  slot.endsAt,
+                                )}
+                              </span>
+                            </div>
+
+                            {slot.note && (
+                              <p className="mt-2 line-clamp-2 text-[11px] font-semibold leading-5 text-slate-500">
+                                {slot.note}
+                              </p>
+                            )}
+                          </button>
+                        )
+                      },
+                    )}
+                  </div>
+                </div>
+              ),
             )}
           </div>
-        </div>
-
-        {selectedDay && (
-          <div className="mt-5">
-            <p className="text-sm font-black">
-              ساعت شروع
-            </p>
-
-            <div
-              dir="ltr"
-              className="mt-2 flex flex-wrap gap-2"
-            >
-              {selectedDay.slots.map(
-                (
-                  slot
-                ) => (
-                  <button
-                    key={
-                      slot.time
-                    }
-                    type="button"
-                    disabled={
-                      slot.reserved
-                    }
-                    onClick={() => {
-                      setSelectedTime(
-                        slot.time
-                      )
-
-                      setError(
-                        null
-                      )
-                    }}
-                    className={`rounded-xl border px-4 py-2.5 text-sm font-black ${
-                      slot.reserved
-                        ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 line-through'
-                        : selectedTime ===
-                            slot.time
-                          ? 'border-blue-500 bg-blue-600 text-white'
-                          : 'border-slate-200 bg-white text-slate-700'
-                    }`}
-                  >
-                    {slot.time}
-                  </button>
-                )
-              )}
-            </div>
-          </div>
         )}
-
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <SelectField
-            label="حوزه حقوقی"
-            value={
-              category
-            }
-            options={
-              LEGAL_CATEGORY_LABELS
-            }
-            onChange={(
-              value
-            ) =>
-              setCategory(
-                value as LegalMatterCategory
-              )
-            }
-          />
-
-          <SelectField
-            label="مرحله پرونده"
-            value={
-              caseStage
-            }
-            options={
-              CASE_STAGE_LABELS
-            }
-            onChange={(
-              value
-            ) =>
-              setCaseStage(
-                value as LegalCaseStage
-              )
-            }
-          />
-
-          <label className="block">
-            <span className="mb-2 block text-sm font-black text-slate-700">
-              طرف مقابل
-            </span>
-
-            <input
-              value={
-                opposingPartyName
-              }
-              onChange={(
-                event
-              ) =>
-                setOpposingPartyName(
-                  event.target.value.slice(
-                    0,
-                    120
-                  )
-                )
-              }
-              placeholder="اختیاری"
-              className={
-                INPUT_CLASS
-              }
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-2 block text-sm font-black text-slate-700">
-              موضوع جلسه
-            </span>
-
-            <input
-              value={
-                subject
-              }
-              onChange={(
-                event
-              ) => {
-                setSubject(
-                  event.target.value.slice(
-                    0,
-                    140
-                  )
-                )
-
-                setError(
-                  null
-                )
-              }}
-              placeholder="موضوع اصلی مشاوره"
-              className={
-                INPUT_CLASS
-              }
-            />
-          </label>
-        </div>
-
-        <label className="mt-4 block">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-black text-slate-700">
-              توضیحات پیش از جلسه
-            </span>
-
-            <span className="text-[11px] text-slate-400">
-              {description.length.toLocaleString(
-                'fa-IR'
-              )}
-              {' / '}
-              ۱۰۰۰
-            </span>
-          </div>
-
-          <textarea
-            rows={4}
-            value={
-              description
-            }
-            onChange={(
-              event
-            ) =>
-              setDescription(
-                event.target.value.slice(
-                  0,
-                  1000
-                )
-              )
-            }
-            placeholder="اطلاعاتی که بهتر است وکیل پیش از جلسه بداند..."
-            className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-7 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-          />
-        </label>
-
-        {selectedDuration && (
-          <div className="mt-5 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-            <span className="text-sm font-black text-emerald-900">
-              مبلغ جلسه
-            </span>
-
-            <span className="text-lg font-black text-emerald-700">
-              {formatToman(
-                selectedDuration.priceToman
-              )}
-            </span>
-          </div>
-        )}
-
-        {error && (
-          <p
-            role="alert"
-            className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700"
-          >
-            {error}
-          </p>
-        )}
-
-        <button
-          type="button"
-          disabled={
-            !lawyer.acceptsNewClients
-          }
-          onClick={
-            handleReview
-          }
-          className="mt-5 h-12 w-full rounded-xl bg-blue-600 text-sm font-black text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-        >
-          بررسی اطلاعات رزرو
-        </button>
       </section>
 
-      <ClientAuthGateModal
-        open={
-          authOpen
-        }
-        title="برای ثبت رزرو وارد شوید"
-        onClose={() =>
-          setAuthOpen(
-            false
-          )
-        }
-        onAuthenticated={
-          completeSubmission
-        }
-      />
-    </>
-  )
-}
+      {selectedSlot && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-xs font-black text-emerald-700">
+            زمان انتخاب‌شده
+          </p>
 
-function SelectField({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label:
-    string
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-black text-emerald-950">
+            <span className="inline-flex items-center gap-2">
+              <CalendarDays
+                size={16}
+              />
 
-  value:
-    string
+              {formatDayLabel(
+                selectedSlot.startsAt,
+              )}
+            </span>
 
-  options:
-    Record<
-      string,
-      string
-    >
+            <span className="inline-flex items-center gap-2">
+              <Clock3
+                size={16}
+              />
 
-  onChange:
-    (
-      value:
-        string
-    ) => void
-}) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-black text-slate-700">
-        {label}
-      </span>
+              <span dir="ltr">
+                {formatTime(
+                  selectedSlot.startsAt,
+                )}{' '}
+                -{' '}
+                {formatTime(
+                  selectedSlot.endsAt,
+                )}
+              </span>
+            </span>
+          </div>
+        </div>
+      )}
 
-      <select
-        value={
-          value
-        }
-        onChange={(
-          event
-        ) =>
-          onChange(
-            event.target.value
-          )
-        }
-        className={
-          INPUT_CLASS
-        }
-      >
-        {Object.entries(
-          options
-        ).map(
-          (
-            [
-              optionValue,
-              optionLabel,
-            ]
-          ) => (
-            <option
-              key={
-                optionValue
-              }
-              value={
-                optionValue
-              }
-            >
-              {optionLabel}
-            </option>
-          )
-        )}
-      </select>
-    </label>
-  )
-}
+      <label className="block">
+        <span className="text-sm font-black text-slate-800">
+          توضیحات برای وکیل
+        </span>
 
-function ModeInfo({
-  icon:
-    Icon,
-  title,
-  children,
-}: {
-  icon:
-    typeof MapPin
+        <textarea
+          value={
+            description
+          }
+          onChange={(
+            event,
+          ) => {
+            setDescription(
+              event.target.value,
+            )
 
-  title:
-    string
-
-  children:
-    React.ReactNode
-}) {
-  return (
-    <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4">
-      <div className="flex items-center gap-2 text-sm font-black text-blue-900">
-        <Icon
-          size={17}
+            setError(
+              null,
+            )
+          }}
+          maxLength={3000}
+          rows={5}
+          placeholder="موضوع جلسه و نکاتی که بهتر است وکیل قبل از مشاوره بداند..."
+          className="mt-2 w-full resize-y rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-7 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
         />
 
-        {title}
-      </div>
+        <span className="mt-1 block text-left text-[11px] font-bold text-slate-400">
+          {description.length.toLocaleString(
+            'fa-IR',
+          )}{' '}
+          / ۳۰۰۰
+        </span>
+      </label>
 
-      <p className="mt-2 text-sm font-semibold leading-7 text-blue-800">
-        {children}
-      </p>
-    </div>
+      <button
+        type="submit"
+        disabled={
+          submitting ||
+          loadingSlots ||
+          !selectedSlot
+        }
+        className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 text-sm font-black text-white shadow-lg shadow-emerald-100 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {submitting ? (
+          <Loader2
+            size={18}
+            className="animate-spin"
+          />
+        ) : (
+          <CalendarDays
+            size={18}
+          />
+        )}
+
+        ثبت درخواست رزرو این زمان
+      </button>
+    </form>
   )
 }
 
-function ReviewItem({
-  label,
-  value,
-}: {
-  label:
-    string
-
-  value:
-    string
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-      <p className="text-[11px] font-bold text-slate-500">
-        {label}
-      </p>
-
-      <p className="mt-1.5 text-sm font-black leading-6 text-slate-900">
-        {value}
-      </p>
-    </div>
-  )
-}
 
 function SummaryItem({
   label,
+
   value,
-  dir,
 }: {
   label:
     string
 
   value:
     string
-
-  dir?:
-    'rtl' | 'ltr'
 }) {
   return (
-    <div className="rounded-xl border border-emerald-200 bg-white p-3">
-      <p className="text-[11px] font-bold text-emerald-700">
+    <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2.5">
+      <p className="text-[10px] font-black text-emerald-700">
         {label}
       </p>
 
-      <p
-        dir={
-          dir
-        }
-        className="mt-1.5 break-words text-sm font-black text-slate-900"
-      >
+      <p className="mt-1 text-sm font-black text-slate-800">
         {value}
       </p>
+    </div>
+  )
+}
+
+
+function PanelLoader() {
+  return (
+    <div className="flex min-h-48 items-center justify-center">
+      <Loader2
+        size={24}
+        className="animate-spin text-blue-600"
+      />
     </div>
   )
 }

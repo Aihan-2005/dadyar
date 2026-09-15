@@ -23,14 +23,23 @@ export interface ClientLawyerInquiryLawyer {
 export interface ClientLawyerInquiryClient {
   id: string
 
-  phone: string | null
+  fullName: string
 
-  email: string | null
+  phone:
+    string | null
+
+  email:
+    string | null
 }
 
 
 interface ClientLawyerInquiryBase {
   id: string
+
+ 
+  
+  lawyerClientId:
+    string | null
 
   subject: string
 

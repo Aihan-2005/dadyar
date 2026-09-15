@@ -10,6 +10,7 @@ import {
   ListChecks,
   MessageSquareText,
   PenLine,
+  UserRound,
   UsersRound,
 } from 'lucide-react'
 
@@ -17,10 +18,12 @@ import type {
   ClientPortalAccount,
 } from '@/features/client-portal/auth/client-session'
 
+
 interface ClientServiceHubProps {
   account:
     ClientPortalAccount | null
 }
+
 
 interface ServiceItem {
   title:
@@ -39,22 +42,57 @@ interface ServiceItem {
     string
 }
 
+
 export default function ClientServiceHub({
   account,
 }: ClientServiceHubProps) {
-  const requestsHref =
+  const loginHref = (
+    returnTo:
+      string,
+  ) =>
+    `/client-login?returnTo=${encodeURIComponent(
+      returnTo,
+    )}&mode=login`
+
+
+  const protectedHref = (
+    href:
+      string,
+  ) =>
     account
-      ? '/client-portal/requests'
-      : '/client-login?returnTo=/client-portal/requests&mode=login'
+      ? href
+      : loginHref(
+          href,
+        )
+
 
   const services:
     ServiceItem[] = [
       {
         title:
+          'پروفایل من',
+
+        description:
+          'نام واقعی حساب موکل و اطلاعات هویتی قابل استفاده در درخواست‌ها را مدیریت کنید.',
+
+        href:
+          protectedHref(
+            '/client-portal/profile',
+          ),
+
+        icon:
+          UserRound,
+
+        accent:
+          'bg-indigo-50 text-indigo-700 border-indigo-100',
+      },
+
+      {
+        title:
           'پیدا کردن وکیل',
 
         description:
-          'جستجو و مقایسه وکلا بر اساس تخصص، شهر، سابقه، شیوه مشاوره و نظرات.',
+          'فهرست وکلای منتشرشده در دادیار را ببینید و وکیل موردنظر خود را انتخاب کنید.',
 
         href:
           '#lawyers',
@@ -71,7 +109,7 @@ export default function ClientServiceHub({
           'درخواست بررسی',
 
         description:
-          'موضوع حقوقی خود را برای وکیل ارسال کنید و ادامه ارتباط را پیگیری کنید.',
+          'موضوع حقوقی خود را برای وکیل ارسال کنید و پاسخ او را پیگیری کنید.',
 
         href:
           '#lawyers',
@@ -88,7 +126,7 @@ export default function ClientServiceHub({
           'رزرو مشاوره',
 
         description:
-          'مشاوره حضوری، تلفنی یا آنلاین را با زمان و مدت مشخص انتخاب کنید.',
+          'از میان زمان‌های آزاد واقعی وکیل، جلسه آنلاین، تلفنی یا حضوری رزرو کنید.',
 
         href:
           '#lawyers',
@@ -102,13 +140,34 @@ export default function ClientServiceHub({
 
       {
         title:
+          'رزروهای من',
+
+        description:
+          'رزروهای ثبت‌شده، وضعیت تأیید یا رد و امکان لغو رزرو را مشاهده کنید.',
+
+        href:
+          protectedHref(
+            '/client-portal/bookings',
+          ),
+
+        icon:
+          CalendarDays,
+
+        accent:
+          'bg-teal-50 text-teal-700 border-teal-100',
+      },
+
+      {
+        title:
           'قرارداد آنلاین',
 
         description:
           'شرایط خدمات حقوقی و حق‌الزحمه را با وکیل در قالب قرارداد مدیریت کنید.',
 
         href:
-          '#lawyers',
+          protectedHref(
+            '/client-portal/contracts',
+          ),
 
         icon:
           FileText,
@@ -125,7 +184,9 @@ export default function ClientServiceHub({
           'اطلاعات پرونده، دفاعیات و مستندات را وارد کرده و پیش‌نویس منظم بسازید.',
 
         href:
-          '/client-portal/petitions/new',
+          protectedHref(
+            '/client-portal/petitions/new',
+          ),
 
         icon:
           PenLine,
@@ -139,10 +200,12 @@ export default function ClientServiceHub({
           'پیگیری درخواست‌ها',
 
         description:
-          'وضعیت درخواست‌های بررسی، رزروها و پیام‌های مرتبط را یکجا مشاهده کنید.',
+          'وضعیت درخواست‌های بررسی و پاسخ‌های ثبت‌شده توسط وکیل را یکجا مشاهده کنید.',
 
         href:
-          requestsHref,
+          protectedHref(
+            '/client-portal/requests',
+          ),
 
         icon:
           ListChecks,
@@ -151,6 +214,7 @@ export default function ClientServiceHub({
           'bg-slate-100 text-slate-700 border-slate-200',
       },
     ]
+
 
   return (
     <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -164,17 +228,14 @@ export default function ClientServiceHub({
         </h2>
 
         <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-600">
-          از پیدا کردن وکیل و رزرو مشاوره تا
-          قرارداد، پیگیری درخواست و تنظیم
-          لایحه، همه مسیرها از همین بخش در
-          دسترس هستند.
+          پروفایل، انتخاب وکیل، ارسال درخواست، رزرو مشاوره و پیگیری خدمات از همین بخش در دسترس هستند.
         </p>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {services.map(
           (
-            service
+            service,
           ) => {
             const Icon =
               service.icon
@@ -206,7 +267,7 @@ export default function ClientServiceHub({
                 </p>
               </Link>
             )
-          }
+          },
         )}
       </div>
     </section>

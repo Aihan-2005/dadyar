@@ -7,6 +7,8 @@ import {
   useState,
 } from 'react'
 
+import Link from 'next/link'
+
 import type {
   LucideIcon,
 } from 'lucide-react'
@@ -20,6 +22,7 @@ import {
   Phone,
   RefreshCw,
   Search,
+  UserRound,
   XCircle,
 } from 'lucide-react'
 
@@ -48,8 +51,11 @@ const statusMeta:
   Record<
     ClientLawyerInquiryStatus,
     {
-      label: string
-      className: string
+      label:
+        string
+
+      className:
+        string
     }
   > = {
     SUBMITTED: {
@@ -138,18 +144,23 @@ function formatDate(
 export default function LawyerClientRequestsPage() {
   const user =
     useAuthStore(
-      (state) =>
+      (
+        state,
+      ) =>
         state.user,
     )
 
   const hasHydrated =
     useAuthStore(
-      (state) =>
+      (
+        state,
+      ) =>
         state.hasHydrated,
     )
 
   const [
     items,
+
     setItems,
   ] =
     useState<
@@ -158,6 +169,7 @@ export default function LawyerClientRequestsPage() {
 
   const [
     filter,
+
     setFilter,
   ] =
     useState<LawyerFilter>(
@@ -166,12 +178,16 @@ export default function LawyerClientRequestsPage() {
 
   const [
     search,
+
     setSearch,
   ] =
-    useState('')
+    useState(
+      '',
+    )
 
   const [
     loading,
+
     setLoading,
   ] =
     useState(
@@ -180,34 +196,46 @@ export default function LawyerClientRequestsPage() {
 
   const [
     error,
+
     setError,
   ] =
     useState<
       string | null
-    >(null)
+    >(
+      null,
+    )
 
   const [
     selectedId,
+
     setSelectedId,
   ] =
     useState<
       string | null
-    >(null)
+    >(
+      null,
+    )
 
   const [
     responseText,
+
     setResponseText,
   ] =
-    useState('')
+    useState(
+      '',
+    )
 
   const [
     action,
+
     setAction,
   ] =
     useState<
       LawyerInquiryDecisionInput['status'] |
       null
-    >(null)
+    >(
+      null,
+    )
 
 
   const load =
@@ -232,20 +260,24 @@ export default function LawyerClientRequestsPage() {
 
           const page =
             await getLawyerClientInquiries({
-              ...(filter !==
-              'ALL'
-                ? {
-                    status:
-                      filter,
-                  }
-                : {}),
+              ...(
+                filter !==
+                'ALL'
+                  ? {
+                      status:
+                        filter,
+                    }
+                  : {}
+              ),
 
-              ...(search.trim()
-                ? {
-                    search:
-                      search.trim(),
-                  }
-                : {}),
+              ...(
+                search.trim()
+                  ? {
+                      search:
+                        search.trim(),
+                    }
+                  : {}
+              ),
 
               page:
                 1,
@@ -276,8 +308,11 @@ export default function LawyerClientRequestsPage() {
 
       [
         filter,
+
         hasHydrated,
+
         search,
+
         user?.role,
       ],
     )
@@ -308,6 +343,7 @@ export default function LawyerClientRequestsPage() {
 
       [
         items,
+
         selectedId,
       ],
     )
@@ -374,11 +410,13 @@ export default function LawyerClientRequestsPage() {
           {
             status,
 
-            ...(response
-              ? {
-                  response,
-                }
-              : {}),
+            ...(
+              response
+                ? {
+                    response,
+                  }
+                : {}
+            ),
           },
         )
 
@@ -460,7 +498,7 @@ export default function LawyerClientRequestsPage() {
           </h1>
 
           <p className="mt-2 text-sm font-semibold leading-7 text-slate-600">
-            درخواست‌های این صفحه مستقیم از Backend دریافت می‌شوند و پاسخ شما برای همان موکل ذخیره می‌شود.
+            نام موکل و وضعیت درخواست مستقیماً از Backend دریافت می‌شود. با پذیرش درخواست، همان موکل به فهرست موکلین شما متصل می‌شود.
           </p>
         </div>
 
@@ -518,8 +556,8 @@ export default function LawyerClientRequestsPage() {
             event,
           ) =>
             setFilter(
-              event.target.value as
-                LawyerFilter,
+              event.target
+                .value as LawyerFilter,
             )
           }
           className="h-12 rounded-2xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 outline-none focus:border-blue-500"
@@ -623,6 +661,21 @@ export default function LawyerClientRequestsPage() {
                       </span>
                     </div>
 
+                    <div className="mt-3 flex items-center gap-2">
+                      <UserRound
+                        size={17}
+                        className="text-blue-600"
+                      />
+
+                      <p className="font-black text-slate-900">
+                        {item.client
+                          .fullName ||
+                          item.client
+                            .phone ||
+                          'موکل'}
+                      </p>
+                    </div>
+
                     <h2 className="mt-3 font-black text-slate-900">
                       {item.subject}
                     </h2>
@@ -632,26 +685,40 @@ export default function LawyerClientRequestsPage() {
                     </p>
 
                     <div className="mt-3 flex flex-wrap gap-3 text-xs font-bold text-slate-500">
-                      {item.client.phone && (
+                      {item.client
+                        .phone && (
                         <span className="inline-flex items-center gap-1">
                           <Phone
                             size={13}
                           />
 
-                          {item.client.phone}
+                          {
+                            item.client
+                              .phone
+                          }
                         </span>
                       )}
 
-                      {item.client.email && (
+                      {item.client
+                        .email && (
                         <span className="inline-flex items-center gap-1">
                           <Mail
                             size={13}
                           />
 
-                          {item.client.email}
+                          {
+                            item.client
+                              .email
+                          }
                         </span>
                       )}
                     </div>
+
+                    {item.lawyerClientId && (
+                      <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">
+                        این درخواست به یک موکل واقعی در CRM شما متصل شده است.
+                      </div>
+                    )}
                   </button>
                 )
               },
@@ -703,9 +770,13 @@ export default function LawyerClientRequestsPage() {
 
 function RequestDetail({
   item,
+
   responseText,
+
   onResponseChange,
+
   action,
+
   onDecision,
 }: {
   item:
@@ -757,6 +828,7 @@ function RequestDetail({
     item.status ===
       'CLOSED'
 
+
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -773,6 +845,65 @@ function RequestDetail({
         </span>
       </div>
 
+      <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-4">
+        <div className="flex items-center gap-2">
+          <UserRound
+            size={18}
+            className="text-blue-700"
+          />
+
+          <p className="font-black text-blue-950">
+            {item.client
+              .fullName ||
+              'نام موکل ثبت نشده'}
+          </p>
+        </div>
+
+        <div className="mt-3 grid gap-2 text-xs font-bold text-blue-800">
+          <p>
+            شماره تماس:{' '}
+            {item.client
+              .phone ||
+              'ثبت نشده'}
+          </p>
+
+          <p>
+            ایمیل:{' '}
+            {item.client
+              .email ||
+              'ثبت نشده'}
+          </p>
+        </div>
+      </div>
+
+      {item.lawyerClientId && (
+        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex items-start gap-2">
+            <CheckCircle2
+              size={18}
+              className="mt-0.5 shrink-0 text-emerald-600"
+            />
+
+            <div>
+              <p className="text-sm font-black text-emerald-900">
+                ارتباط وکیل و موکل ایجاد شده است
+              </p>
+
+              <p className="mt-1 text-xs font-semibold leading-6 text-emerald-700">
+                این درخواست به رکورد واقعی موکل در بخش موکلین متصل شده است.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/dashboard/customers"
+            className="mt-3 inline-flex h-10 items-center justify-center rounded-xl bg-emerald-600 px-4 text-xs font-black text-white"
+          >
+            مشاهده بخش موکلین
+          </Link>
+        </div>
+      )}
+
       <h2 className="mt-4 text-xl font-black text-slate-950">
         {item.subject}
       </h2>
@@ -780,22 +911,6 @@ function RequestDetail({
       <p className="mt-4 whitespace-pre-wrap text-sm font-medium leading-8 text-slate-700">
         {item.description}
       </p>
-
-      <div className="mt-5 grid gap-2 rounded-2xl bg-slate-50 p-4 text-xs font-bold text-slate-600">
-        <p>
-          شماره تماس:
-          {' '}
-          {item.client.phone ||
-            'ثبت نشده'}
-        </p>
-
-        <p>
-          ایمیل:
-          {' '}
-          {item.client.email ||
-            'ثبت نشده'}
-        </p>
-      </div>
 
       {!terminal && (
         <label className="mt-5 block">
@@ -883,7 +998,7 @@ function RequestDetail({
                 CheckCircle2
               }
             >
-              پذیرش درخواست
+              پذیرش و اتصال موکل
             </DecisionButton>
 
             <DecisionButton
@@ -943,11 +1058,16 @@ function RequestDetail({
 
 function DecisionButton({
   loading,
+
   disabled,
+
   onClick,
+
   className,
+
   icon:
     Icon,
+
   children,
 }: {
   loading:

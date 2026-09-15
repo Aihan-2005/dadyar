@@ -14,6 +14,8 @@ import {
   Send,
 } from 'lucide-react'
 
+import ClientProfileRequirement from '@/components/client-portal/ClientProfileRequirement'
+
 import type {
   ClientPortalLawyer,
 } from '@/features/client-portal/types/lawyer'
@@ -38,49 +40,140 @@ export default function LawyerInquiryPanel({
 }: LawyerInquiryPanelProps) {
   const user =
     useAuthStore(
-      (state) =>
+      (
+        state,
+      ) =>
         state.user,
     )
 
   const hasHydrated =
     useAuthStore(
-      (state) =>
+      (
+        state,
+      ) =>
         state.hasHydrated,
     )
 
+
+  if (
+    !hasHydrated
+  ) {
+    return (
+      <PanelLoader />
+    )
+  }
+
+
+  if (
+    !user
+  ) {
+    return (
+      <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-center">
+        <MessageCircle
+          size={30}
+          className="mx-auto text-blue-600"
+        />
+
+        <h3 className="mt-3 font-black text-slate-900">
+          برای ارسال درخواست وارد شوید
+        </h3>
+
+        <p className="mt-2 text-sm font-semibold leading-7 text-slate-600">
+          درخواست بررسی به نام حساب موکل شما ثبت می‌شود.
+        </p>
+
+        <Link
+          href="/client-login?returnTo=/client-portal&mode=login"
+          className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
+        >
+          ورود به حساب موکل
+        </Link>
+      </section>
+    )
+  }
+
+
+  if (
+    user.role !==
+    'CLIENT'
+  ) {
+    return (
+      <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-bold leading-7 text-amber-800">
+        ارسال درخواست بررسی فقط برای حساب موکل فعال است.
+      </section>
+    )
+  }
+
+
+  return (
+    <ClientProfileRequirement
+      title="برای ارسال درخواست، پروفایل را کامل کنید"
+      description="وکیل نام واقعی ثبت‌شده در پروفایل موکل را همراه درخواست مشاهده خواهد کرد."
+    >
+      <ReadyInquiryForm
+        lawyer={
+          lawyer
+        }
+      />
+    </ClientProfileRequirement>
+  )
+}
+
+
+function ReadyInquiryForm({
+  lawyer,
+}: {
+  lawyer:
+    ClientPortalLawyer
+}) {
   const [
     subject,
+
     setSubject,
   ] =
-    useState('')
+    useState(
+      '',
+    )
 
   const [
     description,
+
     setDescription,
   ] =
-    useState('')
+    useState(
+      '',
+    )
 
   const [
     submitting,
+
     setSubmitting,
   ] =
-    useState(false)
+    useState(
+      false,
+    )
 
   const [
     error,
+
     setError,
   ] =
     useState<
       string | null
-    >(null)
+    >(
+      null,
+    )
 
   const [
     createdInquiryId,
+
     setCreatedInquiryId,
   ] =
     useState<
       string | null
-    >(null)
+    >(
+      null,
+    )
 
 
   async function handleSubmit(
@@ -101,6 +194,7 @@ export default function LawyerInquiryPanel({
     const normalizedDescription =
       description.trim()
 
+
     if (
       !normalizedSubject
     ) {
@@ -111,6 +205,7 @@ export default function LawyerInquiryPanel({
       return
     }
 
+
     if (
       !normalizedDescription
     ) {
@@ -120,6 +215,7 @@ export default function LawyerInquiryPanel({
 
       return
     }
+
 
     if (
       normalizedSubject.length >
@@ -132,6 +228,7 @@ export default function LawyerInquiryPanel({
       return
     }
 
+
     if (
       normalizedDescription.length >
       5000
@@ -142,6 +239,7 @@ export default function LawyerInquiryPanel({
 
       return
     }
+
 
     try {
       setSubmitting(
@@ -186,70 +284,6 @@ export default function LawyerInquiryPanel({
 
 
   if (
-    !hasHydrated
-  ) {
-    return (
-      <div className="flex min-h-48 items-center justify-center">
-        <Loader2
-          size={24}
-          className="animate-spin text-blue-600"
-        />
-      </div>
-    )
-  }
-
-
-  if (!user) {
-    return (
-      <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-center">
-        <MessageCircle
-          size={30}
-          className="mx-auto text-blue-600"
-        />
-
-        <h3 className="mt-3 font-black text-slate-900">
-          برای ارسال درخواست وارد شوید
-        </h3>
-
-        <p className="mt-2 text-sm font-semibold leading-7 text-slate-600">
-          درخواست بررسی به نام حساب موکل شما ثبت می‌شود و فقط از طریق حساب خودتان قابل پیگیری است.
-        </p>
-
-        <Link
-          href="/login"
-          className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-black text-white transition hover:bg-blue-700"
-        >
-          ورود به حساب موکل
-        </Link>
-      </section>
-    )
-  }
-
-
-  if (
-    user.role !==
-    'CLIENT'
-  ) {
-    return (
-      <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-bold leading-7 text-amber-800">
-        ارسال درخواست بررسی در این بخش فقط برای حساب موکل فعال است.
-      </section>
-    )
-  }
-
-
-  if (
-    !lawyer.acceptsNewClients
-  ) {
-    return (
-      <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm font-bold leading-7 text-slate-600">
-        این وکیل در حال حاضر درخواست جدید نمی‌پذیرد.
-      </section>
-    )
-  }
-
-
-  if (
     createdInquiryId
   ) {
     return (
@@ -264,17 +298,15 @@ export default function LawyerInquiryPanel({
         </h3>
 
         <p className="mt-2 text-sm font-semibold leading-7 text-emerald-800">
-          درخواست بررسی برای
-          {' '}
-          {lawyer.fullName}
-          {' '}
-          روی سرور دادیار ثبت شد و پاسخ وکیل از بخش درخواست‌های من قابل پیگیری است.
+          درخواست بررسی برای{' '}
+          {lawyer.fullName}{' '}
+          ثبت شد. اگر وکیل آن را بپذیرد، ارتباط واقعی شما با همان وکیل ایجاد می‌شود.
         </p>
 
         <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
           <Link
             href="/client-portal/requests"
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700"
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-black text-white"
           >
             مشاهده درخواست‌های من
           </Link>
@@ -317,13 +349,12 @@ export default function LawyerInquiryPanel({
     >
       <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
         <p className="text-sm font-black text-blue-900">
-          درخواست بررسی برای
-          {' '}
+          درخواست بررسی برای{' '}
           {lawyer.fullName}
         </p>
 
         <p className="mt-1 text-xs font-semibold leading-6 text-blue-700">
-          شرح مسئله را شفاف بنویسید. این اطلاعات مستقیماً برای همین وکیل ارسال می‌شود.
+          این درخواست مستقیم روی سرور برای همین وکیل ثبت می‌شود.
         </p>
       </div>
 
@@ -388,8 +419,7 @@ export default function LawyerInquiryPanel({
         <span className="mt-1 block text-left text-[11px] font-bold text-slate-400">
           {description.length.toLocaleString(
             'fa-IR',
-          )}
-          {' '}
+          )}{' '}
           / ۵۰۰۰
         </span>
       </label>
@@ -415,5 +445,17 @@ export default function LawyerInquiryPanel({
         ارسال درخواست بررسی
       </button>
     </form>
+  )
+}
+
+
+function PanelLoader() {
+  return (
+    <div className="flex min-h-48 items-center justify-center">
+      <Loader2
+        size={24}
+        className="animate-spin text-blue-600"
+      />
+    </div>
   )
 }

@@ -1,27 +1,16 @@
 import {
   BadgeCheck,
   BriefcaseBusiness,
-  CalendarClock,
-  FileText,
+  Languages,
   MapPin,
   MessageCircle,
-  Star,
+  Scale,
 } from 'lucide-react'
-
-import {
-  getMinimumConsultationPrice,
-  getMockLawyerMarketplaceProfile,
-} from '@/features/client-portal/data/mock-lawyer-marketplace'
 
 import type {
   ClientPortalLawyer,
-  LawyerConsultationMode,
 } from '@/features/client-portal/types/lawyer'
 
-import {
-  CONSULTATION_MODE_LABELS,
-  formatToman,
-} from '@/features/client-portal/utils/communication'
 
 interface LawyerCardProps {
   lawyer:
@@ -30,38 +19,29 @@ interface LawyerCardProps {
   onContact:
     (
       lawyer:
-        ClientPortalLawyer
+        ClientPortalLawyer,
     ) => void
 }
 
+
 export default function LawyerCard({
   lawyer,
+
   onContact,
 }: LawyerCardProps) {
-  const marketplaceProfile =
-    getMockLawyerMarketplaceProfile(
-      lawyer.id
-    )
-
-  const minimumPrice =
-    getMinimumConsultationPrice(
-      lawyer.id
-    )
-
-  const nextAvailability =
-    marketplaceProfile.availability[0]
-
   const visibleSpecialties =
     lawyer.specialties.slice(
       0,
-      3
+
+      3,
     )
 
   const remainingSpecialties =
     Math.max(
       0,
+
       lawyer.specialties.length -
-        visibleSpecialties.length
+        visibleSpecialties.length,
     )
 
   return (
@@ -81,7 +61,7 @@ export default function LawyerCard({
               <BadgeCheck
                 size={18}
                 className="shrink-0 text-blue-600"
-                aria-label="پروفایل تأیید شده"
+                aria-label="وکیل فعال و منتشرشده"
               />
             )}
           </div>
@@ -89,54 +69,10 @@ export default function LawyerCard({
           <p className="mt-1 text-sm font-bold text-slate-600">
             {lawyer.title}
           </p>
-
-          <div className="mt-2 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-xs font-black text-amber-700">
-              <Star
-                size={15}
-                fill="currentColor"
-              />
-
-              {lawyer.rating.toLocaleString(
-                'fa-IR',
-                {
-                  minimumFractionDigits:
-                    1,
-
-                  maximumFractionDigits:
-                    1,
-                }
-              )}
-            </span>
-
-            <span className="text-xs font-semibold text-slate-500">
-              (
-              {lawyer.reviewCount.toLocaleString(
-                'fa-IR'
-              )}
-              {' '}
-              نظر)
-            </span>
-          </div>
         </div>
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-2">
-        <div className="rounded-xl bg-slate-50 px-3 py-2.5">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-            <MapPin
-              size={15}
-              className="text-blue-600"
-            />
-
-            شهر
-          </div>
-
-          <p className="mt-1 text-sm font-black">
-            {lawyer.city}
-          </p>
-        </div>
-
         <div className="rounded-xl bg-slate-50 px-3 py-2.5">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
             <BriefcaseBusiness
@@ -148,14 +84,46 @@ export default function LawyerCard({
           </div>
 
           <p className="mt-1 text-sm font-black">
-            {lawyer.yearsExperience.toLocaleString(
-              'fa-IR'
-            )}
-            {' '}
-            سال
+            {lawyer.yearsExperience >
+            0
+              ? `${lawyer.yearsExperience.toLocaleString(
+                  'fa-IR',
+                )} سال`
+              : 'ثبت نشده'}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
+            <Scale
+              size={15}
+              className="text-blue-600"
+            />
+
+            شماره پروانه
+          </div>
+
+          <p className="mt-1 truncate text-sm font-black">
+            {lawyer.licenseNumber ||
+              'ثبت نشده'}
           </p>
         </div>
       </div>
+
+      {lawyer.officeAddress && (
+        <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
+          <div className="flex items-start gap-2 text-xs font-bold leading-6 text-slate-600">
+            <MapPin
+              size={15}
+              className="mt-1 shrink-0 text-blue-600"
+            />
+
+            <span className="line-clamp-2">
+              {lawyer.officeAddress}
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="mt-5">
         <p className="text-xs font-black text-slate-500">
@@ -163,131 +131,73 @@ export default function LawyerCard({
         </p>
 
         <div className="mt-2 flex flex-wrap gap-2">
-          {visibleSpecialties.map(
-            (
-              specialty
-            ) => (
-              <span
-                key={
-                  specialty
-                }
-                className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-blue-700"
-              >
-                {specialty}
-              </span>
-            )
-          )}
-
-          {remainingSpecialties >
-            0 && (
-            <span className="rounded-full bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-600">
-              +
-              {remainingSpecialties.toLocaleString(
-                'fa-IR'
+          {visibleSpecialties.length >
+          0 ? (
+            <>
+              {visibleSpecialties.map(
+                (
+                  specialty,
+                ) => (
+                  <span
+                    key={
+                      specialty
+                    }
+                    className="rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1.5 text-xs font-bold text-blue-700"
+                  >
+                    {specialty}
+                  </span>
+                ),
               )}
+
+              {remainingSpecialties >
+                0 && (
+                <span className="rounded-full bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-600">
+                  +
+                  {remainingSpecialties.toLocaleString(
+                    'fa-IR',
+                  )}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-xs font-semibold text-slate-400">
+              تخصصی ثبت نشده است.
             </span>
           )}
         </div>
       </div>
 
-      <p className="mt-4 line-clamp-3 text-sm font-medium leading-7 text-slate-600">
-        {lawyer.bio}
-      </p>
-
-      <div className="mt-5 border-t border-slate-100 pt-4">
-        <div className="flex flex-wrap gap-2">
-          {(
-            lawyer.consultationModes as LawyerConsultationMode[]
-          ).map(
-            (
-              mode
-            ) => (
-              <span
-                key={
-                  mode
-                }
-                className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-700"
-              >
-                {
-                  CONSULTATION_MODE_LABELS[
-                    mode
-                  ]
-                }
-              </span>
-            )
-          )}
-        </div>
-      </div>
-
-      {lawyer.acceptsNewClients &&
-        nextAvailability && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5">
-          <CalendarClock
-            size={16}
-            className="mt-0.5 shrink-0 text-blue-600"
+      {lawyer.languages.length >
+        0 && (
+        <div className="mt-4 flex items-start gap-2 text-xs font-semibold leading-6 text-slate-500">
+          <Languages
+            size={15}
+            className="mt-0.5 shrink-0"
           />
 
-          <div>
-            <p className="text-[10px] font-bold text-blue-600">
-              نزدیک‌ترین زمان
-            </p>
-
-            <p className="mt-1 text-xs font-black text-blue-900">
-              {nextAvailability.label}
-
-              {nextAvailability.slots[0] && (
-                <>
-                  {' • '}
-                  {nextAvailability.slots[0]}
-                </>
-              )}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {minimumPrice !==
-        null && (
-        <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
-          <span className="text-xs font-black text-emerald-800">
-            شروع مشاوره از
-          </span>
-
-          <span className="text-sm font-black text-emerald-700">
-            {formatToman(
-              minimumPrice
+          <span>
+            {lawyer.languages.join(
+              '، ',
             )}
           </span>
         </div>
       )}
 
-      <div className="mt-3 flex items-center gap-2 rounded-xl border border-violet-100 bg-violet-50 px-3 py-2.5 text-xs font-black text-violet-700">
-        <FileText
-          size={15}
-        />
+      {lawyer.bio && (
+        <p className="mt-4 line-clamp-3 text-sm font-medium leading-7 text-slate-600">
+          {lawyer.bio}
+        </p>
+      )}
 
-        قرارداد آنلاین
-      </div>
-
-      <div className="mt-3">
-        <div
-          className={`rounded-xl border px-3 py-2 text-xs font-black ${
-            lawyer.acceptsNewClients
-              ? 'border-emerald-100 bg-emerald-50 text-emerald-700'
-              : 'border-amber-100 bg-amber-50 text-amber-700'
-          }`}
-        >
-          {lawyer.acceptsNewClients
-            ? 'پذیرش موکل جدید دارد'
-            : 'در حال حاضر پذیرش جدید ندارد'}
-        </div>
+      <div className="mt-5 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">
+        امکان ارسال درخواست بررسی برای این وکیل فعال است.
       </div>
 
       <button
         type="button"
         onClick={() =>
           onContact(
-            lawyer
+          lawyer,
           )
         }
         className="mt-auto pt-5"
@@ -297,7 +207,7 @@ export default function LawyerCard({
             size={18}
           />
 
-          پروفایل و ارتباط با وکیل
+          پروفایل و ارسال درخواست
         </span>
       </button>
     </article>

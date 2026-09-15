@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -19,10 +20,11 @@ import {
   FileText,
   Filter,
   ListChecks,
+  Loader2,
   LogIn,
   LogOut,
-  MapPin,
   PenLine,
+  RefreshCw,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -33,19 +35,22 @@ import {
 } from 'lucide-react'
 
 import ClientServiceHub from '@/components/client-portal/ClientServiceHub'
+
 import LawyerCard from '@/components/client-portal/LawyerCard'
+
 import LawyerContactModal from '@/components/client-portal/LawyerContactModal'
 
 import {
   clearClientPortalSession,
   getCurrentClientPortalAccount,
+  hydrateCurrentClientPortalAccount,
   subscribeClientPortalAuth,
   type ClientPortalAccount,
 } from '@/features/client-portal/auth/client-session'
 
 import {
-  MOCK_LAWYERS,
-} from '@/features/client-portal/data/mock-lawyers'
+  mapPublicLawyerToClientPortalLawyer,
+} from '@/features/client-portal/data/public-lawyer.mapper'
 
 import type {
   ClientPortalLawyer,
@@ -54,9 +59,13 @@ import type {
 
 import {
   filterLawyers,
-  getLawyerCities,
   getLawyerSpecialties,
 } from '@/features/client-portal/utils/lawyer-filters'
+
+import {
+  getPublicLawyers,
+} from '@/services/public-lawyer.service'
+
 
 const DEFAULT_FILTERS:
   LawyerDirectoryFilters = {
@@ -79,17 +88,49 @@ const DEFAULT_FILTERS:
       'recommended',
   }
 
+
 export default function ClientPortalPage() {
   const [
     account,
+
     setAccount,
   ] =
     useState<ClientPortalAccount | null>(
-      null
+      null,
+    )
+
+  const [
+    directoryLawyers,
+
+    setDirectoryLawyers,
+  ] =
+    useState<
+      ClientPortalLawyer[]
+    >([])
+
+  const [
+    directoryLoading,
+
+    setDirectoryLoading,
+  ] =
+    useState(
+      true,
+    )
+
+  const [
+    directoryError,
+
+    setDirectoryError,
+  ] =
+    useState<
+      string | null
+    >(
+      null,
     )
 
   const [
     filters,
+
     setFilters,
   ] =
     useState<LawyerDirectoryFilters>({
@@ -98,94 +139,221 @@ export default function ClientPortalPage() {
 
   const [
     showMobileFilters,
+
     setShowMobileFilters,
   ] =
     useState(
-      false
+      false,
     )
 
   const [
     selectedLawyer,
+
     setSelectedLawyer,
   ] =
     useState<ClientPortalLawyer | null>(
-      null
+      null,
     )
 
-  useEffect(() => {
-    const refresh =
-      () => {
-        setAccount(
-          getCurrentClientPortalAccount()
+
+  /*
+   * Auth از Zustand می‌آید،
+   * fullName از ClientProfile Backend.
+   */
+  useEffect(
+    () => {
+      let active =
+        true
+
+      const refreshFromCache =
+        () => {
+          if (
+            !active
+          ) {
+            return
+          }
+
+          setAccount(
+            getCurrentClientPortalAccount(),
+          )
+        }
+
+      refreshFromCache()
+
+      void hydrateCurrentClientPortalAccount()
+        .then(
+          (
+            nextAccount,
+          ) => {
+            if (
+              active
+            ) {
+              setAccount(
+                nextAccount,
+              )
+            }
+          },
         )
+        .catch(
+          () => {
+            /*
+             * خطای Profile نباید صفحه را
+             * از کار بیندازد.
+             *
+             * موقع ارسال Inquiry دوباره
+             * profile بررسی می‌شود.
+             */
+          },
+        )
+
+      const unsubscribe =
+        subscribeClientPortalAuth(
+          refreshFromCache,
+        )
+
+      return () => {
+        active =
+          false
+
+        unsubscribe()
+      }
+    },
+
+    [],
+  )
+
+
+  const loadDirectory =
+    useCallback(
+      async () => {
+        try {
+          setDirectoryLoading(
+            true,
+          )
+
+          setDirectoryError(
+            null,
+          )
+
+          const publicLawyers =
+            await getPublicLawyers()
+
+          setDirectoryLawyers(
+            publicLawyers.map(
+              mapPublicLawyerToClientPortalLawyer,
+            ),
+          )
+        } catch (
+          caughtError:
+            unknown
+        ) {
+          setDirectoryError(
+            caughtError instanceof
+              Error
+              ? caughtError.message
+              : 'دریافت فهرست وکلا ناموفق بود.',
+          )
+        } finally {
+          setDirectoryLoading(
+            false,
+          )
+        }
+      },
+
+      [],
+    )
+
+
+  /*
+   * Backend فعلی Directory را فقط
+   * برای role=CLIENT باز کرده.
+   *
+   * بنابراین Guest درخواست API نمی‌زند.
+   */
+  useEffect(
+    () => {
+      if (
+        !account
+      ) {
+        setDirectoryLawyers(
+          [],
+        )
+
+        setDirectoryError(
+          null,
+        )
+
+        setDirectoryLoading(
+          false,
+        )
+
+        return
       }
 
-    refresh()
+      void loadDirectory()
+    },
 
-    return subscribeClientPortalAuth(
-      refresh
-    )
-  }, [])
+    [
+      account?.id,
 
-  const cities =
-    useMemo(
-      () =>
-        getLawyerCities(
-          MOCK_LAWYERS
-        ),
-      []
-    )
+      loadDirectory,
+    ],
+  )
+
 
   const specialties =
     useMemo(
       () =>
         getLawyerSpecialties(
-          MOCK_LAWYERS
+          directoryLawyers,
         ),
-      []
+
+      [
+        directoryLawyers,
+      ],
     )
+
 
   const lawyers =
     useMemo(
       () =>
         filterLawyers(
-          MOCK_LAWYERS,
-          filters
+          directoryLawyers,
+
+          filters,
         ),
+
       [
+        directoryLawyers,
+
         filters,
-      ]
+      ],
     )
 
-  const acceptingCount =
+
+  const licensedCount =
     useMemo(
       () =>
-        MOCK_LAWYERS.filter(
+        directoryLawyers.filter(
           (
-            lawyer
+            lawyer,
           ) =>
-            lawyer.acceptsNewClients
+            Boolean(
+              lawyer.licenseNumber,
+            ),
         ).length,
-      []
+
+      [
+        directoryLawyers,
+      ],
     )
 
+
   const activeFilterCount =
-    [
-      filters.city,
+    filters.specialty
+      ? 1
+      : 0
 
-      filters.specialty,
-
-      filters.consultationMode !==
-      'all'
-        ? filters.consultationMode
-        : '',
-
-      filters.acceptsNewClientsOnly
-        ? 'accepting'
-        : '',
-    ].filter(
-      Boolean
-    ).length
 
   const updateFilter = <
     K extends keyof LawyerDirectoryFilters,
@@ -194,18 +362,20 @@ export default function ClientPortalPage() {
       K,
 
     value:
-      LawyerDirectoryFilters[K]
+      LawyerDirectoryFilters[K],
   ) => {
     setFilters(
       (
-        current
+        current,
       ) => ({
         ...current,
+
         [key]:
           value,
-      })
+      }),
     )
   }
+
 
   const resetFilters =
     () => {
@@ -213,6 +383,7 @@ export default function ClientPortalPage() {
         ...DEFAULT_FILTERS,
       })
     }
+
 
   return (
     <>
@@ -249,7 +420,9 @@ export default function ClientPortalPage() {
                   </p>
 
                   <p className="text-xs font-black text-slate-800">
-                    {account.fullName}
+                    {account.fullName ||
+                      account.phone ||
+                      'موکل دادیار'}
                   </p>
                 </div>
 
@@ -351,6 +524,7 @@ export default function ClientPortalPage() {
           >
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-blue-200/30 blur-3xl" />
+
               <div className="absolute -bottom-24 -right-16 h-64 w-64 rounded-full bg-emerald-200/25 blur-3xl" />
             </div>
 
@@ -360,24 +534,18 @@ export default function ClientPortalPage() {
                   size={15}
                 />
 
-                انتخاب وکیل
+                وکلای منتشرشده در دادیار
               </span>
 
               <h1 className="mt-4 max-w-3xl text-3xl font-black leading-[1.4] sm:text-4xl">
-                وکیل مناسب موضوعت را
-                {' '}
+                وکیل موردنظرت را انتخاب کن و{' '}
                 <span className="text-blue-700">
-                  دقیق‌تر پیدا کن
+                  مستقیم درخواست بفرست
                 </span>
               </h1>
 
               <p className="mt-3 max-w-3xl text-sm font-semibold leading-8 text-slate-600 sm:text-base">
-                وکلا را بر اساس تخصص، شهر،
-                شیوه مشاوره، سابقه و نظرات
-                مقایسه کنید؛ سپس درخواست
-                بررسی، رزرو مشاوره یا قرارداد
-                آنلاین را از پروفایل همان
-                وکیل شروع کنید.
+                پس از ورود با حساب موکل، فهرست وکلایی را می‌بینید که در Backend برای بخش موکلین منتشر شده‌اند. بعد از پذیرش درخواست توسط وکیل، رابطه واقعی موکل و وکیل روی سرور ایجاد می‌شود.
               </p>
 
               <div className="mt-7 max-w-3xl">
@@ -392,231 +560,276 @@ export default function ClientPortalPage() {
                       filters.search
                     }
                     onChange={(
-                      event
+                      event,
                     ) =>
                       updateFilter(
                         'search',
-                        event.target.value
+
+                        event.target.value,
                       )
                     }
                     type="search"
-                    placeholder="نام وکیل، تخصص یا شهر..."
-                    className="h-14 w-full rounded-2xl border border-slate-300 bg-white pr-12 pl-4 text-sm font-bold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 sm:text-base"
+                    disabled={
+                      !account
+                    }
+                    placeholder={
+                      account
+                        ? 'نام وکیل، تخصص، شماره پروانه یا نشانی...'
+                        : 'برای مشاهده و جستجوی وکلا وارد حساب موکل شوید'
+                    }
+                    className="h-14 w-full rounded-2xl border border-slate-300 bg-white pr-12 pl-4 text-sm font-bold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 sm:text-base"
                   />
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <StatCard
-              label="وکلای موجود"
-              value={
-                MOCK_LAWYERS.length
-              }
-              icon={
-                UsersRound
-              }
-            />
+          {!account ? (
+            <section className="mt-6 rounded-[24px] border border-blue-200 bg-white p-7 text-center shadow-sm">
+              <ShieldCheck
+                size={34}
+                className="mx-auto text-blue-600"
+              />
 
-            <StatCard
-              label="شهرهای فعال"
-              value={
-                cities.length
-              }
-              icon={
-                MapPin
-              }
-            />
+              <h2 className="mt-4 text-xl font-black text-slate-950">
+                برای مشاهده فهرست وکلا وارد حساب موکل شوید
+              </h2>
 
-            <StatCard
-              label="حوزه تخصصی"
-              value={
-                specialties.length
-              }
-              icon={
-                BriefcaseBusiness
-              }
-            />
+              <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-7 text-slate-600">
+                فهرست وکلا از API محافظت‌شده دادیار دریافت می‌شود و فقط حساب CLIENT به آن دسترسی دارد.
+              </p>
 
-            <StatCard
-              label="پذیرش فعال"
-              value={
-                acceptingCount
-              }
-              icon={
-                ShieldCheck
-              }
-            />
-          </section>
+              <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
+                <Link
+                  href="/client-login?returnTo=/client-portal&mode=login"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
+                >
+                  <LogIn
+                    size={16}
+                  />
 
-          <div className="mt-7 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-            <aside className="hidden lg:block">
-              <div className="sticky top-24 rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-                <FilterHeader
-                  activeCount={
-                    activeFilterCount
+                  ورود موکل
+                </Link>
+
+                <Link
+                  href="/client-login?returnTo=/client-portal&mode=register"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 text-sm font-black text-emerald-700"
+                >
+                  <UserPlus
+                    size={16}
+                  />
+
+                  ثبت‌نام موکل
+                </Link>
+              </div>
+            </section>
+          ) : (
+            <>
+              <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <StatCard
+                  label="وکلای منتشرشده"
+                  value={
+                    directoryLawyers.length
                   }
-                  onReset={
-                    resetFilters
+                  icon={
+                    UsersRound
                   }
                 />
 
-                <div className="mt-5 space-y-5">
-                  <LawyerFilterFields
-                    filters={
-                      filters
-                    }
-                    cities={
-                      cities
-                    }
-                    specialties={
-                      specialties
-                    }
-                    updateFilter={
-                      updateFilter
-                    }
-                  />
-                </div>
-              </div>
-            </aside>
+                <StatCard
+                  label="حوزه‌های تخصصی"
+                  value={
+                    specialties.length
+                  }
+                  icon={
+                    BriefcaseBusiness
+                  }
+                />
 
-            <section className="min-w-0">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-xl font-black sm:text-2xl">
-                    وکلای پیشنهادی
-                  </h2>
+                <StatCard
+                  label="پروانه ثبت‌شده"
+                  value={
+                    licensedCount
+                  }
+                  icon={
+                    ShieldCheck
+                  }
+                />
 
-                  <p className="mt-1 text-sm font-semibold text-slate-500">
-                    {lawyers.length.toLocaleString(
-                      'fa-IR'
-                    )}
-                    {' '}
-                    نتیجه
-                  </p>
-                </div>
+                <StatCard
+                  label="قابل ارسال درخواست"
+                  value={
+                    directoryLawyers.length
+                  }
+                  icon={
+                    ListChecks
+                  }
+                />
+              </section>
 
-                <div className="flex items-center gap-2">
+              {directoryError && (
+                <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-7 text-red-700 sm:flex-row sm:items-center sm:justify-between">
+                  <span>
+                    {directoryError}
+                  </span>
+
                   <button
                     type="button"
                     onClick={() =>
-                      setShowMobileFilters(
-                        true
-                      )
+                      void loadDirectory()
                     }
-                    className="relative inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 lg:hidden"
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-xs font-black text-red-700"
                   >
-                    <SlidersHorizontal
-                      size={17}
+                    <RefreshCw
+                      size={15}
                     />
 
-                    فیلتر
-
-                    {activeFilterCount >
-                      0 && (
-                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] text-white">
-                        {activeFilterCount.toLocaleString(
-                          'fa-IR'
-                        )}
-                      </span>
-                    )}
-                  </button>
-
-                  <div className="relative">
-                    <select
-                      value={
-                        filters.sort
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        updateFilter(
-                          'sort',
-                          event.target
-                            .value as LawyerDirectoryFilters['sort']
-                        )
-                      }
-                      className="h-11 appearance-none rounded-xl border border-slate-300 bg-white pr-4 pl-10 text-sm font-black text-slate-700 outline-none focus:border-blue-500"
-                    >
-                      <option value="recommended">
-                        پیشنهادی
-                      </option>
-
-                      <option value="rating">
-                        بالاترین امتیاز
-                      </option>
-
-                      <option value="experience">
-                        بیشترین سابقه
-                      </option>
-                    </select>
-
-                    <ChevronDown
-                      size={16}
-                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {activeFilterCount >
-                0 && (
-                <div className="mt-4 flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
-                  <p className="text-xs font-bold text-blue-800">
-                    {activeFilterCount.toLocaleString(
-                      'fa-IR'
-                    )}
-                    {' '}
-                    فیلتر فعال
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={
-                      resetFilters
-                    }
-                    className="inline-flex items-center gap-1.5 text-xs font-black text-blue-700"
-                  >
-                    <RotateCcw
-                      size={14}
-                    />
-
-                    پاک کردن
+                    تلاش دوباره
                   </button>
                 </div>
               )}
 
-              {lawyers.length >
-              0 ? (
-                <div className="mt-5 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {lawyers.map(
-                    (
-                      lawyer
-                    ) => (
-                      <LawyerCard
-                        key={
-                          lawyer.id
+              <div className="mt-7 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+                <aside className="hidden lg:block">
+                  <div className="sticky top-24 rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+                    <FilterHeader
+                      activeCount={
+                        activeFilterCount
+                      }
+                      onReset={
+                        resetFilters
+                      }
+                    />
+
+                    <div className="mt-5 space-y-5">
+                      <LawyerFilterFields
+                        filters={
+                          filters
                         }
-                        lawyer={
-                          lawyer
+                        specialties={
+                          specialties
                         }
-                        onContact={
-                          setSelectedLawyer
+                        updateFilter={
+                          updateFilter
                         }
                       />
-                    )
+                    </div>
+                  </div>
+                </aside>
+
+                <section className="min-w-0">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="text-xl font-black sm:text-2xl">
+                        انتخاب وکیل
+                      </h2>
+
+                      <p className="mt-1 text-sm font-semibold text-slate-500">
+                        {lawyers.length.toLocaleString(
+                          'fa-IR',
+                        )}{' '}
+                        نتیجه
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowMobileFilters(
+                            true,
+                          )
+                        }
+                        className="relative inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 lg:hidden"
+                      >
+                        <SlidersHorizontal
+                          size={17}
+                        />
+
+                        فیلتر
+
+                        {activeFilterCount >
+                          0 && (
+                          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] text-white">
+                            {activeFilterCount.toLocaleString(
+                              'fa-IR',
+                            )}
+                          </span>
+                        )}
+                      </button>
+
+                      <div className="relative">
+                        <select
+                          value={
+                            filters.sort
+                          }
+                          onChange={(
+                            event,
+                          ) =>
+                            updateFilter(
+                              'sort',
+
+                              event.target.value as LawyerDirectoryFilters['sort'],
+                            )
+                          }
+                          className="h-11 appearance-none rounded-xl border border-slate-300 bg-white pr-4 pl-10 text-sm font-black text-slate-700 outline-none focus:border-blue-500"
+                        >
+                          <option value="recommended">
+                            ترتیب دادیار
+                          </option>
+
+                          <option value="experience">
+                            بیشترین سابقه
+                          </option>
+                        </select>
+
+                        <ChevronDown
+                          size={16}
+                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {directoryLoading ? (
+                    <div className="mt-5 flex min-h-72 items-center justify-center rounded-[24px] border border-slate-200 bg-white">
+                      <Loader2
+                        size={30}
+                        className="animate-spin text-blue-600"
+                      />
+                    </div>
+                  ) : lawyers.length >
+                    0 ? (
+                    <div className="mt-5 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {lawyers.map(
+                        (
+                          lawyer,
+                        ) => (
+                          <LawyerCard
+                            key={
+                              lawyer.id
+                            }
+                            lawyer={
+                              lawyer
+                            }
+                            onContact={
+                              setSelectedLawyer
+                            }
+                          />
+                        ),
+                      )}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      onReset={
+                        resetFilters
+                      }
+                    />
                   )}
-                </div>
-              ) : (
-                <EmptyState
-                  onReset={
-                    resetFilters
-                  }
-                />
-              )}
-            </section>
-          </div>
+                </section>
+              </div>
+            </>
+          )}
         </div>
       </main>
 
@@ -626,13 +839,13 @@ export default function ClientPortalPage() {
           className="fixed inset-0 z-[90] flex items-end bg-slate-950/40 backdrop-blur-sm lg:hidden"
           onMouseDown={() =>
             setShowMobileFilters(
-              false
+              false,
             )
           }
         >
           <section
             onMouseDown={(
-              event
+              event,
             ) =>
               event.stopPropagation()
             }
@@ -652,7 +865,7 @@ export default function ClientPortalPage() {
                 type="button"
                 onClick={() =>
                   setShowMobileFilters(
-                    false
+                    false,
                   )
                 }
                 className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100"
@@ -668,9 +881,6 @@ export default function ClientPortalPage() {
                 filters={
                   filters
                 }
-                cities={
-                  cities
-                }
                 specialties={
                   specialties
                 }
@@ -684,17 +894,15 @@ export default function ClientPortalPage() {
               type="button"
               onClick={() =>
                 setShowMobileFilters(
-                  false
+                  false,
                 )
               }
               className="mt-6 h-12 w-full rounded-xl bg-blue-600 text-sm font-black text-white"
             >
-              نمایش
-              {' '}
+              نمایش{' '}
               {lawyers.length.toLocaleString(
-                'fa-IR'
-              )}
-              {' '}
+                'fa-IR',
+              )}{' '}
               نتیجه
             </button>
           </section>
@@ -707,7 +915,7 @@ export default function ClientPortalPage() {
         }
         onClose={() =>
           setSelectedLawyer(
-            null
+            null,
           )
         }
       />
@@ -715,8 +923,10 @@ export default function ClientPortalPage() {
   )
 }
 
+
 function FilterHeader({
   activeCount,
+
   onReset,
 }: {
   activeCount:
@@ -743,9 +953,8 @@ function FilterHeader({
           0 && (
           <p className="mt-1 text-xs font-black text-blue-600">
             {activeCount.toLocaleString(
-              'fa-IR'
-            )}
-            {' '}
+              'fa-IR',
+            )}{' '}
             فیلتر فعال
           </p>
         )}
@@ -771,17 +980,16 @@ function FilterHeader({
   )
 }
 
+
 function LawyerFilterFields({
   filters,
-  cities,
+
   specialties,
+
   updateFilter,
 }: {
   filters:
     LawyerDirectoryFilters
-
-  cities:
-    string[]
 
   specialties:
     string[]
@@ -793,160 +1001,57 @@ function LawyerFilterFields({
       K,
 
     value:
-      LawyerDirectoryFilters[K]
+      LawyerDirectoryFilters[K],
   ) => void
 }) {
   return (
-    <>
-      <FilterField label="شهر">
-        <select
-          value={
-            filters.city
-          }
-          onChange={(
-            event
-          ) =>
-            updateFilter(
-              'city',
-              event.target.value
-            )
-          }
-          className={
-            filterSelectClass
-          }
-        >
-          <option value="">
-            همه شهرها
-          </option>
+    <FilterField label="حوزه تخصصی">
+      <select
+        value={
+          filters.specialty
+        }
+        onChange={(
+          event,
+        ) =>
+          updateFilter(
+            'specialty',
 
-          {cities.map(
-            (
-              city
-            ) => (
-              <option
-                key={
-                  city
-                }
-                value={
-                  city
-                }
-              >
-                {city}
-              </option>
-            )
-          )}
-        </select>
-      </FilterField>
+            event.target.value,
+          )
+        }
+        className={
+          filterSelectClass
+        }
+      >
+        <option value="">
+          همه تخصص‌ها
+        </option>
 
-      <FilterField label="حوزه تخصصی">
-        <select
-          value={
-            filters.specialty
-          }
-          onChange={(
-            event
-          ) =>
-            updateFilter(
-              'specialty',
-              event.target.value
-            )
-          }
-          className={
-            filterSelectClass
-          }
-        >
-          <option value="">
-            همه تخصص‌ها
-          </option>
-
-          {specialties.map(
-            (
-              specialty
-            ) => (
-              <option
-                key={
-                  specialty
-                }
-                value={
-                  specialty
-                }
-              >
-                {specialty}
-              </option>
-            )
-          )}
-        </select>
-      </FilterField>
-
-      <FilterField label="نوع مشاوره">
-        <select
-          value={
-            filters.consultationMode
-          }
-          onChange={(
-            event
-          ) =>
-            updateFilter(
-              'consultationMode',
-              event.target
-                .value as LawyerDirectoryFilters['consultationMode']
-            )
-          }
-          className={
-            filterSelectClass
-          }
-        >
-          <option value="all">
-            همه روش‌ها
-          </option>
-
-          <option value="in_person">
-            حضوری
-          </option>
-
-          <option value="phone">
-            تلفنی
-          </option>
-
-          <option value="online">
-            آنلاین
-          </option>
-        </select>
-      </FilterField>
-
-      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-        <input
-          type="checkbox"
-          checked={
-            filters.acceptsNewClientsOnly
-          }
-          onChange={(
-            event
-          ) =>
-            updateFilter(
-              'acceptsNewClientsOnly',
-              event.target.checked
-            )
-          }
-          className="mt-0.5 h-4 w-4 accent-blue-600"
-        />
-
-        <div>
-          <p className="text-sm font-black text-slate-800">
-            فقط پذیرش فعال
-          </p>
-
-          <p className="mt-1 text-xs text-slate-500">
-            وکلایی که موکل جدید می‌پذیرند
-          </p>
-        </div>
-      </label>
-    </>
+        {specialties.map(
+          (
+            specialty,
+          ) => (
+            <option
+              key={
+                specialty
+              }
+              value={
+                specialty
+              }
+            >
+              {specialty}
+            </option>
+          ),
+        )}
+      </select>
+    </FilterField>
   )
 }
 
+
 function FilterField({
   label,
+
   children,
 }: {
   label:
@@ -965,6 +1070,7 @@ function FilterField({
     </div>
   )
 }
+
 
 function EmptyState({
   onReset,
@@ -1000,9 +1106,12 @@ function EmptyState({
   )
 }
 
+
 function StatCard({
   label,
+
   value,
+
   icon:
     Icon,
 }: {
@@ -1028,12 +1137,14 @@ function StatCard({
 
       <p className="mt-3 text-2xl font-black">
         {value.toLocaleString(
-          'fa-IR'
+          'fa-IR',
         )}
       </p>
     </article>
   )
 }
 
+
 const filterSelectClass =
   'h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
+

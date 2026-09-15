@@ -16,9 +16,7 @@ import type {
 
 type ApiEnvelope<T> = {
   success: boolean
-
   data: T
-
   message?: string
 }
 
@@ -38,9 +36,58 @@ type ListEnvelope<T> = {
 const CLIENT_INQUIRIES_ENDPOINT =
   '/client/lawyer-inquiries'
 
-
 const LAWYER_INQUIRIES_ENDPOINT =
   '/lawyer/client-inquiries'
+
+const INQUIRY_CHANGED_EVENT =
+  'dadyar:client-lawyer-inquiry:changed'
+
+
+function isBrowser(): boolean {
+  return typeof window !== 'undefined'
+}
+
+
+function notifyInquiryChanged(): void {
+  if (
+    !isBrowser()
+  ) {
+    return
+  }
+
+  window.dispatchEvent(
+    new Event(
+      INQUIRY_CHANGED_EVENT,
+    ),
+  )
+}
+
+
+export function subscribeClientLawyerInquiryChanges(
+  listener:
+    () => void,
+): () => void {
+  if (
+    !isBrowser()
+  ) {
+    return () =>
+      undefined
+  }
+
+  window.addEventListener(
+    INQUIRY_CHANGED_EVENT,
+
+    listener,
+  )
+
+  return () => {
+    window.removeEventListener(
+      INQUIRY_CHANGED_EVENT,
+
+      listener,
+    )
+  }
+}
 
 
 function buildListParams(
@@ -152,11 +199,16 @@ export async function createClientLawyerInquiry(
         input,
       )
 
-    return readItem(
-      response.data,
+    const result =
+      readItem(
+        response.data,
 
-      'ساختار پاسخ ثبت درخواست بررسی معتبر نیست.',
-    )
+        'ساختار پاسخ ثبت درخواست بررسی معتبر نیست.',
+      )
+
+    notifyInquiryChanged()
+
+    return result
   } catch (
     error:
       unknown
@@ -261,11 +313,16 @@ export async function cancelClientLawyerInquiry(
         )}/cancel`,
       )
 
-    return readItem(
-      response.data,
+    const result =
+      readItem(
+        response.data,
 
-      'ساختار پاسخ لغو درخواست معتبر نیست.',
-    )
+        'ساختار پاسخ لغو درخواست معتبر نیست.',
+      )
+
+    notifyInquiryChanged()
+
+    return result
   } catch (
     error:
       unknown
@@ -375,11 +432,16 @@ export async function updateLawyerClientInquiry(
         input,
       )
 
-    return readItem(
-      response.data,
+    const result =
+      readItem(
+        response.data,
 
-      'ساختار پاسخ بروزرسانی درخواست معتبر نیست.',
-    )
+        'ساختار پاسخ بروزرسانی درخواست معتبر نیست.',
+      )
+
+    notifyInquiryChanged()
+
+    return result
   } catch (
     error:
       unknown
