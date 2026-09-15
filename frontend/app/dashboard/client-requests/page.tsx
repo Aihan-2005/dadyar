@@ -16,6 +16,7 @@ import type {
 import {
   CheckCircle2,
   Clock3,
+  ExternalLink,
   Loader2,
   Mail,
   MessageSquareText,
@@ -28,6 +29,7 @@ import {
 
 import {
   getLawyerClientInquiries,
+  subscribeClientLawyerInquiryChanges,
   updateLawyerClientInquiry,
 } from '@/services/client-lawyer-inquiry.service'
 
@@ -47,7 +49,7 @@ type LawyerFilter =
   | ClientLawyerInquiryStatus
 
 
-const statusMeta:
+const STATUS_META:
   Record<
     ClientLawyerInquiryStatus,
     {
@@ -163,9 +165,9 @@ export default function LawyerClientRequestsPage() {
 
     setItems,
   ] =
-    useState<
-      LawyerClientInquiry[]
-    >([])
+    useState<LawyerClientInquiry[]>(
+      [],
+    )
 
   const [
     filter,
@@ -289,6 +291,28 @@ export default function LawyerClientRequestsPage() {
           setItems(
             page.items,
           )
+
+          setSelectedId(
+            (
+              current,
+            ) => {
+              if (
+                current &&
+                page.items.some(
+                  (
+                    item,
+                  ) =>
+                    item.id ===
+                    current,
+                )
+              ) {
+                return current
+              }
+
+              return page.items[0]?.id ??
+                null
+            },
+          )
         } catch (
           caughtError:
             unknown
@@ -308,11 +332,8 @@ export default function LawyerClientRequestsPage() {
 
       [
         filter,
-
         hasHydrated,
-
         search,
-
         user?.role,
       ],
     )
@@ -320,8 +341,34 @@ export default function LawyerClientRequestsPage() {
 
   useEffect(
     () => {
-      void load()
+      const timeoutId =
+        window.setTimeout(
+          () => {
+            void load()
+          },
+
+          250,
+        )
+
+      return () =>
+        window.clearTimeout(
+          timeoutId,
+        )
     },
+
+    [
+      load,
+    ],
+  )
+
+
+  useEffect(
+    () =>
+      subscribeClientLawyerInquiryChanges(
+        () => {
+          void load()
+        },
+      ),
 
     [
       load,
@@ -343,7 +390,6 @@ export default function LawyerClientRequestsPage() {
 
       [
         items,
-
         selectedId,
       ],
     )
@@ -352,8 +398,7 @@ export default function LawyerClientRequestsPage() {
   useEffect(
     () => {
       setResponseText(
-        selectedItem
-          ?.lawyerResponse ??
+        selectedItem?.lawyerResponse ??
           '',
       )
     },
@@ -460,12 +505,7 @@ export default function LawyerClientRequestsPage() {
     !hasHydrated
   ) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2
-          size={28}
-          className="animate-spin text-blue-600"
-        />
-      </div>
+      <PageLoader />
     )
   }
 
@@ -476,15 +516,7 @@ export default function LawyerClientRequestsPage() {
       'LAWYER'
   ) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <h1 className="text-xl font-black text-slate-900">
-          دسترسی غیرمجاز
-        </h1>
-
-        <p className="mt-2 text-sm font-semibold text-slate-600">
-          این بخش فقط برای حساب وکیل قابل دسترسی است.
-        </p>
-      </div>
+      <AccessDenied />
     )
   }
 
@@ -497,8 +529,8 @@ export default function LawyerClientRequestsPage() {
             درخواست‌های موکلین
           </h1>
 
-          <p className="mt-2 text-sm font-semibold leading-7 text-slate-600">
-            نام موکل و وضعیت درخواست مستقیماً از Backend دریافت می‌شود. با پذیرش درخواست، همان موکل به فهرست موکلین شما متصل می‌شود.
+          <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-600">
+            با پذیرش درخواست، ارتباط واقعی CRM ایجاد می‌شود و از همین صفحه مستقیماً می‌توانید وارد پروفایل همان موکل شوید.
           </p>
         </div>
 
@@ -529,7 +561,7 @@ export default function LawyerClientRequestsPage() {
         <label className="relative block">
           <Search
             size={17}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
           />
 
           <input
@@ -556,8 +588,7 @@ export default function LawyerClientRequestsPage() {
             event,
           ) =>
             setFilter(
-              event.target
-                .value as LawyerFilter,
+              event.target.value as LawyerFilter,
             )
           }
           className="h-12 rounded-2xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 outline-none focus:border-blue-500"
@@ -623,105 +654,25 @@ export default function LawyerClientRequestsPage() {
             items.map(
               (
                 item,
-              ) => {
-                const meta =
-                  statusMeta[
-                    item.status
-                  ]
-
-                return (
-                  <button
-                    key={
-                      item.id
-                    }
-                    type="button"
-                    onClick={() =>
-                      setSelectedId(
-                        item.id,
-                      )
-                    }
-                    className={`block w-full rounded-3xl border bg-white p-5 text-right transition hover:border-blue-300 hover:shadow-md ${
-                      selectedId ===
-                      item.id
-                        ? 'border-blue-400 ring-4 ring-blue-100'
-                        : 'border-slate-200'
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span
-                        className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.className}`}
-                      >
-                        {meta.label}
-                      </span>
-
-                      <span className="text-[11px] font-bold text-slate-400">
-                        {formatDate(
-                          item.createdAt,
-                        )}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 flex items-center gap-2">
-                      <UserRound
-                        size={17}
-                        className="text-blue-600"
-                      />
-
-                      <p className="font-black text-slate-900">
-                        {item.client
-                          .fullName ||
-                          item.client
-                            .phone ||
-                          'موکل'}
-                      </p>
-                    </div>
-
-                    <h2 className="mt-3 font-black text-slate-900">
-                      {item.subject}
-                    </h2>
-
-                    <p className="mt-2 line-clamp-2 text-sm font-medium leading-7 text-slate-600">
-                      {item.description}
-                    </p>
-
-                    <div className="mt-3 flex flex-wrap gap-3 text-xs font-bold text-slate-500">
-                      {item.client
-                        .phone && (
-                        <span className="inline-flex items-center gap-1">
-                          <Phone
-                            size={13}
-                          />
-
-                          {
-                            item.client
-                              .phone
-                          }
-                        </span>
-                      )}
-
-                      {item.client
-                        .email && (
-                        <span className="inline-flex items-center gap-1">
-                          <Mail
-                            size={13}
-                          />
-
-                          {
-                            item.client
-                              .email
-                          }
-                        </span>
-                      )}
-                    </div>
-
-                    {item.lawyerClientId && (
-                      <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">
-                        این درخواست به یک موکل واقعی در CRM شما متصل شده است.
-                      </div>
-                    )}
-                  </button>
-                )
-              },
+              ) => (
+                <InquiryListItem
+                  key={
+                    item.id
+                  }
+                  item={
+                    item
+                  }
+                  active={
+                    selectedId ===
+                    item.id
+                  }
+                  onSelect={() =>
+                    setSelectedId(
+                      item.id,
+                    )
+                  }
+                />
+              ),
             )
           )}
         </section>
@@ -768,6 +719,119 @@ export default function LawyerClientRequestsPage() {
 }
 
 
+function InquiryListItem({
+  item,
+
+  active,
+
+  onSelect,
+}: {
+  item:
+    LawyerClientInquiry
+
+  active:
+    boolean
+
+  onSelect:
+    () => void
+}) {
+  const meta =
+    STATUS_META[
+      item.status
+    ]
+
+  return (
+    <article
+      className={`rounded-3xl border bg-white p-5 transition hover:border-blue-300 hover:shadow-md ${
+        active
+          ? 'border-blue-400 ring-4 ring-blue-100'
+          : 'border-slate-200'
+      }`}
+    >
+      <button
+        type="button"
+        onClick={
+          onSelect
+        }
+        className="block w-full text-right"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span
+            className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.className}`}
+          >
+            {meta.label}
+          </span>
+
+          <span className="text-[11px] font-bold text-slate-400">
+            {formatDate(
+              item.createdAt,
+            )}
+          </span>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <UserRound
+            size={17}
+            className="text-blue-600"
+          />
+
+          <p className="font-black text-slate-900">
+            {item.client.fullName ||
+              item.client.phone ||
+              'موکل'}
+          </p>
+        </div>
+
+        <h2 className="mt-3 font-black text-slate-900">
+          {item.subject}
+        </h2>
+
+        <p className="mt-2 line-clamp-2 text-sm font-medium leading-7 text-slate-600">
+          {item.description}
+        </p>
+
+        <div className="mt-3 flex flex-wrap gap-3 text-xs font-bold text-slate-500">
+          {item.client.phone && (
+            <span className="inline-flex items-center gap-1">
+              <Phone
+                size={13}
+              />
+
+              {item.client.phone}
+            </span>
+          )}
+
+          {item.client.email && (
+            <span className="inline-flex items-center gap-1">
+              <Mail
+                size={13}
+              />
+
+              {item.client.email}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {item.lawyerClientId && (
+        <Link
+          href={`/dashboard/customers/${encodeURIComponent(
+            item.lawyerClientId,
+          )}`}
+          className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-black text-emerald-700 transition hover:bg-emerald-100"
+        >
+          <ExternalLink
+            size={14}
+          />
+
+          باز کردن پروفایل CRM موکل
+        </Link>
+      )}
+    </article>
+  )
+}
+
+
 function RequestDetail({
   item,
 
@@ -802,7 +866,7 @@ function RequestDetail({
     ) => void
 }) {
   const meta =
-    statusMeta[
+    STATUS_META[
       item.status
     ]
 
@@ -828,7 +892,6 @@ function RequestDetail({
     item.status ===
       'CLOSED'
 
-
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -853,8 +916,7 @@ function RequestDetail({
           />
 
           <p className="font-black text-blue-950">
-            {item.client
-              .fullName ||
+            {item.client.fullName ||
               'نام موکل ثبت نشده'}
           </p>
         </div>
@@ -862,15 +924,13 @@ function RequestDetail({
         <div className="mt-3 grid gap-2 text-xs font-bold text-blue-800">
           <p>
             شماره تماس:{' '}
-            {item.client
-              .phone ||
+            {item.client.phone ||
               'ثبت نشده'}
           </p>
 
           <p>
             ایمیل:{' '}
-            {item.client
-              .email ||
+            {item.client.email ||
               'ثبت نشده'}
           </p>
         </div>
@@ -890,16 +950,22 @@ function RequestDetail({
               </p>
 
               <p className="mt-1 text-xs font-semibold leading-6 text-emerald-700">
-                این درخواست به رکورد واقعی موکل در بخش موکلین متصل شده است.
+                این درخواست به رکورد واقعی همین موکل در CRM شما متصل است.
               </p>
             </div>
           </div>
 
           <Link
-            href="/dashboard/customers"
-            className="mt-3 inline-flex h-10 items-center justify-center rounded-xl bg-emerald-600 px-4 text-xs font-black text-white"
+            href={`/dashboard/customers/${encodeURIComponent(
+              item.lawyerClientId,
+            )}`}
+            className="mt-3 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-black text-white"
           >
-            مشاهده بخش موکلین
+            <ExternalLink
+              size={14}
+            />
+
+            مشاهده مستقیم پروفایل موکل
           </Link>
         </div>
       )}
@@ -1112,5 +1178,37 @@ function DecisionButton({
 
       {children}
     </button>
+  )
+}
+
+
+function PageLoader() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <Loader2
+        size={28}
+        className="animate-spin text-blue-600"
+      />
+    </div>
+  )
+}
+
+
+function AccessDenied() {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+      <MessageSquareText
+        size={34}
+        className="mx-auto text-slate-400"
+      />
+
+      <h1 className="mt-4 text-xl font-black text-slate-900">
+        دسترسی غیرمجاز
+      </h1>
+
+      <p className="mt-2 text-sm font-semibold text-slate-600">
+        این بخش فقط برای حساب وکیل قابل دسترسی است.
+      </p>
+    </div>
   )
 }

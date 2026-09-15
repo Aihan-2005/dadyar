@@ -7,12 +7,14 @@ export interface Lawyer {
   clientIds?: string[]
 }
 
+
 export type SkillLevel =
   | 1
   | 2
   | 3
   | 4
   | 5
+
 
 export interface Education {
   id: string
@@ -21,6 +23,7 @@ export interface Education {
   university: string
   year: string
 }
+
 
 export interface Experience {
   id: string
@@ -31,11 +34,13 @@ export interface Experience {
   description: string
 }
 
+
 export interface Skill {
   id: string
   name: string
   level: SkillLevel
 }
+
 
 export interface LawyerProfile {
   specialization: string
@@ -51,9 +56,48 @@ export interface LawyerProfile {
   languages: string[]
 }
 
+
 export interface LawyerProfileResponseData {
   profile: LawyerProfile
 }
+
+
+export type LawyerDirectoryBlockedReason =
+  | 'LAWYER_SUSPENDED'
+  | 'LAWYER_REJECTED'
+  | 'ACCOUNT_NOT_ACTIVE'
+
+
+export interface LawyerDirectoryMissingField {
+  key: string
+  label: string
+}
+
+
+export interface LawyerDirectoryPublicationState {
+  isVisible: boolean
+
+  isFeatured: boolean
+
+  displayOrder:
+    number | null
+
+  publishedAt:
+    string | null
+
+  profileComplete:
+    boolean
+
+  canPublish:
+    boolean
+
+  missingFields:
+    LawyerDirectoryMissingField[]
+
+  blockedReason:
+    LawyerDirectoryBlockedReason | null
+}
+
 
 export const EMPTY_LAWYER_PROFILE:
   LawyerProfile = {

@@ -56,8 +56,11 @@ const STATUS_META:
   Record<
     ConsultationBookingStatus,
     {
-      label: string
-      className: string
+      label:
+        string
+
+      className:
+        string
     }
   > = {
     PENDING: {
@@ -106,8 +109,11 @@ const TYPE_META:
   Record<
     ConsultationType,
     {
-      label: string
-      icon: LucideIcon
+      label:
+        string
+
+      icon:
+        LucideIcon
     }
   > = {
     ONLINE: {
@@ -151,23 +157,27 @@ function formatCreatedAt(
       value,
     )
 
-  return Number.isNaN(
-    date.getTime(),
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat(
+    'fa-IR',
+
+    {
+      dateStyle:
+        'medium',
+
+      timeStyle:
+        'short',
+    },
+  ).format(
+    date,
   )
-    ? value
-    : new Intl.DateTimeFormat(
-        'fa-IR',
-
-        {
-          dateStyle:
-            'medium',
-
-          timeStyle:
-            'short',
-        },
-      ).format(
-        date,
-      )
 }
 
 
@@ -175,8 +185,11 @@ function getAppointmentDisplay(
   booking:
     LawyerConsultationBooking,
 ): {
-  date: string
-  time: string
+  date:
+    string
+
+  time:
+    string
 } {
   if (
     booking.startsAt
@@ -297,7 +310,8 @@ export default function LawyerClientBookingsPage() {
     setAction,
   ] =
     useState<{
-      id: string
+      id:
+        string
 
       status:
         LawyerBookingDecisionStatus
@@ -359,7 +373,6 @@ export default function LawyerClientBookingsPage() {
 
       [
         hasHydrated,
-
         user?.role,
       ],
     )
@@ -369,14 +382,11 @@ export default function LawyerClientBookingsPage() {
     () => {
       void load()
 
-      const unsubscribe =
-        subscribeConsultationBookingChanges(
-          () => {
-            void load()
-          },
-        )
-
-      return unsubscribe
+      return subscribeConsultationBookingChanges(
+        () => {
+          void load()
+        },
+      )
     },
 
     [
@@ -401,7 +411,6 @@ export default function LawyerClientBookingsPage() {
 
       [
         bookings,
-
         filter,
       ],
     )
@@ -526,23 +535,7 @@ export default function LawyerClientBookingsPage() {
       'LAWYER'
   ) {
     return (
-      <div
-        dir="rtl"
-        className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm"
-      >
-        <CalendarDays
-          size={36}
-          className="mx-auto text-slate-400"
-        />
-
-        <h1 className="mt-4 text-xl font-black text-slate-950">
-          دسترسی غیرمجاز
-        </h1>
-
-        <p className="mt-2 text-sm font-semibold text-slate-600">
-          مدیریت رزروهای مشاوره فقط برای حساب وکیل قابل دسترسی است.
-        </p>
-      </div>
+      <AccessDenied />
     )
   }
 
@@ -556,7 +549,7 @@ export default function LawyerClientBookingsPage() {
           </h1>
 
           <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-600">
-            رزروها همراه با هویت واقعی موکل نمایش داده می‌شوند. اگر موکل قبلاً به CRM شما متصل شده باشد، وضعیت اتصال هم مشخص است.
+            رزروها همراه با هویت واقعی موکل نمایش داده می‌شوند. اگر ارتباط CRM قبلاً ایجاد شده باشد، از همین کارت مستقیم وارد پروفایل همان موکل می‌شوید.
           </p>
         </div>
 
@@ -576,7 +569,7 @@ export default function LawyerClientBookingsPage() {
             onClick={() =>
               void load()
             }
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 disabled:opacity-60"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 transition hover:border-blue-300 hover:text-blue-700 disabled:opacity-60"
           >
             <RefreshCw
               size={17}
@@ -746,7 +739,8 @@ function BookingCard({
     LawyerConsultationBooking
 
   action: {
-    id: string
+    id:
+      string
 
     status:
       LawyerBookingDecisionStatus
@@ -866,17 +860,23 @@ function BookingCard({
           />
         </div>
 
-        {booking.client.lawyerClientId && (
+        {booking.client.lawyerClientId ? (
           <Link
-            href="/dashboard/customers"
-            className="mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 text-[11px] font-black text-white"
+            href={`/dashboard/customers/${encodeURIComponent(
+              booking.client.lawyerClientId,
+            )}`}
+            className="mt-3 inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 text-[11px] font-black text-white transition hover:bg-emerald-700"
           >
             <ExternalLink
               size={14}
             />
 
-            مشاهده در بخش موکلین
+            مشاهده مستقیم پروفایل CRM
           </Link>
+        ) : (
+          <p className="mt-3 text-[11px] font-bold leading-6 text-blue-700">
+            این رزرو به‌تنهایی ارتباط دائمی CRM ایجاد نمی‌کند. اگر بعداً این شخص به موکل دفتر شما تبدیل شود، لینک پروفایل در همین بخش ظاهر می‌شود.
+          </p>
         )}
       </section>
 
@@ -1067,9 +1067,14 @@ function FilterButton({
 
   children,
 }: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
+  active:
+    boolean
+
+  onClick:
+    () => void
+
+  children:
+    React.ReactNode
 }) {
   return (
     <button
@@ -1094,8 +1099,11 @@ function StatCard({
 
   value,
 }: {
-  label: string
-  value: number
+  label:
+    string
+
+  value:
+    number
 }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -1121,9 +1129,14 @@ function InfoItem({
 
   value,
 }: {
-  icon: LucideIcon
-  label: string
-  value: string
+  icon:
+    LucideIcon
+
+  label:
+    string
+
+  value:
+    string
 }) {
   return (
     <div className="rounded-xl bg-slate-50 px-3 py-3">
@@ -1158,12 +1171,23 @@ function ActionButton({
 
   children,
 }: {
-  loading: boolean
-  disabled: boolean
-  icon: LucideIcon
-  onClick: () => void
-  className: string
-  children: React.ReactNode
+  loading:
+    boolean
+
+  disabled:
+    boolean
+
+  icon:
+    LucideIcon
+
+  onClick:
+    () => void
+
+  className:
+    string
+
+  children:
+    React.ReactNode
 }) {
   return (
     <button
@@ -1204,3 +1228,25 @@ function PageLoader() {
   )
 }
 
+
+function AccessDenied() {
+  return (
+    <div
+      dir="rtl"
+      className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm"
+    >
+      <CalendarDays
+        size={36}
+        className="mx-auto text-slate-400"
+      />
+
+      <h1 className="mt-4 text-xl font-black text-slate-950">
+        دسترسی غیرمجاز
+      </h1>
+
+      <p className="mt-2 text-sm font-semibold text-slate-600">
+        مدیریت رزروهای مشاوره فقط برای حساب وکیل قابل دسترسی است.
+      </p>
+    </div>
+  )
+}
