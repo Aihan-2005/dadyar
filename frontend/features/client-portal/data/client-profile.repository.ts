@@ -18,37 +18,71 @@ type ApiEnvelope<T> = {
 const CLIENT_PROFILE_ENDPOINT =
   '/clients/me/profile'
 
+
 const CACHE_KEY_PREFIX =
   'dadyar:client-portal:fullname-cache:'
+
 
 const PROFILE_CHANGED_EVENT =
   'dadyar:client-profile:changed'
 
 
 function isBrowser(): boolean {
-  return typeof window !== 'undefined'
+  return typeof window !==
+    'undefined'
+}
+
+
+function normalizeFullName(
+  fullName:
+    string,
+): string {
+  const normalizedFullName =
+    fullName.trim()
+
+
+  if (
+    normalizedFullName.length <
+    3
+  ) {
+    throw new Error(
+      'نام و نام خانوادگی را کامل وارد کنید.',
+    )
+  }
+
+
+  return normalizedFullName
 }
 
 
 function readCachedFullName(
-  userId: string,
+  userId:
+    string,
 ): string {
-  if (!isBrowser()) {
+  if (
+    !isBrowser()
+  ) {
     return ''
   }
 
+
   return (
     window.localStorage.getItem(
-      CACHE_KEY_PREFIX + userId,
-    ) ?? ''
+      CACHE_KEY_PREFIX +
+        userId,
+    ) ??
+    ''
   ).trim()
 }
 
 
 function notifyProfileChanged(): void {
-  if (!isBrowser()) {
+  if (
+    !isBrowser()
+  ) {
     return
   }
+
 
   window.dispatchEvent(
     new Event(
@@ -59,53 +93,102 @@ function notifyProfileChanged(): void {
 
 
 function writeCachedFullName(
-  userId: string,
-  fullName: string,
+  userId:
+    string,
+
+  fullName:
+    string,
 ): void {
-  if (!isBrowser()) {
+  if (
+    !isBrowser()
+  ) {
     return
   }
 
+
   window.localStorage.setItem(
-    CACHE_KEY_PREFIX + userId,
+    CACHE_KEY_PREFIX +
+      userId,
+
     fullName,
   )
+
 
   notifyProfileChanged()
 }
 
 
+ 
+export function stageClientFullName(
+  userId:
+    string,
+
+  fullName:
+    string,
+): string {
+  const normalizedFullName =
+    normalizeFullName(
+      fullName,
+    )
+
+
+  writeCachedFullName(
+    userId,
+
+    normalizedFullName,
+  )
+
+
+  return normalizedFullName
+}
+
+
 export function clearClientFullNameCache(
-  userId: string,
+  userId:
+    string,
 ): void {
-  if (!isBrowser()) {
+  if (
+    !isBrowser()
+  ) {
     return
   }
 
+
   window.localStorage.removeItem(
-    CACHE_KEY_PREFIX + userId,
+    CACHE_KEY_PREFIX +
+      userId,
   )
+
 
   notifyProfileChanged()
 }
 
 
 function validateProfile(
-  profile: ClientProfile,
-  expectedUserId: string,
+  profile:
+    ClientProfile,
+
+  expectedUserId:
+    string,
 ): ClientProfile {
   if (
     !profile ||
-    typeof profile !== 'object' ||
-    typeof profile.id !== 'string' ||
-    typeof profile.userId !== 'string' ||
-    typeof profile.fullName !== 'string' ||
-    profile.userId !== expectedUserId
+    typeof profile !==
+      'object' ||
+    typeof profile.id !==
+      'string' ||
+    typeof profile.userId !==
+      'string' ||
+    typeof profile.fullName !==
+      'string' ||
+    profile.userId !==
+      expectedUserId
   ) {
     throw new Error(
       'ساختار پاسخ پروفایل موکل معتبر نیست.',
     )
   }
+
 
   return {
     ...profile,
@@ -117,7 +200,8 @@ function validateProfile(
 
 
 export function getClientFullName(
-  userId: string,
+  userId:
+    string,
 ): string {
   return readCachedFullName(
     userId,
@@ -126,20 +210,17 @@ export function getClientFullName(
 
 
 export async function saveClientFullName(
-  userId: string,
-  fullName: string,
+  userId:
+    string,
+
+  fullName:
+    string,
 ): Promise<ClientProfile> {
   const normalizedFullName =
-    fullName.trim()
-
-  if (
-    normalizedFullName.length <
-    3
-  ) {
-    throw new Error(
-      'نام و نام خانوادگی را کامل وارد کنید.',
+    normalizeFullName(
+      fullName,
     )
-  }
+
 
   try {
     const response =
@@ -154,6 +235,7 @@ export async function saveClientFullName(
         },
       )
 
+
     if (
       response.data.success !==
         true ||
@@ -164,6 +246,7 @@ export async function saveClientFullName(
       )
     }
 
+
     const profile =
       validateProfile(
         response.data.data,
@@ -171,12 +254,13 @@ export async function saveClientFullName(
         userId,
       )
 
-      
+
     writeCachedFullName(
       userId,
 
       profile.fullName,
     )
+
 
     return profile
   } catch (
@@ -195,8 +279,11 @@ export async function saveClientFullName(
 
 
 export async function getClientProfile(
-  userId: string,
-): Promise<ClientProfile | null> {
+  userId:
+    string,
+): Promise<
+  ClientProfile | null
+> {
   try {
     const response =
       await api.get<
@@ -207,6 +294,7 @@ export async function getClientProfile(
         CLIENT_PROFILE_ENDPOINT,
       )
 
+
     if (
       response.data.success !==
       true
@@ -216,28 +304,31 @@ export async function getClientProfile(
       )
     }
 
+
     if (
       !response.data.data
     ) {
- 
-      
-      const legacyFullName =
+    
+      const stagedFullName =
         readCachedFullName(
           userId,
         )
 
+
       if (
-        legacyFullName
+        stagedFullName
       ) {
         return saveClientFullName(
           userId,
 
-          legacyFullName,
+          stagedFullName,
         )
       }
 
+
       return null
     }
+
 
     const profile =
       validateProfile(
@@ -246,11 +337,13 @@ export async function getClientProfile(
         userId,
       )
 
+
     writeCachedFullName(
       userId,
 
       profile.fullName,
     )
+
 
     return profile
   } catch (
@@ -272,16 +365,20 @@ export function subscribeClientProfile(
   listener:
     () => void,
 ): () => void {
-  if (!isBrowser()) {
+  if (
+    !isBrowser()
+  ) {
     return () =>
       undefined
   }
+
 
   window.addEventListener(
     PROFILE_CHANGED_EVENT,
 
     listener,
   )
+
 
   return () => {
     window.removeEventListener(
