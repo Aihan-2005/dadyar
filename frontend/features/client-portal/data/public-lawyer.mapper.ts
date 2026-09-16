@@ -52,6 +52,7 @@ function buildInitials(
       Boolean,
     )
 
+
   if (
     parts.length >
     0
@@ -74,6 +75,7 @@ function buildInitials(
         2,
       )
   }
+
 
   return (
     fullName
@@ -98,7 +100,7 @@ function buildInitials(
           ),
       )
       .join(
-        ''
+        '',
       ) ||
     'و'
   )
@@ -116,21 +118,18 @@ export function mapPublicLawyerToClientPortalLawyer(
       ...lawyer.skills,
     ])
 
+
   return {
     id:
       lawyer.id,
 
     fullName:
-      lawyer.fullName
-        .trim(),
+      lawyer.fullName.trim(),
 
     title:
-      lawyer.specialization
-        .trim() ||
+      lawyer.specialization.trim() ||
       'وکیل دادگستری',
 
- 
-      
     city:
       '',
 
@@ -142,8 +141,6 @@ export function mapPublicLawyerToClientPortalLawyer(
     yearsExperience:
       lawyer.yearsOfExperience,
 
-
-      
     rating:
       0,
 
@@ -163,16 +160,34 @@ export function mapPublicLawyerToClientPortalLawyer(
       lawyer.phone ??
       '',
 
+    website:
+      lawyer.website ??
+      '',
+
     bio:
       lawyer.bio,
 
- 
-      
+    education:
+      lawyer.education.map(
+        (
+          item,
+        ) => ({
+          ...item,
+        }),
+      ),
+
+    experience:
+      lawyer.experience.map(
+        (
+          item,
+        ) => ({
+          ...item,
+        }),
+      ),
+
     consultationModes:
       [],
 
-
-      
     acceptsNewClients:
       true,
 
@@ -182,8 +197,9 @@ export function mapPublicLawyerToClientPortalLawyer(
     responseTimeLabel:
       '',
 
-    languages:
-      lawyer.languages,
+    languages: [
+      ...lawyer.languages,
+    ],
 
     avatarInitials:
       buildInitials(

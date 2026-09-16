@@ -7,6 +7,8 @@ import {
 
 import type {
   PublicLawyer,
+  PublicLawyerEducation,
+  PublicLawyerExperience,
   PublicLawyerListParams,
   PublicLawyerPage,
   PublicLawyerPagination,
@@ -15,20 +17,15 @@ import type {
 
 type ApiEnvelope<T> = {
   success: boolean
-
   data: T
-
   message?: string
 }
 
 
 type LawyerListEnvelope = {
   success: boolean
-
   data: PublicLawyer[]
-
   pagination: PublicLawyerPagination
-
   message?: string
 }
 
@@ -40,7 +37,8 @@ const DIRECTORY_ENDPOINT =
 function normalizeString(
   value: unknown,
 ): string {
-  return typeof value === 'string'
+  return typeof value ===
+    'string'
     ? value.trim()
     : ''
 }
@@ -50,31 +48,185 @@ function normalizeNullableString(
   value: unknown,
 ): string | null {
   const normalized =
-    normalizeString(value)
+    normalizeString(
+      value,
+    )
 
-  return normalized || null
+  return normalized ||
+    null
 }
 
 
 function normalizeStringArray(
   value: unknown,
 ): string[] {
-  if (!Array.isArray(value)) {
+  if (
+    !Array.isArray(
+      value,
+    )
+  ) {
     return []
   }
+
 
   return value
     .filter(
       (
         item,
       ): item is string =>
-        typeof item === 'string',
+        typeof item ===
+        'string',
     )
     .map(
-      (item) =>
+      (
+        item,
+      ) =>
         item.trim(),
     )
-    .filter(Boolean)
+    .filter(
+      Boolean,
+    )
+}
+
+
+function normalizeEducation(
+  value: unknown,
+): PublicLawyerEducation[] {
+  if (
+    !Array.isArray(
+      value,
+    )
+  ) {
+    return []
+  }
+
+
+  return value.flatMap(
+    (
+      item,
+    ) => {
+      if (
+        !item ||
+        typeof item !==
+          'object' ||
+        Array.isArray(
+          item,
+        )
+      ) {
+        return []
+      }
+
+
+      const record =
+        item as Record<
+          string,
+          unknown
+        >
+
+
+      return [
+        {
+          id:
+            normalizeString(
+              record.id,
+            ),
+
+          degree:
+            normalizeString(
+              record.degree,
+            ),
+
+          field:
+            normalizeString(
+              record.field,
+            ),
+
+          university:
+            normalizeString(
+              record.university,
+            ),
+
+          year:
+            normalizeString(
+              record.year,
+            ),
+        },
+      ]
+    },
+  )
+}
+
+
+function normalizeExperience(
+  value: unknown,
+): PublicLawyerExperience[] {
+  if (
+    !Array.isArray(
+      value,
+    )
+  ) {
+    return []
+  }
+
+
+  return value.flatMap(
+    (
+      item,
+    ) => {
+      if (
+        !item ||
+        typeof item !==
+          'object' ||
+        Array.isArray(
+          item,
+        )
+      ) {
+        return []
+      }
+
+
+      const record =
+        item as Record<
+          string,
+          unknown
+        >
+
+
+      return [
+        {
+          id:
+            normalizeString(
+              record.id,
+            ),
+
+          title:
+            normalizeString(
+              record.title,
+            ),
+
+          company:
+            normalizeString(
+              record.company,
+            ),
+
+          startYear:
+            normalizeString(
+              record.startYear,
+            ),
+
+          endYear:
+            normalizeString(
+              record.endYear,
+            ),
+
+          description:
+            normalizeString(
+              record.description,
+            ),
+        },
+      ]
+    },
+  )
 }
 
 
@@ -86,10 +238,12 @@ function normalizeLawyer(
       value.firstName,
     )
 
+
   const lastName =
     normalizeString(
       value.lastName,
     )
+
 
   const fullName =
     normalizeString(
@@ -99,8 +253,13 @@ function normalizeLawyer(
       firstName,
       lastName,
     ]
-      .filter(Boolean)
-      .join(' ')
+      .filter(
+        Boolean,
+      )
+      .join(
+        ' ',
+      )
+
 
   return {
     id:
@@ -140,6 +299,7 @@ function normalizeLawyer(
       )
         ? Math.max(
             0,
+
             Number(
               value.yearsOfExperience,
             ),
@@ -161,6 +321,23 @@ function normalizeLawyer(
         value.bio,
       ),
 
+    /*
+     * اطلاعات تکمیلی وکیل.
+     *
+     * این بخش‌ها اختیاری‌اند و اگر Backend
+     * آرایه خالی یا مقدار نامعتبر برگرداند،
+     * خروجی امن [] خواهد بود.
+     */
+    education:
+      normalizeEducation(
+        value.education,
+      ),
+
+    experience:
+      normalizeExperience(
+        value.experience,
+      ),
+
     skills:
       normalizeStringArray(
         value.skills,
@@ -172,7 +349,8 @@ function normalizeLawyer(
       ),
 
     isFeatured:
-      value.isFeatured === true,
+      value.isFeatured ===
+      true,
 
     displayOrder:
       Number.isFinite(
@@ -180,6 +358,7 @@ function normalizeLawyer(
       )
         ? Math.max(
             0,
+
             Number(
               value.displayOrder,
             ),
@@ -200,8 +379,10 @@ function buildDirectoryParams(
   const search =
     params.search?.trim()
 
+
   const specialization =
     params.specialization?.trim()
+
 
   return {
     ...(search
@@ -226,16 +407,21 @@ function buildDirectoryParams(
 
     page:
       Math.max(
-        params.page ?? 1,
+        params.page ??
+          1,
+
         1,
       ),
 
     limit:
       Math.min(
         Math.max(
-          params.limit ?? 20,
+          params.limit ??
+            20,
+
           1,
         ),
+
         100,
       ),
   }
@@ -246,7 +432,8 @@ function assertListEnvelope(
   payload: LawyerListEnvelope,
 ): void {
   if (
-    payload.success !== true ||
+    payload.success !==
+      true ||
     !Array.isArray(
       payload.data,
     ) ||
@@ -260,10 +447,12 @@ function assertListEnvelope(
 
 
 function assertItemEnvelope(
-  payload: ApiEnvelope<PublicLawyer>,
+  payload:
+    ApiEnvelope<PublicLawyer>,
 ): void {
   if (
-    payload.success !== true ||
+    payload.success !==
+      true ||
     !payload.data ||
     typeof payload.data !==
       'object'
@@ -283,6 +472,7 @@ export async function getPublicLawyersPage(
     const response =
       await api.get<LawyerListEnvelope>(
         DIRECTORY_ENDPOINT,
+
         {
           params:
             buildDirectoryParams(
@@ -291,9 +481,11 @@ export async function getPublicLawyersPage(
         },
       )
 
+
     assertListEnvelope(
       response.data,
     )
+
 
     return {
       items:
@@ -304,10 +496,13 @@ export async function getPublicLawyersPage(
       pagination:
         response.data.pagination,
     }
-  } catch (error: unknown) {
+  } catch (
+    error: unknown
+  ) {
     throw new Error(
       getApiErrorMessage(
         error,
+
         'دریافت فهرست وکلا ناموفق بود.',
       ),
     )
@@ -324,19 +519,25 @@ export async function getPublicLawyers(
       ...params,
 
       page:
-        params.page ?? 1,
+        params.page ??
+        1,
 
       limit:
-        params.limit ?? 100,
+        params.limit ??
+        100,
     })
 
+
   if (
-    params.page !== undefined ||
-    firstPage.pagination.totalPages <=
+    params.page !==
+      undefined ||
+    firstPage.pagination
+      .totalPages <=
       1
   ) {
     return firstPage.items
   }
+
 
   const remainingPages =
     await Promise.all(
@@ -344,8 +545,10 @@ export async function getPublicLawyers(
         {
           length:
             firstPage.pagination
-              .totalPages - 1,
+              .totalPages -
+            1,
         },
+
         (
           _,
           index,
@@ -354,7 +557,8 @@ export async function getPublicLawyers(
             ...params,
 
             page:
-              index + 2,
+              index +
+              2,
 
             limit:
               firstPage.pagination
@@ -363,11 +567,14 @@ export async function getPublicLawyers(
       ),
     )
 
+
   return [
     ...firstPage.items,
 
     ...remainingPages.flatMap(
-      (page) =>
+      (
+        page,
+      ) =>
         page.items,
     ),
   ]
@@ -376,13 +583,19 @@ export async function getPublicLawyers(
 
 export async function getPublicLawyerById(
   id: string,
-): Promise<PublicLawyer | null> {
+): Promise<
+  PublicLawyer | null
+> {
   const lawyerId =
     id.trim()
 
-  if (!lawyerId) {
+
+  if (
+    !lawyerId
+  ) {
     return null
   }
+
 
   try {
     const response =
@@ -394,14 +607,18 @@ export async function getPublicLawyerById(
         )}`,
       )
 
+
     assertItemEnvelope(
       response.data,
     )
 
+
     return normalizeLawyer(
       response.data.data,
     )
-  } catch (error: unknown) {
+  } catch (
+    error: unknown
+  ) {
     if (
       axios.isAxiosError(
         error,
@@ -412,9 +629,11 @@ export async function getPublicLawyerById(
       return null
     }
 
+
     throw new Error(
       getApiErrorMessage(
         error,
+
         'دریافت اطلاعات وکیل ناموفق بود.',
       ),
     )
@@ -422,20 +641,24 @@ export async function getPublicLawyerById(
 }
 
 
-export async function getPublicLawyerSpecializations(): Promise<
-  string[]
-> {
+export async function getPublicLawyerSpecializations():
+  Promise<string[]> {
   const lawyers =
     await getPublicLawyers()
+
 
   return Array.from(
     new Set(
       lawyers
         .map(
-          (lawyer) =>
+          (
+            lawyer,
+          ) =>
             lawyer.specialization.trim(),
         )
-        .filter(Boolean),
+        .filter(
+          Boolean,
+        ),
     ),
   ).sort(
     (
@@ -444,6 +667,7 @@ export async function getPublicLawyerSpecializations(): Promise<
     ) =>
       first.localeCompare(
         second,
+
         'fa',
       ),
   )

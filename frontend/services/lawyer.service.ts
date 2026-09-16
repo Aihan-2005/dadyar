@@ -19,6 +19,18 @@ type UnknownRecord =
   Record<string, unknown>
 
 
+export type LawyerProfilePatch =
+  Partial<
+    Omit<
+      LawyerProfile,
+      'phone' | 'website'
+    >
+  > & {
+    phone?: string | null
+    website?: string | null
+  }
+
+
 const LAWYER_PROFILE_CHANGED_EVENT =
   'dadyar:lawyer-profile:changed'
 
@@ -58,6 +70,7 @@ export function subscribeLawyerProfileChanges(
 
   window.addEventListener(
     LAWYER_PROFILE_CHANGED_EVENT,
+
     listener,
   )
 
@@ -65,6 +78,7 @@ export function subscribeLawyerProfileChanges(
   return () => {
     window.removeEventListener(
       LAWYER_PROFILE_CHANGED_EVENT,
+
       listener,
     )
   }
@@ -107,7 +121,6 @@ function readNullableString(
       value,
     ).trim()
 
-
   return parsed ||
     null
 }
@@ -134,16 +147,15 @@ function readNumber(
     value.trim() !==
       ''
   ) {
-    const parsedValue =
+    const parsed =
       Number(
         value,
       )
 
-
     return Number.isFinite(
-      parsedValue,
+      parsed,
     )
-      ? parsedValue
+      ? parsed
       : 0
   }
 
@@ -168,21 +180,20 @@ function readSkillLevel(
   value:
     unknown,
 ): SkillLevel {
-  const numericValue =
+  const parsed =
     readNumber(
       value,
     )
 
-
   switch (
-    numericValue
+    parsed
   ) {
     case 1:
     case 2:
     case 3:
     case 4:
     case 5:
-      return numericValue
+      return parsed
 
     default:
       return 3
@@ -338,72 +349,6 @@ function parseLawyerProfile(
   }
 
 
-  const education =
-    readArray(
-      value.education,
-    )
-      .map(
-        parseEducation,
-      )
-      .filter(
-        (
-          item,
-        ): item is Education =>
-          item !==
-          null,
-      )
-
-
-  const experience =
-    readArray(
-      value.experience,
-    )
-      .map(
-        parseExperience,
-      )
-      .filter(
-        (
-          item,
-        ): item is Experience =>
-          item !==
-          null,
-      )
-
-
-  const skills =
-    readArray(
-      value.skills,
-    )
-      .map(
-        parseSkill,
-      )
-      .filter(
-        (
-          item,
-        ): item is Skill =>
-          item !==
-          null,
-      )
-
-
-  const languages =
-    readArray(
-      value.languages,
-    )
-      .map(
-        readString,
-      )
-      .filter(
-        (
-          language,
-        ) =>
-          language
-            .trim()
-            .length >
-          0,
-      )
-
-
   return {
     specialization:
       readString(
@@ -440,13 +385,67 @@ function parseLawyerProfile(
         value.bio,
       ),
 
-    education,
+    education:
+      readArray(
+        value.education,
+      )
+        .map(
+          parseEducation,
+        )
+        .filter(
+          (
+            item,
+          ): item is Education =>
+            item !==
+            null,
+        ),
 
-    experience,
+    experience:
+      readArray(
+        value.experience,
+      )
+        .map(
+          parseExperience,
+        )
+        .filter(
+          (
+            item,
+          ): item is Experience =>
+            item !==
+            null,
+        ),
 
-    skills,
+    skills:
+      readArray(
+        value.skills,
+      )
+        .map(
+          parseSkill,
+        )
+        .filter(
+          (
+            item,
+          ): item is Skill =>
+            item !==
+            null,
+        ),
 
-    languages,
+    languages:
+      readArray(
+        value.languages,
+      )
+        .map(
+          readString,
+        )
+        .filter(
+          (
+            language,
+          ) =>
+            language
+              .trim()
+              .length >
+            0,
+        ),
   }
 }
 
@@ -697,16 +696,17 @@ export async function getLawyerProfile():
 }
 
 
-export async function updateLawyerProfile(
-  profile:
-    LawyerProfile,
+   
+export async function patchLawyerProfile(
+  patch:
+    LawyerProfilePatch,
 ): Promise<LawyerProfile> {
   try {
     const response =
-      await api.put<unknown>(
+      await api.patch<unknown>(
         '/lawyers/me/profile',
 
-        profile,
+        patch,
       )
 
 
@@ -716,10 +716,6 @@ export async function updateLawyerProfile(
       )
 
 
-    /*
-     * کارت انتشار پروفایل بدون Refresh دستی
-     * وضعیت completeness را دوباره می‌گیرد.
-     */
     notifyLawyerProfileChanged()
 
 
@@ -737,6 +733,23 @@ export async function updateLawyerProfile(
     )
   }
 }
+
+
+
+
+
+export async function updateLawyerProfile(
+  profile:
+    LawyerProfile,
+): Promise<LawyerProfile> {
+  return patchLawyerProfile(
+    profile,
+  )
+}
+
+
+export const saveLawyerProfile =
+  updateLawyerProfile
 
 
 export async function getLawyerDirectoryPublicationState():
@@ -799,9 +812,3 @@ export async function setLawyerDirectoryVisibility(
     )
   }
 }
-
-
-export const saveLawyerProfile =
-  updateLawyerProfile
-
-  

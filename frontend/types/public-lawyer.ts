@@ -1,66 +1,143 @@
+export interface PublicLawyerEducation {
+  id:
+    string
+
+  degree:
+    string
+
+  field:
+    string
+
+  university:
+    string
+
+  year:
+    string
+}
+
+
+export interface PublicLawyerExperience {
+  id:
+    string
+
+  title:
+    string
+
+  company:
+    string
+
+  startYear:
+    string
+
+  endYear:
+    string
+
+  description:
+    string
+}
+
+
 export interface PublicLawyer {
-  id: string
+  id:
+    string
 
-  firstName: string
+  firstName:
+    string
 
-  lastName: string
+  lastName:
+    string
 
-  fullName: string
+  fullName:
+    string
 
-  phone: string | null
+  phone:
+    string |
+    null
 
-  email: string | null
+  email:
+    string |
+    null
 
-  specialization: string
+  specialization:
+    string
 
-  licenseNumber: string
+  licenseNumber:
+    string
 
-  yearsOfExperience: number
+  yearsOfExperience:
+    number
 
-  website: string | null
+  website:
+    string |
+    null
 
-  address: string
+  address:
+    string
 
-  bio: string
+  bio:
+    string
 
-  skills: string[]
+  education:
+    PublicLawyerEducation[]
 
-  languages: string[]
+  experience:
+    PublicLawyerExperience[]
 
-  isFeatured: boolean
+  skills:
+    string[]
 
-  displayOrder: number
+  languages:
+    string[]
 
-  publishedAt: string | null
+  isFeatured:
+    boolean
+
+  displayOrder:
+    number
+
+  publishedAt:
+    string |
+    null
 }
 
 
 export interface PublicLawyerListParams {
-  search?: string
+  search?:
+    string
 
-  specialization?: string
+  specialization?:
+    string
 
-  featuredOnly?: boolean
+  featuredOnly?:
+    boolean
 
-  page?: number
+  page?:
+    number
 
-  limit?: number
+  limit?:
+    number
 }
 
 
 export interface PublicLawyerPagination {
-  page: number
+  page:
+    number
 
-  limit: number
+  limit:
+    number
 
-  total: number
+  total:
+    number
 
-  totalPages: number
+  totalPages:
+    number
 }
 
 
 export interface PublicLawyerPage {
-  items: PublicLawyer[]
+  items:
+    PublicLawyer[]
 
-  pagination: PublicLawyerPagination
+  pagination:
+    PublicLawyerPagination
 }

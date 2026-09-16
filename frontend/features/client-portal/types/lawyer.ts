@@ -1,51 +1,117 @@
-
 export type LawyerConsultationMode =
   | 'in_person'
   | 'phone'
   | 'online'
 
 
+export interface ClientPortalLawyerEducation {
+  id:
+    string
+
+  degree:
+    string
+
+  field:
+    string
+
+  university:
+    string
+
+  year:
+    string
+}
+
+
+export interface ClientPortalLawyerExperience {
+  id:
+    string
+
+  title:
+    string
+
+  company:
+    string
+
+  startYear:
+    string
+
+  endYear:
+    string
+
+  description:
+    string
+}
+
 
 export interface ClientPortalLawyer {
-  id: string
+  id:
+    string
 
-  fullName: string
+  fullName:
+    string
 
-  title: string
+  title:
+    string
 
-  city: string
+  city:
+    string
 
-  province: string
+  province:
+    string
 
-  specialties: string[]
+  specialties:
+    string[]
 
-  yearsExperience: number
+  yearsExperience:
+    number
 
-  rating: number
+  rating:
+    number
 
-  reviewCount: number
+  reviewCount:
+    number
 
-  barAssociation: string
+  barAssociation:
+    string
 
-  licenseNumber: string
+  licenseNumber:
+    string
 
-  officeAddress: string
+  officeAddress:
+    string
 
-  phone: string
+  phone:
+    string
 
-  bio: string
+  website:
+    string
 
-  consultationModes: LawyerConsultationMode[]
+  bio:
+    string
 
-  acceptsNewClients: boolean
+  education:
+    ClientPortalLawyerEducation[]
 
-  verified: boolean
+  experience:
+    ClientPortalLawyerExperience[]
 
-  responseTimeLabel: string
+  consultationModes:
+    LawyerConsultationMode[]
 
-  languages: string[]
+  acceptsNewClients:
+    boolean
 
-  avatarInitials: string
+  verified:
+    boolean
+
+  responseTimeLabel:
+    string
+
+  languages:
+    string[]
+
+  avatarInitials:
+    string
 }
 
 
@@ -54,18 +120,24 @@ export type LawyerSortOption =
   | 'experience'
   | 'rating'
 
+
 export interface LawyerDirectoryFilters {
-  search: string
+  search:
+    string
 
-  city: string
+  city:
+    string
 
-  specialty: string
+  specialty:
+    string
 
   consultationMode:
     | 'all'
     | LawyerConsultationMode
 
-  acceptsNewClientsOnly: boolean
+  acceptsNewClientsOnly:
+    boolean
 
-  sort: LawyerSortOption
+  sort:
+    LawyerSortOption
 }

@@ -3,6 +3,7 @@
 import {
   useEffect,
   useState,
+  type ReactNode,
 } from 'react'
 
 import type {
@@ -11,10 +12,12 @@ import type {
 
 import {
   BadgeCheck,
-  CalendarDays,
   BriefcaseBusiness,
+  CalendarDays,
   Check,
   Copy,
+  ExternalLink,
+  GraduationCap,
   Languages,
   MapPin,
   MessageCircle,
@@ -24,8 +27,8 @@ import {
 } from 'lucide-react'
 
 import ClientAuthGateModal from '@/components/client-portal/ClientAuthGateModal'
-import LawyerInquiryPanel from '@/components/client-portal/LawyerInquiryPanel'
 import LawyerBookingPanel from '@/components/client-portal/LawyerBookingPanel'
+import LawyerInquiryPanel from '@/components/client-portal/LawyerInquiryPanel'
 
 import {
   getCurrentClientPortalAccount,
@@ -39,8 +42,12 @@ import type {
 
 
 interface LawyerContactModalProps {
-  lawyer: ClientPortalLawyer | null
-  onClose: () => void
+  lawyer:
+    ClientPortalLawyer |
+    null
+
+  onClose:
+    () => void
 }
 
 
@@ -57,164 +64,162 @@ export default function LawyerContactModal({
   const [
     activeTab,
     setActiveTab,
-  ] = useState<LawyerProfileTab>(
-    'overview',
-  )
+  ] =
+    useState<LawyerProfileTab>(
+      'overview',
+    )
+
 
   const [
     copied,
     setCopied,
-  ] = useState(false)
+  ] =
+    useState(
+      false,
+    )
+
 
   const [
     account,
     setAccount,
-  ] = useState<ClientPortalAccount | null>(
-    null,
-  )
+  ] =
+    useState<ClientPortalAccount | null>(
+      null,
+    )
+
 
   const [
     authOpen,
     setAuthOpen,
-  ] = useState(false)
+  ] =
+    useState(
+      false,
+    )
 
 
-  useEffect(() => {
-    const refresh = () => {
-      setAccount(
-        getCurrentClientPortalAccount(),
+  useEffect(
+    () => {
+      const refresh =
+        () => {
+          setAccount(
+            getCurrentClientPortalAccount(),
+          )
+        }
+
+
+      refresh()
+
+
+      return subscribeClientPortalAuth(
+        refresh,
       )
-    }
+    },
 
-    refresh()
-
-    return subscribeClientPortalAuth(
-      refresh,
-    )
-  }, [])
+    [],
+  )
 
 
-  useEffect(() => {
-    setActiveTab(
-      'overview',
-    )
+  useEffect(
+    () => {
+      setActiveTab(
+        'overview',
+      )
 
-    setCopied(
-      false,
-    )
+      setCopied(
+        false,
+      )
 
-    setAuthOpen(
-      false,
-    )
-  }, [
-    lawyer?.id,
-  ])
+      setAuthOpen(
+        false,
+      )
+    },
+
+    [
+      lawyer?.id,
+    ],
+  )
 
 
-  useEffect(() => {
-    if (!lawyer) {
-      return
-    }
-
-    const previousOverflow =
-      document.body.style.overflow
-
-    const handleKeyDown = (
-      event: KeyboardEvent,
-    ) => {
+  useEffect(
+    () => {
       if (
-        event.key !== 'Escape'
+        !lawyer
       ) {
         return
       }
 
-      if (
-        document.querySelector(
-          '[data-client-auth-gate="true"]',
-        )
-      ) {
-        return
+
+      const previousOverflow =
+        document.body.style.overflow
+
+
+      const handleKeyDown = (
+        event:
+          KeyboardEvent,
+      ) => {
+        if (
+          event.key !==
+          'Escape'
+        ) {
+          return
+        }
+
+
+        if (
+          document.querySelector(
+            '[data-client-auth-gate="true"]',
+          )
+        ) {
+          return
+        }
+
+
+        onClose()
       }
 
-      onClose()
-    }
 
-    document.body.style.overflow =
-      'hidden'
-
-    window.addEventListener(
-      'keydown',
-
-      handleKeyDown,
-    )
-
-    return () => {
       document.body.style.overflow =
-        previousOverflow
+        'hidden'
 
-      window.removeEventListener(
+
+      window.addEventListener(
         'keydown',
 
         handleKeyDown,
       )
-    }
-  }, [
-    lawyer,
-    onClose,
-  ])
 
 
-  if (!lawyer) {
+      return () => {
+        document.body.style.overflow =
+          previousOverflow
+
+
+        window.removeEventListener(
+          'keydown',
+
+          handleKeyDown,
+        )
+      }
+    },
+
+    [
+      lawyer,
+      onClose,
+    ],
+  )
+
+
+  if (
+    !lawyer
+  ) {
     return null
   }
 
 
-  const handleCopyPhone =
-    async () => {
-      if (!account) {
-        setAuthOpen(
-          true,
-        )
-
-        return
-      }
-
-      if (!lawyer.phone) {
-        return
-      }
-
-      try {
-        await navigator.clipboard.writeText(
-          lawyer.phone,
-        )
-
-        setCopied(
-          true,
-        )
-
-        window.setTimeout(
-          () =>
-            setCopied(
-              false,
-            ),
-          1800,
-        )
-      } catch {
-        setCopied(
-          false,
-        )
-      }
-    }
-
-
-  const openProtectedTab = (
-    tab:
-      Exclude<
-        LawyerProfileTab,
-        'overview'
-      >,
-  ) => {
-    if (!account) {
+  async function handleCopyPhone() {
+    if (
+      !account
+    ) {
       setAuthOpen(
         true,
       )
@@ -222,24 +227,73 @@ export default function LawyerContactModal({
       return
     }
 
+
+    /*
+     * Capture مقدار در متغیر ثابت.
+     *
+     * TypeScript narrowing روی prop nullable را
+     * داخل callback async حفظ نمی‌کند.
+     */
+    const phone =
+      lawyer?.phone
+
+
+    if (
+      !phone
+    ) {
+      return
+    }
+
+
+    try {
+      await navigator.clipboard.writeText(
+        phone,
+      )
+
+
+      setCopied(
+        true,
+      )
+
+
+      window.setTimeout(
+        () =>
+          setCopied(
+            false,
+          ),
+
+        1800,
+      )
+    } catch {
+      setCopied(
+        false,
+      )
+    }
+  }
+
+
+  function openProtectedTab(
+    tab:
+      Exclude<
+        LawyerProfileTab,
+        'overview'
+      >,
+  ) {
+    if (
+      !account
+    ) {
+      setAuthOpen(
+        true,
+      )
+
+      return
+    }
+
+
     setActiveTab(
       tab,
     )
   }
-
-
-  const openInquiry =
-    () =>
-      openProtectedTab(
-        'inquiry',
-      )
-
-
-  const openBooking =
-    () =>
-      openProtectedTab(
-        'booking',
-      )
 
 
   return (
@@ -306,67 +360,59 @@ export default function LawyerContactModal({
               </button>
             </div>
 
+
             <div className="flex gap-1 px-4 pb-3 sm:px-6">
-              <button
-                type="button"
+              <TabButton
+                active={
+                  activeTab ===
+                  'overview'
+                }
                 onClick={() =>
                   setActiveTab(
                     'overview',
                   )
                 }
-                className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-xs font-black transition ${
-                  activeTab ===
-                  'overview'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                <BadgeCheck
-                  size={16}
-                />
-
-                پروفایل
-              </button>
-
-              <button
-                type="button"
-                onClick={
-                  openInquiry
+                icon={
+                  BadgeCheck
                 }
-                className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-xs font-black transition ${
+                label="پروفایل"
+              />
+
+              <TabButton
+                active={
                   activeTab ===
                   'inquiry'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                <MessageCircle
-                  size={16}
-                />
-
-                درخواست بررسی
-              </button>
-
-              <button
-                type="button"
-                onClick={
-                  openBooking
                 }
-                className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-xs font-black transition ${
+                onClick={() =>
+                  openProtectedTab(
+                    'inquiry',
+                  )
+                }
+                icon={
+                  MessageCircle
+                }
+                label="درخواست بررسی"
+              />
+
+              <TabButton
+                active={
                   activeTab ===
                   'booking'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                <CalendarDays
-                  size={16}
-                />
-
-                رزرو مشاوره
-              </button>
+                }
+                onClick={() =>
+                  openProtectedTab(
+                    'booking',
+                  )
+                }
+                icon={
+                  CalendarDays
+                }
+                label="رزرو مشاوره"
+                green
+              />
             </div>
           </header>
+
 
           <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
             {activeTab ===
@@ -411,14 +457,20 @@ export default function LawyerContactModal({
                   />
                 </div>
 
+
+                {lawyer.bio && (
+                  <ProfileSection title="درباره وکیل">
+                    <p className="whitespace-pre-wrap text-sm font-medium leading-8 text-slate-700">
+                      {lawyer.bio}
+                    </p>
+                  </ProfileSection>
+                )}
+
+
                 {lawyer.specialties.length >
                   0 && (
-                  <section className="rounded-2xl border border-slate-200 p-4">
-                    <p className="text-xs font-black text-slate-500">
-                      حوزه‌های فعالیت
-                    </p>
-
-                    <div className="mt-3 flex flex-wrap gap-2">
+                  <ProfileSection title="حوزه‌های فعالیت">
+                    <div className="flex flex-wrap gap-2">
                       {lawyer.specialties.map(
                         (
                           specialty,
@@ -434,45 +486,160 @@ export default function LawyerContactModal({
                         ),
                       )}
                     </div>
-                  </section>
+                  </ProfileSection>
                 )}
+
+
+                {lawyer.education.length >
+                  0 && (
+                  <ProfileSection
+                    title="سوابق تحصیلی"
+                    icon={
+                      <GraduationCap
+                        size={16}
+                      />
+                    }
+                  >
+                    <div className="space-y-3">
+                      {lawyer.education.map(
+                        (
+                          item,
+                        ) => (
+                          <div
+                            key={
+                              item.id
+                            }
+                            className="rounded-xl bg-slate-50 p-3"
+                          >
+                            <p className="text-sm font-black text-slate-800">
+                              {[
+                                item.degree,
+                                item.field,
+                              ]
+                                .filter(
+                                  Boolean,
+                                )
+                                .join(
+                                  ' - ',
+                                ) ||
+                                'سابقه تحصیلی'}
+                            </p>
+
+                            {item.university && (
+                              <p className="mt-1 text-xs font-semibold text-slate-600">
+                                {item.university}
+                              </p>
+                            )}
+
+                            {item.year && (
+                              <p className="mt-1 text-[11px] font-bold text-slate-400">
+                                {item.year}
+                              </p>
+                            )}
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  </ProfileSection>
+                )}
+
+
+                {lawyer.experience.length >
+                  0 && (
+                  <ProfileSection
+                    title="سوابق کاری"
+                    icon={
+                      <BriefcaseBusiness
+                        size={16}
+                      />
+                    }
+                  >
+                    <div className="space-y-3">
+                      {lawyer.experience.map(
+                        (
+                          item,
+                        ) => (
+                          <div
+                            key={
+                              item.id
+                            }
+                            className="rounded-xl bg-slate-50 p-3"
+                          >
+                            <p className="text-sm font-black text-slate-800">
+                              {item.title}
+                            </p>
+
+                            <p className="mt-1 text-xs font-semibold text-slate-600">
+                              {item.company}
+                            </p>
+
+                            <p className="mt-1 text-[11px] font-bold text-slate-400">
+                              {item.startYear}
+
+                              {item.endYear
+                                ? ` تا ${item.endYear}`
+                                : ''}
+                            </p>
+
+                            {item.description && (
+                              <p className="mt-2 whitespace-pre-wrap text-xs font-medium leading-6 text-slate-600">
+                                {item.description}
+                              </p>
+                            )}
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  </ProfileSection>
+                )}
+
 
                 {lawyer.languages.length >
                   0 && (
-                  <section className="rounded-2xl border border-slate-200 p-4">
-                    <div className="flex items-center gap-2 text-xs font-black text-slate-500">
+                  <ProfileSection
+                    title="زبان‌ها"
+                    icon={
                       <Languages
                         size={16}
                       />
-
-                      زبان‌ها
-                    </div>
-
-                    <p className="mt-2 text-sm font-semibold text-slate-700">
+                    }
+                  >
+                    <p className="text-sm font-semibold text-slate-700">
                       {lawyer.languages.join(
                         '، ',
                       )}
                     </p>
-                  </section>
+                  </ProfileSection>
                 )}
 
-                {lawyer.bio && (
-                  <section className="rounded-2xl border border-slate-200 p-4">
-                    <p className="text-xs font-black text-slate-500">
-                      درباره وکیل
-                    </p>
 
-                    <p className="mt-2 whitespace-pre-wrap text-sm font-medium leading-8 text-slate-700">
-                      {lawyer.bio}
-                    </p>
-                  </section>
+                {lawyer.website && (
+                  <ProfileSection title="وب‌سایت">
+                    <a
+                      href={
+                        lawyer.website
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 text-sm font-black text-blue-700 hover:underline"
+                    >
+                      <ExternalLink
+                        size={15}
+                      />
+
+                      مشاهده وب‌سایت وکیل
+                    </a>
+                  </ProfileSection>
                 )}
+
 
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   <button
                     type="button"
-                    onClick={
-                      openInquiry
+                    onClick={() =>
+                      openProtectedTab(
+                        'inquiry',
+                      )
                     }
                     className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white transition hover:bg-blue-700"
                   >
@@ -485,8 +652,10 @@ export default function LawyerContactModal({
 
                   <button
                     type="button"
-                    onClick={
-                      openBooking
+                    onClick={() =>
+                      openProtectedTab(
+                        'booking',
+                      )
                     }
                     className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700"
                   >
@@ -547,6 +716,7 @@ export default function LawyerContactModal({
         </section>
       </div>
 
+
       <ClientAuthGateModal
         open={
           authOpen
@@ -578,12 +748,87 @@ export default function LawyerContactModal({
 }
 
 
+function TabButton({
+  active,
+  onClick,
+  icon:
+    Icon,
+  label,
+  green = false,
+}: {
+  active:
+    boolean
+
+  onClick:
+    () => void
+
+  icon:
+    LucideIcon
+
+  label:
+    string
+
+  green?:
+    boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={
+        onClick
+      }
+      className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-xs font-black transition ${
+        active
+          ? green
+            ? 'bg-emerald-600 text-white'
+            : 'bg-blue-600 text-white'
+          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+      }`}
+    >
+      <Icon
+        size={16}
+      />
+
+      {label}
+    </button>
+  )
+}
+
+
+function ProfileSection({
+  title,
+  icon,
+  children,
+}: {
+  title:
+    string
+
+  icon?:
+    ReactNode
+
+  children:
+    ReactNode
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 p-4">
+      <div className="flex items-center gap-2 text-xs font-black text-slate-500">
+        {icon}
+
+        {title}
+      </div>
+
+      <div className="mt-3">
+        {children}
+      </div>
+    </section>
+  )
+}
+
+
 function InfoCard({
   icon:
     Icon,
-
   label,
-
   value,
 }: {
   icon:

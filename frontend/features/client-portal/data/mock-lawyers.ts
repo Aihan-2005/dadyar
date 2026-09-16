@@ -2,24 +2,8 @@ import type {
   ClientPortalLawyer,
 } from '@/features/client-portal/types/lawyer'
 
-/*
-|--------------------------------------------------------------------------
-| Development Mock Data
-|--------------------------------------------------------------------------
-|
-| تمام اطلاعات این فایل آزمایشی هستند.
-|
-| بعد از آماده‌شدن Backend:
-|
-| MOCK_LAWYERS
-|
-| با API واقعی مثلاً:
-|
-| GET /lawyers/directory
-|
-| جایگزین خواهد شد.
-|--------------------------------------------------------------------------
-*/
+
+
 
 export const MOCK_LAWYERS:
   readonly ClientPortalLawyer[] = [
@@ -66,8 +50,17 @@ export const MOCK_LAWYERS:
       phone:
         '09120000001',
 
+      website:
+        '',
+
       bio:
         'فعال در حوزه دعاوی ملکی، قراردادهای تجاری و امور ثبتی با تمرکز بر بررسی دقیق اسناد و پیشگیری از اختلافات حقوقی.',
+
+      education:
+        [],
+
+      experience:
+        [],
 
       consultationModes: [
         'in_person',
@@ -136,8 +129,17 @@ export const MOCK_LAWYERS:
       phone:
         '09120000002',
 
+      website:
+        '',
+
       bio:
         'فعال در پرونده‌های خانواده با تمرکز بر پرونده‌های طلاق، مهریه، حضانت و سایر اختلافات خانوادگی.',
+
+      education:
+        [],
+
+      experience:
+        [],
 
       consultationModes: [
         'in_person',
@@ -204,8 +206,17 @@ export const MOCK_LAWYERS:
       phone:
         '09120000003',
 
+      website:
+        '',
+
       bio:
         'فعال در دعاوی کیفری و پرونده‌های مرتبط با جرایم مالی، چک و اسناد تجاری.',
+
+      education:
+        [],
+
+      experience:
+        [],
 
       consultationModes: [
         'in_person',
@@ -272,8 +283,17 @@ export const MOCK_LAWYERS:
       phone:
         '09120000004',
 
+      website:
+        '',
+
       bio:
         'ارائه خدمات حقوقی در حوزه شرکت‌ها، تنظیم و بررسی قراردادهای تجاری و حل اختلاف از طریق داوری.',
+
+      education:
+        [],
+
+      experience:
+        [],
 
       consultationModes: [
         'in_person',
@@ -342,8 +362,17 @@ export const MOCK_LAWYERS:
       phone:
         '09120000005',
 
+      website:
+        '',
+
       bio:
         'فعال در دعاوی ملکی، ارث و امور حسبی و ارائه مشاوره در اختلافات مربوط به املاک و ماترک.',
+
+      education:
+        [],
+
+      experience:
+        [],
 
       consultationModes: [
         'in_person',
@@ -410,8 +439,17 @@ export const MOCK_LAWYERS:
       phone:
         '09120000006',
 
+      website:
+        '',
+
       bio:
         'مشاوره و پیگیری دعاوی خانواده، ارث و مسائل ثبتی با تمرکز بر حل اختلاف و کاهش زمان رسیدگی.',
+
+      education:
+        [],
+
+      experience:
+        [],
 
       consultationModes: [
         'in_person',
@@ -478,8 +516,17 @@ export const MOCK_LAWYERS:
       phone:
         '09120000007',
 
+      website:
+        '',
+
       bio:
         'فعال در پرونده‌های کیفری، اختلافات کارگر و کارفرما و پرونده‌های مرتبط با بیمه.',
+
+      education:
+        [],
+
+      experience:
+        [],
 
       consultationModes: [
         'in_person',
@@ -548,8 +595,17 @@ export const MOCK_LAWYERS:
       phone:
         '09120000008',
 
+      website:
+        '',
+
       bio:
         'فعال در تنظیم قرارداد، وصول مطالبات و دعاوی مرتبط با چک، سفته و تعهدات مالی.',
+
+      education:
+        [],
+
+      experience:
+        [],
 
       consultationModes: [
         'phone',
@@ -573,3 +629,5 @@ export const MOCK_LAWYERS:
         'ا م',
     },
   ]
+
+  

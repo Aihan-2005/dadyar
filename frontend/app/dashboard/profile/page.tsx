@@ -31,7 +31,8 @@ import {
 
 import {
   getLawyerProfile,
-  saveLawyerProfile,
+  patchLawyerProfile,
+  type LawyerProfilePatch,
 } from '@/services/lawyer.service'
 
 import {
@@ -47,6 +48,7 @@ import {
   type SkillLevel,
 } from '@/types/lawyer'
 
+
 type EditableSection =
   | 'basic'
   | 'education'
@@ -54,11 +56,14 @@ type EditableSection =
   | 'skills'
   | 'languages'
 
+
 const INPUT_CLASS =
   'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-right text-sm outline-none transition focus:border-zinc-700 focus:ring-2 focus:ring-zinc-200'
 
+
 const LABEL_CLASS =
   'mb-1 block text-right text-xs font-medium text-zinc-600'
+
 
 function createTemporaryId():
   string {
@@ -71,16 +76,15 @@ function createTemporaryId():
     return crypto.randomUUID()
   }
 
-  return [
-    Date.now(),
-    Math.random()
-      .toString(36)
-      .slice(2),
-  ].join('-')
+  return `${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}`
 }
 
+
 function normalizeDigits(
-  value: string,
+  value:
+    string,
 ): string {
   const persianDigits =
     '۰۱۲۳۴۵۶۷۸۹'
@@ -88,10 +92,14 @@ function normalizeDigits(
   const arabicDigits =
     '٠١٢٣٤٥٦٧٨٩'
 
+
   return value
     .replace(
       /[۰-۹]/g,
-      (digit) =>
+
+      (
+        digit,
+      ) =>
         String(
           persianDigits.indexOf(
             digit,
@@ -100,7 +108,10 @@ function normalizeDigits(
     )
     .replace(
       /[٠-٩]/g,
-      (digit) =>
+
+      (
+        digit,
+      ) =>
         String(
           arabicDigits.indexOf(
             digit,
@@ -109,29 +120,37 @@ function normalizeDigits(
     )
 }
 
+
 function cloneProfile(
-  profile: LawyerProfile,
+  profile:
+    LawyerProfile,
 ): LawyerProfile {
   return {
     ...profile,
 
     education:
       profile.education.map(
-        (item) => ({
+        (
+          item,
+        ) => ({
           ...item,
         }),
       ),
 
     experience:
       profile.experience.map(
-        (item) => ({
+        (
+          item,
+        ) => ({
           ...item,
         }),
       ),
 
     skills:
       profile.skills.map(
-        (item) => ({
+        (
+          item,
+        ) => ({
           ...item,
         }),
       ),
@@ -142,15 +161,21 @@ function cloneProfile(
   }
 }
 
+
 function normalizeWebsite(
-  value: string,
-): string {
+  value:
+    string,
+): string | null {
   const website =
     value.trim()
 
-  if (!website) {
-    return ''
+
+  if (
+    !website
+  ) {
+    return null
   }
+
 
   return /^https?:\/\//i.test(
     website,
@@ -159,12 +184,117 @@ function normalizeWebsite(
     : `https://${website}`
 }
 
-function normalizeProfile(
-  profile: LawyerProfile,
-): LawyerProfile {
-  const normalizedEducation =
-    profile.education
-      .map((item) => ({
+
+function buildBasicPatch(
+  draft:
+    LawyerProfile,
+): LawyerProfilePatch {
+  const phone =
+    normalizeDigits(
+      draft.phone.trim(),
+    )
+
+
+  return {
+    specialization:
+      draft.specialization.trim(),
+
+    licenseNumber:
+      normalizeDigits(
+        draft.licenseNumber.trim(),
+      ),
+
+    yearsOfExperience:
+      draft.yearsOfExperience,
+
+    phone:
+      phone ||
+      null,
+
+    website:
+      normalizeWebsite(
+        draft.website,
+      ),
+
+    address:
+      draft.address.trim(),
+
+    bio:
+      draft.bio.trim(),
+  }
+}
+
+
+function validateBasicPatch(
+  patch:
+    LawyerProfilePatch,
+): string | null {
+  if (
+    !Number.isInteger(
+      patch.yearsOfExperience,
+    ) ||
+    (
+      patch.yearsOfExperience ??
+      0
+    ) <
+      0 ||
+    (
+      patch.yearsOfExperience ??
+      0
+    ) >
+      80
+  ) {
+    return 'سابقه کاری باید عدد صحیح بین صفر تا ۸۰ باشد.'
+  }
+
+
+  if (
+    patch.phone &&
+    !/^09\d{9}$/.test(
+      patch.phone,
+    )
+  ) {
+    return 'شماره تماس عمومی باید ۱۱ رقم و با ۰۹ شروع شود.'
+  }
+
+
+  if (
+    patch.website
+  ) {
+    try {
+      const website =
+        new URL(
+          patch.website,
+        )
+
+
+      if (
+        website.protocol !==
+          'http:' &&
+        website.protocol !==
+          'https:'
+      ) {
+        return 'آدرس وب‌سایت معتبر نیست.'
+      }
+    } catch {
+      return 'آدرس وب‌سایت معتبر نیست.'
+    }
+  }
+
+
+  return null
+}
+
+
+function normalizeEducation(
+  items:
+    Education[],
+): Education[] {
+  return items
+    .map(
+      (
+        item,
+      ) => ({
         ...item,
 
         degree:
@@ -180,22 +310,34 @@ function normalizeProfile(
           normalizeDigits(
             item.year.trim(),
           ),
-      }))
-      .filter(
-        (item) =>
-          Boolean(
-            item.degree ||
-              item.field ||
-              item.university ||
-              item.year,
-          ),
-      )
+      }),
+    )
+    .filter(
+      (
+        item,
+      ) =>
+        Boolean(
+          item.degree ||
+            item.field ||
+            item.university ||
+            item.year,
+        ),
+    )
+}
 
-  const normalizedExperience =
-    profile.experience
-      .map((item) => {
-        const normalizedEndYear =
+
+function normalizeExperience(
+  items:
+    Experience[],
+): Experience[] {
+  return items
+    .map(
+      (
+        item,
+      ) => {
+        const endYear =
           item.endYear.trim()
+
 
         return {
           ...item,
@@ -212,260 +354,254 @@ function normalizeProfile(
             ),
 
           endYear:
-            normalizedEndYear ===
-              'تاکنون'
+            endYear ===
+                'تاکنون' ||
+              endYear ===
+                'تا کنون'
               ? 'اکنون'
               : normalizeDigits(
-                  normalizedEndYear,
+                  endYear,
                 ),
 
           description:
             item.description.trim(),
         }
-      })
-      .filter(
-        (item) =>
-          Boolean(
-            item.title ||
-              item.company ||
-              item.startYear ||
-              item.endYear ||
-              item.description,
-          ),
-      )
-
-  const normalizedSkills =
-    profile.skills
-      .map((item) => ({
-        ...item,
-        name: item.name.trim(),
-      }))
-      .filter(
-        (item) =>
-          item.name.length > 0,
-      )
-
-  const languageMap =
-    new Map<string, string>()
-
-  for (
-    const rawLanguage of
-    profile.languages
-  ) {
-    const language =
-      rawLanguage.trim()
-
-    if (!language) {
-      continue
-    }
-
-    const languageKey =
-      language.toLocaleLowerCase(
-        'fa-IR',
-      )
-
-    if (
-      !languageMap.has(
-        languageKey,
-      )
-    ) {
-      languageMap.set(
-        languageKey,
-        language,
-      )
-    }
-  }
-
-  return {
-    specialization:
-      profile.specialization.trim(),
-
-    licenseNumber:
-      normalizeDigits(
-        profile.licenseNumber.trim(),
-      ),
-
-    yearsOfExperience:
-      profile.yearsOfExperience,
-
-    phone:
-      normalizeDigits(
-        profile.phone.trim(),
-      ),
-
-    website:
-      normalizeWebsite(
-        profile.website,
-      ),
-
-    address:
-      profile.address.trim(),
-
-    bio:
-      profile.bio.trim(),
-
-    education:
-      normalizedEducation,
-
-    experience:
-      normalizedExperience,
-
-    skills:
-      normalizedSkills,
-
-    languages:
-      Array.from(
-        languageMap.values(),
-      ),
-  }
+      },
+    )
+    .filter(
+      (
+        item,
+      ) =>
+        Boolean(
+          item.title ||
+            item.company ||
+            item.startYear ||
+            item.endYear ||
+            item.description,
+        ),
+    )
 }
 
-function validateProfile(
-  profile: LawyerProfile,
+
+function validateExperience(
+  items:
+    Experience[],
 ): string | null {
-  if (
-    !Number.isInteger(
-      profile.yearsOfExperience,
-    ) ||
-    profile.yearsOfExperience <
-      0 ||
-    profile.yearsOfExperience >
-      80
-  ) {
-    return 'سابقه کاری باید عدد صحیح بین صفر تا ۸۰ باشد.'
-  }
-
-  if (
-    profile.phone &&
-    !/^09\d{9}$/.test(
-      profile.phone,
-    )
-  ) {
-    return 'شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود.'
-  }
-
-  if (profile.website) {
-    try {
-      const website =
-        new URL(
-          profile.website,
-        )
-
-      if (
-        website.protocol !==
-          'http:' &&
-        website.protocol !==
-          'https:'
-      ) {
-        return 'آدرس وب‌سایت معتبر نیست.'
-      }
-    } catch {
-      return 'آدرس وب‌سایت معتبر نیست.'
-    }
-  }
-
   for (
-    const experience of
-    profile.experience
+    const item of
+    items
   ) {
     if (
-      !experience.title ||
-      !experience.company ||
-      !experience.startYear ||
-      !experience.endYear
+      !item.title ||
+      !item.company ||
+      !item.startYear ||
+      !item.endYear
     ) {
-      return 'عنوان شغلی، نام دفتر، سال شروع و سال پایان برای سابقه کاری الزامی هستند.'
+      return 'عنوان شغلی، نام دفتر، سال شروع و سال پایان برای هر سابقه کاری الزامی است.'
     }
+
 
     if (
       !/^(13|14)\d{2}$/.test(
-        experience.startYear,
+        item.startYear,
       )
     ) {
       return 'سال شروع سابقه کاری باید چهاررقمی باشد.'
     }
 
+
     if (
-      experience.endYear !==
+      item.endYear !==
         'اکنون' &&
       !/^(13|14)\d{2}$/.test(
-        experience.endYear,
+        item.endYear,
       )
     ) {
       return 'سال پایان باید چهاررقمی یا «اکنون» باشد.'
     }
 
+
     if (
-      experience.endYear !==
+      item.endYear !==
         'اکنون' &&
       Number(
-        experience.endYear,
+        item.endYear,
       ) <
         Number(
-          experience.startYear,
+          item.startYear,
         )
     ) {
       return 'سال پایان نمی‌تواند قبل از سال شروع باشد.'
     }
   }
 
+
   return null
 }
+
+
+function normalizeSkills(
+  items:
+    Skill[],
+): Skill[] {
+  return items
+    .map(
+      (
+        item,
+      ) => ({
+        ...item,
+
+        name:
+          item.name.trim(),
+      }),
+    )
+    .filter(
+      (
+        item,
+      ) =>
+        item.name.length >
+        0,
+    )
+}
+
+
+function normalizeLanguages(
+  items:
+    string[],
+): string[] {
+  const result =
+    new Map<
+      string,
+      string
+    >()
+
+
+  for (
+    const raw of
+    items
+  ) {
+    const language =
+      raw.trim()
+
+
+    if (
+      !language
+    ) {
+      continue
+    }
+
+
+    const key =
+      language.toLocaleLowerCase(
+        'fa-IR',
+      )
+
+
+    if (
+      !result.has(
+        key,
+      )
+    ) {
+      result.set(
+        key,
+
+        language,
+      )
+    }
+  }
+
+
+  return Array.from(
+    result.values(),
+  )
+}
+
 
 export default function ProfilePage() {
   const user =
     useAuthStore(
-      (state) => state.user,
+      (
+        state,
+      ) =>
+        state.user,
     )
+
 
   const fetchMe =
     useAuthStore(
-      (state) =>
+      (
+        state,
+      ) =>
         state.fetchMe,
     )
 
+
   const hasHydrated =
     useAuthStore(
-      (state) =>
+      (
+        state,
+      ) =>
         state.hasHydrated,
     )
 
-  const [profile, setProfile] =
+
+  const [
+    profile,
+    setProfile,
+  ] =
     useState<LawyerProfile>(
       cloneProfile(
         EMPTY_LAWYER_PROFILE,
       ),
     )
 
-  const [draft, setDraft] =
+
+  const [
+    draft,
+    setDraft,
+  ] =
     useState<LawyerProfile>(
       cloneProfile(
         EMPTY_LAWYER_PROFILE,
       ),
     )
+
 
   const [
     editingSection,
     setEditingSection,
   ] =
-    useState<
-      EditableSection | null
-    >(null)
+    useState<EditableSection | null>(
+      null,
+    )
+
 
   const [
     newLanguage,
     setNewLanguage,
-  ] = useState('')
+  ] =
+    useState(
+      '',
+    )
+
 
   const [
     isLoading,
     setIsLoading,
-  ] = useState(true)
+  ] =
+    useState(
+      true,
+    )
+
 
   const [
     isSaving,
     setIsSaving,
-  ] = useState(false)
+  ] =
+    useState(
+      false,
+    )
+
 
   const [
     error,
@@ -475,6 +611,7 @@ export default function ProfilePage() {
       null,
     )
 
+
   const [
     successMessage,
     setSuccessMessage,
@@ -483,16 +620,27 @@ export default function ProfilePage() {
       null,
     )
 
+
   const loadProfile =
     useCallback(
       async (): Promise<void> => {
-        setIsLoading(true)
-        setError(null)
-        setSuccessMessage(null)
+        setIsLoading(
+          true,
+        )
+
+        setError(
+          null,
+        )
+
+        setSuccessMessage(
+          null,
+        )
+
 
         try {
           const serverProfile =
             await getLawyerProfile()
+
 
           setProfile(
             cloneProfile(
@@ -500,13 +648,24 @@ export default function ProfilePage() {
             ),
           )
 
+
           setDraft(
             cloneProfile(
               serverProfile,
             ),
           )
+
+
+          setEditingSection(
+            null,
+          )
+
+          setNewLanguage(
+            '',
+          )
         } catch (
-          loadError: unknown
+          loadError:
+            unknown
         ) {
           setError(
             loadError instanceof
@@ -515,121 +674,319 @@ export default function ProfilePage() {
               : 'دریافت پروفایل وکیل ناموفق بود.',
           )
         } finally {
-          setIsLoading(false)
+          setIsLoading(
+            false,
+          )
         }
       },
+
       [],
     )
 
-  useEffect(() => {
-    if (!hasHydrated) {
+
+  useEffect(
+    () => {
+      if (
+        !hasHydrated
+      ) {
+        return
+      }
+
+
+      void loadProfile()
+    },
+
+    [
+      hasHydrated,
+      loadProfile,
+    ],
+  )
+
+
+  const fullName =
+    useMemo(
+      () => {
+        const value =
+          [
+            user?.firstName,
+            user?.lastName,
+          ]
+            .filter(
+              Boolean,
+            )
+            .join(
+              ' ',
+            )
+            .trim()
+
+
+        return (
+          value ||
+          'وکیل دادگستری'
+        )
+      },
+
+      [
+        user?.firstName,
+        user?.lastName,
+      ],
+    )
+
+
+  const initials =
+    useMemo(
+      () => {
+        const first =
+          user?.firstName
+            ?.trim()
+            .charAt(
+              0,
+            ) ??
+          ''
+
+
+        const last =
+          user?.lastName
+            ?.trim()
+            .charAt(
+              0,
+            ) ??
+          ''
+
+
+        return (
+          `${first}${last}` ||
+          'و'
+        )
+      },
+
+      [
+        user?.firstName,
+        user?.lastName,
+      ],
+    )
+
+
+  function startEdit(
+    section:
+      EditableSection,
+  ): void {
+    /*
+     * مهم:
+     * اجازه نمی‌دهیم کاربر وسط edit اطلاعات پایه
+     * مستقیم برود روی Languages و draft قبلی را از دست بدهد.
+     */
+    if (
+      editingSection &&
+      editingSection !==
+        section
+    ) {
+      setError(
+        'ابتدا تغییرات بخش باز را ذخیره کنید یا انصراف بزنید.',
+      )
+
       return
     }
 
-    void loadProfile()
-  }, [
-    hasHydrated,
-    loadProfile,
-  ])
 
-  const fullName =
-    useMemo(() => {
-      const name = [
-        user?.firstName,
-        user?.lastName,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .trim()
-
-      return (
-        name ||
-        'وکیل دادگستری'
-      )
-    }, [
-      user?.firstName,
-      user?.lastName,
-    ])
-
-  const initials =
-    useMemo(() => {
-      const firstCharacter =
-        user?.firstName
-          ?.trim()
-          .charAt(0) ?? ''
-
-      const lastCharacter =
-        user?.lastName
-          ?.trim()
-          .charAt(0) ?? ''
-
-      return (
-        `${firstCharacter}${lastCharacter}` ||
-        'و'
-      )
-    }, [
-      user?.firstName,
-      user?.lastName,
-    ])
-
-  function startEdit(
-    section: EditableSection,
-  ): void {
     setDraft(
-      cloneProfile(profile),
+      cloneProfile(
+        profile,
+      ),
     )
+
 
     setEditingSection(
       section,
     )
 
-    setNewLanguage('')
-    setError(null)
-    setSuccessMessage(null)
+    setNewLanguage(
+      '',
+    )
+
+    setError(
+      null,
+    )
+
+    setSuccessMessage(
+      null,
+    )
   }
+
 
   function cancelEdit():
     void {
     setDraft(
-      cloneProfile(profile),
+      cloneProfile(
+        profile,
+      ),
     )
 
-    setEditingSection(null)
-    setNewLanguage('')
-    setError(null)
+
+    setEditingSection(
+      null,
+    )
+
+    setNewLanguage(
+      '',
+    )
+
+    setError(
+      null,
+    )
   }
+
+
+  function buildCurrentSectionPatch(): {
+    patch:
+      LawyerProfilePatch
+
+    validationError:
+      string |
+      null
+  } | null {
+    switch (
+      editingSection
+    ) {
+      case 'basic': {
+        const patch =
+          buildBasicPatch(
+            draft,
+          )
+
+
+        return {
+          patch,
+
+          validationError:
+            validateBasicPatch(
+              patch,
+            ),
+        }
+      }
+
+
+      case 'education':
+        return {
+          patch: {
+            education:
+              normalizeEducation(
+                draft.education,
+              ),
+          },
+
+          validationError:
+            null,
+        }
+
+
+      case 'experience': {
+        const experience =
+          normalizeExperience(
+            draft.experience,
+          )
+
+
+        return {
+          patch: {
+            experience,
+          },
+
+          validationError:
+            validateExperience(
+              experience,
+            ),
+        }
+      }
+
+
+      case 'skills':
+        return {
+          patch: {
+            skills:
+              normalizeSkills(
+                draft.skills,
+              ),
+          },
+
+          validationError:
+            null,
+        }
+
+
+      case 'languages':
+        return {
+          patch: {
+            languages:
+              normalizeLanguages(
+                draft.languages,
+              ),
+          },
+
+          validationError:
+            null,
+        }
+
+
+      default:
+        return null
+    }
+  }
+
 
   async function saveEdit():
     Promise<void> {
-    if (isSaving) {
+    if (
+      isSaving
+    ) {
       return
     }
 
-    const normalizedProfile =
-      normalizeProfile(draft)
 
-    const validationError =
-      validateProfile(
-        normalizedProfile,
-      )
+    const prepared =
+      buildCurrentSectionPatch()
 
-    if (validationError) {
+
+    if (
+      !prepared
+    ) {
+      return
+    }
+
+
+    if (
+      prepared.validationError
+    ) {
       setError(
-        validationError,
+        prepared.validationError,
       )
 
       return
     }
 
-    setIsSaving(true)
-    setError(null)
-    setSuccessMessage(null)
+
+    setIsSaving(
+      true,
+    )
+
+    setError(
+      null,
+    )
+
+    setSuccessMessage(
+      null,
+    )
+
 
     try {
+      /*
+       * فقط section فعال PATCH می‌شود.
+       */
       const savedProfile =
-        await saveLawyerProfile(
-          normalizedProfile,
+        await patchLawyerProfile(
+          prepared.patch,
         )
+
 
       setProfile(
         cloneProfile(
@@ -637,37 +994,46 @@ export default function ProfilePage() {
         ),
       )
 
+
       setDraft(
         cloneProfile(
           savedProfile,
         ),
       )
 
-      setEditingSection(null)
-      setNewLanguage('')
+
+      setEditingSection(
+        null,
+      )
+
+      setNewLanguage(
+        '',
+      )
+
 
       setSuccessMessage(
         'پروفایل با موفقیت ذخیره شد.',
       )
 
-      /*
-       * اطلاعات پروفایل داخل پاسخ /auth/me
-       * نیز وجود دارد؛ بنابراین state احراز هویت
-       * را بدون مسدودکردن ذخیره، به‌روزرسانی می‌کنیم.
-       */
+
       void fetchMe()
     } catch (
-      saveError: unknown
+      saveError:
+        unknown
     ) {
       setError(
-        saveError instanceof Error
+        saveError instanceof
+          Error
           ? saveError.message
           : 'ذخیره پروفایل وکیل ناموفق بود.',
       )
     } finally {
-      setIsSaving(false)
+      setIsSaving(
+        false,
+      )
     }
   }
+
 
   function updateTextField(
     field:
@@ -678,60 +1044,86 @@ export default function ProfilePage() {
       | 'address'
       | 'bio',
 
-    value: string,
+    value:
+      string,
   ): void {
     setDraft(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
-        [field]: value,
+
+        [field]:
+          value,
       }),
     )
   }
 
+
   function addEducation():
     void {
-    const education:
-      Education = {
-      id: createTemporaryId(),
-      degree: '',
-      field: '',
-      university: '',
-      year: '',
-    }
-
     setDraft(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
 
         education: [
           ...current.education,
-          education,
+
+          {
+            id:
+              createTemporaryId(),
+
+            degree:
+              '',
+
+            field:
+              '',
+
+            university:
+              '',
+
+            year:
+              '',
+          },
         ],
       }),
     )
   }
 
+
   function updateEducation(
-    id: string,
+    id:
+      string,
 
-    field: Exclude<
-      keyof Education,
-      'id'
-    >,
+    field:
+      Exclude<
+        keyof Education,
+        'id'
+      >,
 
-    value: string,
+    value:
+      string,
   ): void {
     setDraft(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
 
         education:
           current.education.map(
-            (item) =>
-              item.id === id
+            (
+              item,
+            ) =>
+              item.id ===
+              id
                 ? {
                     ...item,
-                    [field]: value,
+
+                    [field]:
+                      value,
                   }
                 : item,
           ),
@@ -739,67 +1131,97 @@ export default function ProfilePage() {
     )
   }
 
+
   function removeEducation(
-    id: string,
+    id:
+      string,
   ): void {
     setDraft(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
 
         education:
           current.education.filter(
-            (item) =>
-              item.id !== id,
+            (
+              item,
+            ) =>
+              item.id !==
+              id,
           ),
       }),
     )
   }
 
+
   function addExperience():
     void {
-    const experience:
-      Experience = {
-      id: createTemporaryId(),
-      title: '',
-      company: '',
-      startYear: '',
-      endYear: '',
-      description: '',
-    }
-
     setDraft(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
 
         experience: [
           ...current.experience,
-          experience,
+
+          {
+            id:
+              createTemporaryId(),
+
+            title:
+              '',
+
+            company:
+              '',
+
+            startYear:
+              '',
+
+            endYear:
+              '',
+
+            description:
+              '',
+          },
         ],
       }),
     )
   }
 
+
   function updateExperience(
-    id: string,
+    id:
+      string,
 
-    field: Exclude<
-      keyof Experience,
-      'id'
-    >,
+    field:
+      Exclude<
+        keyof Experience,
+        'id'
+      >,
 
-    value: string,
+    value:
+      string,
   ): void {
     setDraft(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
 
         experience:
           current.experience.map(
-            (item) =>
-              item.id === id
+            (
+              item,
+            ) =>
+              item.id ===
+              id
                 ? {
                     ...item,
-                    [field]: value,
+
+                    [field]:
+                      value,
                   }
                 : item,
           ),
@@ -807,55 +1229,80 @@ export default function ProfilePage() {
     )
   }
 
+
   function removeExperience(
-    id: string,
+    id:
+      string,
   ): void {
     setDraft(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
 
         experience:
           current.experience.filter(
-            (item) =>
-              item.id !== id,
+            (
+              item,
+            ) =>
+              item.id !==
+              id,
           ),
       }),
     )
   }
 
-  function addSkill(): void {
-    const skill: Skill = {
-      id: createTemporaryId(),
-      name: '',
-      level: 3,
-    }
 
+  function addSkill():
+    void {
     setDraft(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
 
         skills: [
           ...current.skills,
-          skill,
+
+          {
+            id:
+              createTemporaryId(),
+
+            name:
+              '',
+
+            level:
+              3,
+          },
         ],
       }),
     )
   }
 
+
   function updateSkillName(
-    id: string,
-    name: string,
+    id:
+      string,
+
+    name:
+      string,
   ): void {
     setDraft(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
 
         skills:
           current.skills.map(
-            (item) =>
-              item.id === id
+            (
+              item,
+            ) =>
+              item.id ===
+              id
                 ? {
                     ...item,
+
                     name,
                   }
                 : item,
@@ -864,20 +1311,30 @@ export default function ProfilePage() {
     )
   }
 
+
   function updateSkillLevel(
-    id: string,
-    level: SkillLevel,
+    id:
+      string,
+
+    level:
+      SkillLevel,
   ): void {
     setDraft(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
 
         skills:
           current.skills.map(
-            (item) =>
-              item.id === id
+            (
+              item,
+            ) =>
+              item.id ===
+              id
                 ? {
                     ...item,
+
                     level,
                   }
                 : item,
@@ -886,34 +1343,48 @@ export default function ProfilePage() {
     )
   }
 
+
   function removeSkill(
-    id: string,
+    id:
+      string,
   ): void {
     setDraft(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
 
         skills:
           current.skills.filter(
-            (item) =>
-              item.id !== id,
+            (
+              item,
+            ) =>
+              item.id !==
+              id,
           ),
       }),
     )
   }
+
 
   function addLanguage():
     void {
     const language =
       newLanguage.trim()
 
-    if (!language) {
+
+    if (
+      !language
+    ) {
       return
     }
 
-    const alreadyExists =
+
+    const exists =
       draft.languages.some(
-        (item) =>
+        (
+          item,
+        ) =>
           item.toLocaleLowerCase(
             'fa-IR',
           ) ===
@@ -922,37 +1393,54 @@ export default function ProfilePage() {
           ),
       )
 
-    if (!alreadyExists) {
+
+    if (
+      !exists
+    ) {
       setDraft(
-        (current) => ({
+        (
+          current,
+        ) => ({
           ...current,
 
           languages: [
             ...current.languages,
+
             language,
           ],
         }),
       )
     }
 
-    setNewLanguage('')
+
+    setNewLanguage(
+      '',
+    )
   }
 
+
   function removeLanguage(
-    language: string,
+    language:
+      string,
   ): void {
     setDraft(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
 
         languages:
           current.languages.filter(
-            (item) =>
-              item !== language,
+            (
+              item,
+            ) =>
+              item !==
+              language,
           ),
       }),
     )
   }
+
 
   if (
     !hasHydrated ||
@@ -972,6 +1460,12 @@ export default function ProfilePage() {
     )
   }
 
+
+  const anotherSectionIsEditing =
+    editingSection !==
+    null
+
+
   return (
     <div
       className="mx-auto max-w-7xl space-y-6 pb-12"
@@ -982,14 +1476,16 @@ export default function ProfilePage() {
           role="alert"
           className="flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
         >
-          <span>{error}</span>
+          <span>
+            {error}
+          </span>
 
           {!editingSection && (
             <button
               type="button"
-              onClick={() => {
+              onClick={() =>
                 void loadProfile()
-              }}
+              }
               className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5"
             >
               <RefreshCw
@@ -1002,6 +1498,7 @@ export default function ProfilePage() {
         </div>
       )}
 
+
       {successMessage && (
         <div
           role="status"
@@ -1010,6 +1507,7 @@ export default function ProfilePage() {
           {successMessage}
         </div>
       )}
+
 
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
         <div className="h-28 bg-gradient-to-l from-zinc-800 to-zinc-600" />
@@ -1042,21 +1540,45 @@ export default function ProfilePage() {
         </div>
       </div>
 
+
+      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 text-sm font-semibold leading-7 text-blue-800">
+        برای نمایش در بخش موکلین فقط اطلاعات پایه لازم است:
+        تخصص، شماره پروانه، شماره تماس عمومی، آدرس دفتر و بیوگرافی.
+        وب‌سایت و بخش‌های تحصیلات، سوابق کاری، مهارت‌ها و زبان‌ها اختیاری
+        هستند؛ اگر ثبت شوند در پروفایل موکلین نمایش داده می‌شوند.
+      </div>
+
+
       <SectionCard
         title="اطلاعات پایه"
-        icon={<User size={18} />}
+        icon={
+          <User
+            size={18}
+          />
+        }
         isEditing={
           editingSection ===
           'basic'
         }
-        isSaving={isSaving}
-        onEdit={() =>
-          startEdit('basic')
+        editDisabled={
+          anotherSectionIsEditing &&
+          editingSection !==
+            'basic'
         }
-        onSave={() => {
+        isSaving={
+          isSaving
+        }
+        onEdit={() =>
+          startEdit(
+            'basic',
+          )
+        }
+        onSave={() =>
           void saveEdit()
-        }}
-        onCancel={cancelEdit}
+        }
+        onCancel={
+          cancelEdit
+        }
       >
         {editingSection ===
         'basic' ? (
@@ -1067,9 +1589,12 @@ export default function ProfilePage() {
                 draft.specialization
               }
               placeholder="مثلاً حقوق کیفری"
-              onChange={(value) =>
+              onChange={(
+                value,
+              ) =>
                 updateTextField(
                   'specialization',
+
                   value,
                 )
               }
@@ -1081,20 +1606,20 @@ export default function ProfilePage() {
                 draft.licenseNumber
               }
               placeholder="شماره پروانه"
-              onChange={(value) =>
+              onChange={(
+                value,
+              ) =>
                 updateTextField(
                   'licenseNumber',
+
                   value,
                 )
               }
             />
 
+
             <div>
-              <label
-                className={
-                  LABEL_CLASS
-                }
-              >
+              <label className={LABEL_CLASS}>
                 سابقه کار
               </label>
 
@@ -1108,15 +1633,18 @@ export default function ProfilePage() {
                 value={
                   draft.yearsOfExperience
                 }
-                onChange={(event) => {
+                onChange={(
+                  event,
+                ) => {
                   const value =
                     Number(
-                      event.target
-                        .value,
+                      event.target.value,
                     )
 
                   setDraft(
-                    (current) => ({
+                    (
+                      current,
+                    ) => ({
                       ...current,
 
                       yearsOfExperience:
@@ -1131,48 +1659,70 @@ export default function ProfilePage() {
               />
             </div>
 
+
+            <div>
+              <TextField
+                label="شماره تماس عمومی"
+                value={
+                  draft.phone
+                }
+                placeholder="09xxxxxxxxx"
+                onChange={(
+                  value,
+                ) =>
+                  updateTextField(
+                    'phone',
+
+                    value,
+                  )
+                }
+              />
+
+              <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-500">
+                این شماره فقط در پروفایل عمومی شما نمایش داده می‌شود
+                و شماره ورود حساب را تغییر نمی‌دهد.
+              </p>
+            </div>
+
+
             <TextField
-              label="شماره تماس"
-              value={draft.phone}
-              placeholder="09xxxxxxxxx"
-              onChange={(value) =>
+              label="وب‌سایت (اختیاری)"
+              value={
+                draft.website
+              }
+              placeholder="example.com"
+              onChange={(
+                value,
+              ) =>
                 updateTextField(
-                  'phone',
+                  'website',
+
                   value,
                 )
               }
             />
 
-            <TextField
-              label="وب‌سایت"
-              value={draft.website}
-              placeholder="example.com"
-              onChange={(value) =>
-                updateTextField(
-                  'website',
-                  value,
-                )
-              }
-            />
 
             <TextField
               label="آدرس دفتر"
-              value={draft.address}
+              value={
+                draft.address
+              }
               placeholder="آدرس دفتر"
-              onChange={(value) =>
+              onChange={(
+                value,
+              ) =>
                 updateTextField(
                   'address',
+
                   value,
                 )
               }
             />
 
+
             <div className="md:col-span-2">
-              <label
-                className={
-                  LABEL_CLASS
-                }
-              >
+              <label className={LABEL_CLASS}>
                 بیوگرافی
               </label>
 
@@ -1181,12 +1731,16 @@ export default function ProfilePage() {
                 className={
                   INPUT_CLASS
                 }
-                value={draft.bio}
-                onChange={(event) =>
+                value={
+                  draft.bio
+                }
+                onChange={(
+                  event,
+                ) =>
                   updateTextField(
                     'bio',
-                    event.target
-                      .value,
+
+                    event.target.value,
                   )
                 }
               />
@@ -1205,58 +1759,66 @@ export default function ProfilePage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-              {profile.specialization && (
-                <InfoItem
-                  icon={
-                    <Briefcase
-                      size={14}
-                    />
-                  }
-                  label="تخصص"
-                  value={
-                    profile.specialization
-                  }
-                />
-              )}
 
-              {profile.licenseNumber && (
-                <InfoItem
-                  icon={
-                    <Award size={14} />
-                  }
-                  label="پروانه وکالت"
-                  value={
-                    profile.licenseNumber
-                  }
-                />
-              )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+              <InfoItem
+                icon={
+                  <Briefcase
+                    size={14}
+                  />
+                }
+                label="تخصص"
+                value={
+                  profile.specialization ||
+                  'ثبت نشده'
+                }
+              />
 
               <InfoItem
                 icon={
-                  <Calendar size={14} />
+                  <Award
+                    size={14}
+                  />
+                }
+                label="پروانه وکالت"
+                value={
+                  profile.licenseNumber ||
+                  'ثبت نشده'
+                }
+              />
+
+              <InfoItem
+                icon={
+                  <Calendar
+                    size={14}
+                  />
                 }
                 label="سابقه کار"
                 value={`${profile.yearsOfExperience} سال`}
               />
 
-              {profile.phone && (
-                <InfoItem
-                  icon={
-                    <Phone size={14} />
-                  }
-                  label="تلفن"
-                  value={profile.phone}
-                />
-              )}
+              <InfoItem
+                icon={
+                  <Phone
+                    size={14}
+                  />
+                }
+                label="شماره تماس عمومی"
+                value={
+                  profile.phone ||
+                  'ثبت نشده'
+                }
+              />
 
-              {profile.website && (
-                <InfoItem
-                  icon={
-                    <Globe size={14} />
-                  }
-                  label="وب‌سایت"
-                  value={
+              <InfoItem
+                icon={
+                  <Globe
+                    size={14}
+                  />
+                }
+                label="وب‌سایت"
+                value={
+                  profile.website ? (
                     <a
                       href={
                         profile.website
@@ -1265,57 +1827,74 @@ export default function ProfilePage() {
                       rel="noreferrer"
                       className="hover:underline"
                     >
-                      {
-                        profile.website
-                      }
+                      {profile.website}
                     </a>
-                  }
-                />
-              )}
+                  ) : (
+                    'ثبت نشده'
+                  )
+                }
+              />
 
-              {profile.address && (
-                <InfoItem
-                  icon={
-                    <MapPin size={14} />
-                  }
-                  label="آدرس"
-                  value={
-                    profile.address
-                  }
-                />
-              )}
+              <InfoItem
+                icon={
+                  <MapPin
+                    size={14}
+                  />
+                }
+                label="آدرس"
+                value={
+                  profile.address ||
+                  'ثبت نشده'
+                }
+              />
             </div>
           </div>
         )}
       </SectionCard>
 
+
       <SectionCard
         title="سوابق تحصیلی"
         icon={
-          <GraduationCap size={18} />
+          <GraduationCap
+            size={18}
+          />
         }
         isEditing={
           editingSection ===
           'education'
         }
-        isSaving={isSaving}
+        editDisabled={
+          anotherSectionIsEditing &&
+          editingSection !==
+            'education'
+        }
+        isSaving={
+          isSaving
+        }
         onEdit={() =>
           startEdit(
             'education',
           )
         }
-        onSave={() => {
+        onSave={() =>
           void saveEdit()
-        }}
-        onCancel={cancelEdit}
+        }
+        onCancel={
+          cancelEdit
+        }
       >
         {editingSection ===
         'education' ? (
           <div className="space-y-4">
             {draft.education.map(
-              (item) => (
+              (
+                item,
+              ) => (
                 <div
-                  key={item.id}
+                  key={
+                    item.id
+                  }
                   className="space-y-3 rounded-xl border border-zinc-200 p-4"
                 >
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -1329,7 +1908,9 @@ export default function ProfilePage() {
                       ) =>
                         updateEducation(
                           item.id,
+
                           'degree',
+
                           value,
                         )
                       }
@@ -1345,7 +1926,9 @@ export default function ProfilePage() {
                       ) =>
                         updateEducation(
                           item.id,
+
                           'field',
+
                           value,
                         )
                       }
@@ -1361,7 +1944,9 @@ export default function ProfilePage() {
                       ) =>
                         updateEducation(
                           item.id,
+
                           'university',
+
                           value,
                         )
                       }
@@ -1369,13 +1954,17 @@ export default function ProfilePage() {
 
                     <TextField
                       label="سال"
-                      value={item.year}
+                      value={
+                        item.year
+                      }
                       onChange={(
                         value,
                       ) =>
                         updateEducation(
                           item.id,
+
                           'year',
+
                           value,
                         )
                       }
@@ -1395,16 +1984,22 @@ export default function ProfilePage() {
 
             <AddButton
               text="افزودن سابقه تحصیلی"
-              onClick={addEducation}
+              onClick={
+                addEducation
+              }
             />
           </div>
         ) : profile.education.length >
           0 ? (
           <div className="space-y-3">
             {profile.education.map(
-              (item) => (
+              (
+                item,
+              ) => (
                 <div
-                  key={item.id}
+                  key={
+                    item.id
+                  }
                   className="rounded-xl bg-zinc-50 p-4"
                 >
                   <p className="font-semibold text-zinc-900">
@@ -1412,15 +2007,17 @@ export default function ProfilePage() {
                       item.degree,
                       item.field,
                     ]
-                      .filter(Boolean)
-                      .join(' - ')}
+                      .filter(
+                        Boolean,
+                      )
+                      .join(
+                        ' - ',
+                      )}
                   </p>
 
                   {item.university && (
                     <p className="mt-1 text-sm text-zinc-600">
-                      {
-                        item.university
-                      }
+                      {item.university}
                     </p>
                   )}
 
@@ -1434,37 +2031,53 @@ export default function ProfilePage() {
             )}
           </div>
         ) : (
-          <EmptyState text="سابقه تحصیلی خود را اضافه کنید." />
+          <EmptyState text="سابقه تحصیلی اختیاری است." />
         )}
       </SectionCard>
+
 
       <SectionCard
         title="سوابق کاری"
         icon={
-          <Briefcase size={18} />
+          <Briefcase
+            size={18}
+          />
         }
         isEditing={
           editingSection ===
           'experience'
         }
-        isSaving={isSaving}
+        editDisabled={
+          anotherSectionIsEditing &&
+          editingSection !==
+            'experience'
+        }
+        isSaving={
+          isSaving
+        }
         onEdit={() =>
           startEdit(
             'experience',
           )
         }
-        onSave={() => {
+        onSave={() =>
           void saveEdit()
-        }}
-        onCancel={cancelEdit}
+        }
+        onCancel={
+          cancelEdit
+        }
       >
         {editingSection ===
         'experience' ? (
           <div className="space-y-4">
             {draft.experience.map(
-              (item) => (
+              (
+                item,
+              ) => (
                 <div
-                  key={item.id}
+                  key={
+                    item.id
+                  }
                   className="space-y-3 rounded-xl border border-zinc-200 p-4"
                 >
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -1478,7 +2091,9 @@ export default function ProfilePage() {
                       ) =>
                         updateExperience(
                           item.id,
+
                           'title',
+
                           value,
                         )
                       }
@@ -1494,7 +2109,9 @@ export default function ProfilePage() {
                       ) =>
                         updateExperience(
                           item.id,
+
                           'company',
+
                           value,
                         )
                       }
@@ -1510,7 +2127,9 @@ export default function ProfilePage() {
                       ) =>
                         updateExperience(
                           item.id,
+
                           'startYear',
+
                           value,
                         )
                       }
@@ -1527,18 +2146,16 @@ export default function ProfilePage() {
                       ) =>
                         updateExperience(
                           item.id,
+
                           'endYear',
+
                           value,
                         )
                       }
                     />
 
                     <div className="md:col-span-2">
-                      <label
-                        className={
-                          LABEL_CLASS
-                        }
-                      >
+                      <label className={LABEL_CLASS}>
                         توضیحات
                       </label>
 
@@ -1555,9 +2172,10 @@ export default function ProfilePage() {
                         ) =>
                           updateExperience(
                             item.id,
+
                             'description',
-                            event.target
-                              .value,
+
+                            event.target.value,
                           )
                         }
                       />
@@ -1577,16 +2195,22 @@ export default function ProfilePage() {
 
             <AddButton
               text="افزودن سابقه کاری"
-              onClick={addExperience}
+              onClick={
+                addExperience
+              }
             />
           </div>
         ) : profile.experience.length >
           0 ? (
           <div className="space-y-4 border-r-2 border-zinc-200 pr-5">
             {profile.experience.map(
-              (item) => (
+              (
+                item,
+              ) => (
                 <div
-                  key={item.id}
+                  key={
+                    item.id
+                  }
                   className="relative"
                 >
                   <div className="absolute -right-[1.65rem] top-1 h-4 w-4 rounded-full border-2 border-white bg-zinc-900" />
@@ -1608,9 +2232,7 @@ export default function ProfilePage() {
 
                   {item.description && (
                     <p className="mt-2 text-sm leading-6 text-zinc-600">
-                      {
-                        item.description
-                      }
+                      {item.description}
                     </p>
                   )}
                 </div>
@@ -1618,33 +2240,53 @@ export default function ProfilePage() {
             )}
           </div>
         ) : (
-          <EmptyState text="سابقه کاری خود را اضافه کنید." />
+          <EmptyState text="سابقه کاری اختیاری است." />
         )}
       </SectionCard>
 
+
       <SectionCard
         title="مهارت‌ها"
-        icon={<Star size={18} />}
+        icon={
+          <Star
+            size={18}
+          />
+        }
         isEditing={
           editingSection ===
           'skills'
         }
-        isSaving={isSaving}
-        onEdit={() =>
-          startEdit('skills')
+        editDisabled={
+          anotherSectionIsEditing &&
+          editingSection !==
+            'skills'
         }
-        onSave={() => {
+        isSaving={
+          isSaving
+        }
+        onEdit={() =>
+          startEdit(
+            'skills',
+          )
+        }
+        onSave={() =>
           void saveEdit()
-        }}
-        onCancel={cancelEdit}
+        }
+        onCancel={
+          cancelEdit
+        }
       >
         {editingSection ===
         'skills' ? (
           <div className="space-y-3">
             {draft.skills.map(
-              (skill) => (
+              (
+                skill,
+              ) => (
                 <div
-                  key={skill.id}
+                  key={
+                    skill.id
+                  }
                   className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-3 sm:flex-row"
                 >
                   <input
@@ -1657,8 +2299,8 @@ export default function ProfilePage() {
                     ) =>
                       updateSkillName(
                         skill.id,
-                        event.target
-                          .value,
+
+                        event.target.value,
                       )
                     }
                   />
@@ -1675,8 +2317,7 @@ export default function ProfilePage() {
                         skill.id,
 
                         Number(
-                          event.target
-                            .value,
+                          event.target.value,
                         ) as SkillLevel,
                       )
                     }
@@ -1721,15 +2362,23 @@ export default function ProfilePage() {
 
             <AddButton
               text="افزودن مهارت"
-              onClick={addSkill}
+              onClick={
+                addSkill
+              }
             />
           </div>
         ) : profile.skills.length >
           0 ? (
           <div className="space-y-4">
             {profile.skills.map(
-              (skill) => (
-                <div key={skill.id}>
+              (
+                skill,
+              ) => (
+                <div
+                  key={
+                    skill.id
+                  }
+                >
                   <div className="mb-1 flex justify-between text-xs">
                     <span className="font-medium text-zinc-700">
                       {skill.name}
@@ -1753,11 +2402,11 @@ export default function ProfilePage() {
                     <div
                       className="h-1.5 rounded-full bg-zinc-900"
                       style={{
-                        width: `${
-                          (skill.level /
-                            5) *
-                          100
-                        }%`,
+                        width:
+                          `${(
+                            skill.level /
+                            5
+                          ) * 100}%`,
                       }}
                     />
                   </div>
@@ -1766,29 +2415,41 @@ export default function ProfilePage() {
             )}
           </div>
         ) : (
-          <EmptyState text="مهارت‌های خود را اضافه کنید." />
+          <EmptyState text="مهارت‌ها اختیاری هستند." />
         )}
       </SectionCard>
+
 
       <SectionCard
         title="زبان‌ها"
         icon={
-          <Languages size={18} />
+          <Languages
+            size={18}
+          />
         }
         isEditing={
           editingSection ===
           'languages'
         }
-        isSaving={isSaving}
+        editDisabled={
+          anotherSectionIsEditing &&
+          editingSection !==
+            'languages'
+        }
+        isSaving={
+          isSaving
+        }
         onEdit={() =>
           startEdit(
             'languages',
           )
         }
-        onSave={() => {
+        onSave={() =>
           void saveEdit()
-        }}
-        onCancel={cancelEdit}
+        }
+        onCancel={
+          cancelEdit
+        }
       >
         {editingSection ===
         'languages' ? (
@@ -1798,18 +2459,25 @@ export default function ProfilePage() {
                 className={
                   INPUT_CLASS
                 }
-                value={newLanguage}
-                onChange={(event) =>
+                value={
+                  newLanguage
+                }
+                onChange={(
+                  event,
+                ) =>
                   setNewLanguage(
                     event.target.value,
                   )
                 }
-                onKeyDown={(event) => {
+                onKeyDown={(
+                  event,
+                ) => {
                   if (
                     event.key ===
                     'Enter'
                   ) {
                     event.preventDefault()
+
                     addLanguage()
                   }
                 }}
@@ -1818,18 +2486,25 @@ export default function ProfilePage() {
 
               <button
                 type="button"
-                onClick={addLanguage}
+                onClick={
+                  addLanguage
+                }
                 className="rounded-lg bg-zinc-900 px-4 text-white"
               >
                 افزودن
               </button>
             </div>
 
+
             <div className="flex flex-wrap gap-2">
               {draft.languages.map(
-                (language) => (
+                (
+                  language,
+                ) => (
                   <span
-                    key={language}
+                    key={
+                      language
+                    }
                     className="inline-flex items-center gap-2 rounded-full bg-zinc-100 px-3 py-1.5 text-sm"
                   >
                     {language}
@@ -1842,7 +2517,9 @@ export default function ProfilePage() {
                         )
                       }
                     >
-                      <X size={14} />
+                      <X
+                        size={14}
+                      />
                     </button>
                   </span>
                 ),
@@ -1853,9 +2530,13 @@ export default function ProfilePage() {
           0 ? (
           <div className="flex flex-wrap gap-2">
             {profile.languages.map(
-              (language) => (
+              (
+                language,
+              ) => (
                 <span
-                  key={language}
+                  key={
+                    language
+                  }
                   className="rounded-full bg-zinc-100 px-3 py-1.5 text-sm text-zinc-700"
                 >
                   {language}
@@ -1864,28 +2545,49 @@ export default function ProfilePage() {
             )}
           </div>
         ) : (
-          <EmptyState text="زبان‌های خود را اضافه کنید." />
+          <EmptyState text="زبان‌ها اختیاری هستند." />
         )}
       </SectionCard>
     </div>
   )
 }
 
+
 type SectionCardProps = {
-  title: string
-  icon: ReactNode
-  isEditing: boolean
-  isSaving: boolean
-  onEdit: () => void
-  onSave: () => void
-  onCancel: () => void
-  children: ReactNode
+  title:
+    string
+
+  icon:
+    ReactNode
+
+  isEditing:
+    boolean
+
+  editDisabled:
+    boolean
+
+  isSaving:
+    boolean
+
+  onEdit:
+    () => void
+
+  onSave:
+    () => void
+
+  onCancel:
+    () => void
+
+  children:
+    ReactNode
 }
+
 
 function SectionCard({
   title,
   icon,
   isEditing,
+  editDisabled,
   isSaving,
   onEdit,
   onSave,
@@ -1897,24 +2599,38 @@ function SectionCard({
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 font-bold text-zinc-900">
           {icon}
+
           {title}
         </h2>
 
         {!isEditing ? (
           <button
             type="button"
-            onClick={onEdit}
-            className="flex items-center gap-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600"
+            onClick={
+              onEdit
+            }
+            disabled={
+              editDisabled ||
+              isSaving
+            }
+            className="flex items-center gap-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <Edit3 size={14} />
+            <Edit3
+              size={14}
+            />
+
             ویرایش
           </button>
         ) : (
           <div className="flex gap-2">
             <button
               type="button"
-              disabled={isSaving}
-              onClick={onSave}
+              disabled={
+                isSaving
+              }
+              onClick={
+                onSave
+              }
               className="flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs text-white disabled:opacity-60"
             >
               {isSaving ? (
@@ -1923,7 +2639,9 @@ function SectionCard({
                   className="animate-spin"
                 />
               ) : (
-                <Save size={14} />
+                <Save
+                  size={14}
+                />
               )}
 
               ذخیره
@@ -1931,11 +2649,18 @@ function SectionCard({
 
             <button
               type="button"
-              disabled={isSaving}
-              onClick={onCancel}
+              disabled={
+                isSaving
+              }
+              onClick={
+                onCancel
+              }
               className="flex items-center gap-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs disabled:opacity-60"
             >
-              <X size={14} />
+              <X
+                size={14}
+              />
+
               انصراف
             </button>
           </div>
@@ -1947,32 +2672,47 @@ function SectionCard({
   )
 }
 
+
 function TextField({
   label,
   value,
   placeholder,
   onChange,
 }: {
-  label: string
-  value: string
-  placeholder?: string
-  onChange: (
-    value: string,
-  ) => void
+  label:
+    string
+
+  value:
+    string
+
+  placeholder?:
+    string
+
+  onChange:
+    (
+      value:
+        string,
+    ) => void
 }) {
   return (
     <div>
-      <label
-        className={LABEL_CLASS}
-      >
+      <label className={LABEL_CLASS}>
         {label}
       </label>
 
       <input
-        className={INPUT_CLASS}
-        value={value}
-        placeholder={placeholder}
-        onChange={(event) =>
+        className={
+          INPUT_CLASS
+        }
+        value={
+          value
+        }
+        placeholder={
+          placeholder
+        }
+        onChange={(
+          event,
+        ) =>
           onChange(
             event.target.value,
           )
@@ -1982,14 +2722,20 @@ function TextField({
   )
 }
 
+
 function InfoItem({
   icon,
   label,
   value,
 }: {
-  icon: ReactNode
-  label: string
-  value: ReactNode
+  icon:
+    ReactNode
+
+  label:
+    string
+
+  value:
+    ReactNode
 }) {
   return (
     <div className="rounded-xl bg-zinc-50 p-3">
@@ -2008,10 +2754,12 @@ function InfoItem({
   )
 }
 
+
 function EmptyState({
   text,
 }: {
-  text: string
+  text:
+    string
 }) {
   return (
     <p className="rounded-xl border border-dashed border-zinc-200 py-6 text-center text-sm text-zinc-400">
@@ -2020,37 +2768,53 @@ function EmptyState({
   )
 }
 
+
 function AddButton({
   text,
   onClick,
 }: {
-  text: string
-  onClick: () => void
+  text:
+    string
+
+  onClick:
+    () => void
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={
+        onClick
+      }
       className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-zinc-700 hover:bg-zinc-50"
     >
-      <Plus size={16} />
+      <Plus
+        size={16}
+      />
+
       {text}
     </button>
   )
 }
 
+
 function DeleteButton({
   onClick,
 }: {
-  onClick: () => void
+  onClick:
+    () => void
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={
+        onClick
+      }
       className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700"
     >
-      <Trash2 size={14} />
+      <Trash2
+        size={14}
+      />
+
       حذف
     </button>
   )
