@@ -162,11 +162,17 @@ export default function ClientServiceHub({
           'قرارداد آنلاین',
 
         description:
-          'شرایط خدمات حقوقی و حق‌الزحمه را با وکیل در قالب قرارداد مدیریت کنید.',
+          'ابتدا وکیل را انتخاب کنید، سپس پیش‌نویس قرارداد، حق‌الزحمه و شرایط خدمات را برای او ارسال کنید.',
 
+        /*
+         * ساخت قرارداد به lawyerId نیاز دارد.
+         *
+         * بنابراین entry point صحیح صفحه لیست قراردادها نیست.
+         * کاربر باید ابتدا وکیل منتشرشده را انتخاب کند.
+         */
         href:
           protectedHref(
-            '/client-portal/contracts',
+            '/client-portal#lawyers',
           ),
 
         icon:
@@ -228,47 +234,55 @@ export default function ClientServiceHub({
         </h2>
 
         <p className="mt-2 max-w-3xl text-sm font-semibold leading-7 text-slate-600">
-          پروفایل، انتخاب وکیل، ارسال درخواست، رزرو مشاوره و پیگیری خدمات از همین بخش در دسترس هستند.
+          پروفایل، انتخاب وکیل، ارسال درخواست، رزرو مشاوره، قرارداد آنلاین و پیگیری خدمات از همین بخش در دسترس هستند.
         </p>
       </div>
 
+
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {services.map(
-          (
-            service,
-          ) => {
-            const Icon =
-              service.icon
+        {
+          services.map(
+            (
+              service,
+            ) => {
+              const Icon =
+                service.icon
 
-            return (
-              <Link
-                key={
-                  service.title
-                }
-                href={
-                  service.href
-                }
-                className="group rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-white hover:shadow-md"
-              >
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl border ${service.accent}`}
+
+              return (
+                <Link
+                  key={
+                    service.title
+                  }
+                  href={
+                    service.href
+                  }
+                  className="group rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-white hover:shadow-md"
                 >
-                  <Icon
-                    size={19}
-                  />
-                </div>
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-xl border ${service.accent}`}
+                  >
+                    <Icon
+                      size={19}
+                    />
+                  </div>
 
-                <h3 className="mt-3 text-sm font-black text-slate-900">
-                  {service.title}
-                </h3>
+                  <h3 className="mt-3 text-sm font-black text-slate-900">
+                    {
+                      service.title
+                    }
+                  </h3>
 
-                <p className="mt-2 text-xs font-semibold leading-6 text-slate-500">
-                  {service.description}
-                </p>
-              </Link>
-            )
-          },
-        )}
+                  <p className="mt-2 text-xs font-semibold leading-6 text-slate-500">
+                    {
+                      service.description
+                    }
+                  </p>
+                </Link>
+              )
+            },
+          )
+        }
       </div>
     </section>
   )
