@@ -11,55 +11,71 @@ import {
   Clock3,
   FileText,
   History,
+  Loader2,
   MessageSquareText,
   Send,
   X,
 } from 'lucide-react'
-
-import {
-  approveMockOnlineContractByClient,
-  requestMockOnlineContractChanges,
-} from '@/features/client-portal/data/mock-online-contracts'
 
 import type {
   OnlineContractDraft,
   OnlineContractRecord,
 } from '@/features/client-portal/types/contract'
 
+import {
+  approveClientOnlineContract,
+  requestClientOnlineContractChanges,
+} from '@/services/online-contract.service'
+
 interface ClientContractDecisionModalProps {
   contract:
-    OnlineContractRecord | null
+    OnlineContractRecord |
+    null
 
   onClose:
     () => void
 
   onUpdated:
-    () => void
+    () =>
+      void |
+      Promise<void>
 }
 
 function formatDateTime(
   value:
-    string
+    string,
 ): string {
+  const date =
+    new Date(
+      value,
+    )
+
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    return '—'
+  }
+
   return new Intl.DateTimeFormat(
     'fa-IR',
+
     {
       dateStyle:
         'medium',
 
       timeStyle:
         'short',
-    }
+    },
   ).format(
-    new Date(
-      value
-    )
+    date,
   )
 }
 
 function statusLabel(
   contract:
-    OnlineContractRecord
+    OnlineContractRecord,
 ): string {
   switch (
     contract.status
@@ -94,7 +110,7 @@ export default function ClientContractDecisionModal({
     setRequestChanges,
   ] =
     useState(
-      false
+      false,
     )
 
   const [
@@ -102,78 +118,102 @@ export default function ClientContractDecisionModal({
     setFeedback,
   ] =
     useState(
-      ''
+      '',
+    )
+
+  const [
+    pendingAction,
+    setPendingAction,
+  ] =
+    useState<
+      | 'approve'
+      | 'changes'
+      | null
+    >(
+      null,
     )
 
   const [
     error,
     setError,
   ] =
-    useState<
-      string | null
-    >(
-      null
+    useState<string | null>(
+      null,
     )
 
-  useEffect(() => {
-    setRequestChanges(
-      false
-    )
+  useEffect(
+    () => {
+      setRequestChanges(
+        false,
+      )
 
-    setFeedback(
-      ''
-    )
+      setFeedback(
+        '',
+      )
 
-    setError(
-      null
-    )
-  }, [
-    contract?.id,
-    contract?.version,
-  ])
+      setPendingAction(
+        null,
+      )
 
-  useEffect(() => {
-    if (!contract) {
-      return
-    }
+      setError(
+        null,
+      )
+    },
+    [
+      contract?.id,
+      contract?.version,
+    ],
+  )
 
-    const previousOverflow =
-      document.body.style.overflow
-
-    const handleKeyDown =
-      (
-        event:
-          KeyboardEvent
-      ) => {
-        if (
-          event.key ===
-          'Escape'
-        ) {
-          onClose()
-        }
+  useEffect(
+    () => {
+      if (
+        !contract
+      ) {
+        return
       }
 
-    document.body.style.overflow =
-      'hidden'
+      const previousOverflow =
+        document.body.style.overflow
 
-    window.addEventListener(
-      'keydown',
-      handleKeyDown
-    )
+      const handleKeyDown =
+        (
+          event:
+            KeyboardEvent,
+        ) => {
+          if (
+            event.key ===
+              'Escape' &&
+            !pendingAction
+          ) {
+            onClose()
+          }
+        }
 
-    return () => {
       document.body.style.overflow =
-        previousOverflow
+        'hidden'
 
-      window.removeEventListener(
+      window.addEventListener(
         'keydown',
-        handleKeyDown
+        handleKeyDown,
       )
-    }
-  }, [
-    contract,
-    onClose,
-  ])
+
+      return () => {
+        document.body.style.overflow =
+          previousOverflow
+
+        window.removeEventListener(
+          'keydown',
+          handleKeyDown,
+        )
+      }
+    },
+    [
+      contract,
+      onClose,
+      pendingAction,
+    ],
+  )
 
   const previousVersion =
     useMemo(
@@ -193,10 +233,12 @@ export default function ClientContractDecisionModal({
       },
       [
         contract,
-      ]
+      ],
     )
 
-  if (!contract) {
+  if (
+    !contract
+  ) {
     return null
   }
 
@@ -205,46 +247,98 @@ export default function ClientContractDecisionModal({
     'waiting_client_approval'
 
   const handleApprove =
-    () => {
+    async () => {
+      if (
+        pendingAction
+      ) {
+        return
+      }
+
+      setPendingAction(
+        'approve',
+      )
+
+      setError(
+        null,
+      )
+
       try {
-        approveMockOnlineContractByClient(
-          contract.id
+        await approveClientOnlineContract(
+          contract.id,
         )
 
-        onUpdated()
+        await onUpdated()
 
         onClose()
       } catch (
-        caughtError
+        caughtError:
+          unknown
       ) {
         setError(
           caughtError instanceof
             Error
             ? caughtError.message
-            : 'خطا در تأیید قرارداد.'
+            : 'خطا در تأیید قرارداد.',
+        )
+      } finally {
+        setPendingAction(
+          null,
         )
       }
     }
 
   const handleRequestChanges =
-    () => {
-      try {
-        requestMockOnlineContractChanges(
-          contract.id,
-          feedback
+    async () => {
+      if (
+        pendingAction
+      ) {
+        return
+      }
+
+      const normalized =
+        feedback.trim()
+
+      if (
+        normalized.length <
+        5
+      ) {
+        setError(
+          'موارد مورد نیاز برای اصلاح را کامل‌تر وارد کنید.',
         )
 
-        onUpdated()
+        return
+      }
+
+      setPendingAction(
+        'changes',
+      )
+
+      setError(
+        null,
+      )
+
+      try {
+        await requestClientOnlineContractChanges(
+          contract.id,
+          normalized,
+        )
+
+        await onUpdated()
 
         onClose()
       } catch (
-        caughtError
+        caughtError:
+          unknown
       ) {
         setError(
           caughtError instanceof
             Error
             ? caughtError.message
-            : 'خطا در ثبت درخواست اصلاح.'
+            : 'خطا در ثبت درخواست اصلاح.',
+        )
+      } finally {
+        setPendingAction(
+          null,
         )
       }
     }
@@ -253,18 +347,23 @@ export default function ClientContractDecisionModal({
     <div
       dir="rtl"
       className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-      onMouseDown={
-        onClose
-      }
+      onMouseDown={() => {
+        if (
+          !pendingAction
+        ) {
+          onClose()
+        }
+      }}
     >
       <section
         role="dialog"
         aria-modal="true"
+        aria-labelledby="client-contract-title"
         onMouseDown={(
-          event
-        ) =>
+          event,
+        ) => {
           event.stopPropagation()
-        }
+        }}
         className="max-h-[96dvh] w-full max-w-4xl overflow-y-auto rounded-t-[28px] bg-white shadow-2xl sm:rounded-[28px]"
       >
         <header className="sticky top-0 z-20 flex items-start justify-between border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
@@ -278,7 +377,10 @@ export default function ClientContractDecisionModal({
               }
             </p>
 
-            <h2 className="mt-1 text-xl font-black text-slate-950">
+            <h2
+              id="client-contract-title"
+              className="mt-1 text-xl font-black text-slate-950"
+            >
               قرارداد آنلاین
             </h2>
 
@@ -287,13 +389,13 @@ export default function ClientContractDecisionModal({
               {' '}
               {
                 contract.version.toLocaleString(
-                  'fa-IR'
+                  'fa-IR',
                 )
               }
               {' • '}
               {
                 statusLabel(
-                  contract
+                  contract,
                 )
               }
             </p>
@@ -301,10 +403,16 @@ export default function ClientContractDecisionModal({
 
           <button
             type="button"
+            disabled={
+              Boolean(
+                pendingAction,
+              )
+            }
             onClick={
               onClose
             }
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"
+            aria-label="بستن"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 disabled:opacity-50"
           >
             <X
               size={20}
@@ -343,7 +451,7 @@ export default function ClientContractDecisionModal({
               <Info
                 label="حق‌الزحمه"
                 value={`${contract.draft.feeToman.toLocaleString(
-                  'fa-IR'
+                  'fa-IR',
                 )} تومان`}
               />
 
@@ -365,7 +473,7 @@ export default function ClientContractDecisionModal({
                 label="نسخه"
                 value={
                   contract.version.toLocaleString(
-                    'fa-IR'
+                    'fa-IR',
                   )
                 }
               />
@@ -385,41 +493,47 @@ export default function ClientContractDecisionModal({
               }
             />
 
-            {contract.draft.additionalTerms && (
-              <TextBox
-                label="شروط تکمیلی"
-                value={
-                  contract.draft.additionalTerms
-                }
-              />
-            )}
+            {
+              contract.draft.additionalTerms &&
+              (
+                <TextBox
+                  label="شروط تکمیلی"
+                  value={
+                    contract.draft.additionalTerms
+                  }
+                />
+              )
+            }
           </section>
 
-          {previousVersion && (
-            <section className="mt-6 border-t border-slate-200 pt-5">
-              <div className="flex items-center gap-2">
-                <History
-                  size={18}
-                  className="text-violet-600"
-                />
+          {
+            previousVersion &&
+            (
+              <section className="mt-6 border-t border-slate-200 pt-5">
+                <div className="flex items-center gap-2">
+                  <History
+                    size={18}
+                    className="text-violet-600"
+                  />
 
-                <h3 className="font-black text-slate-900">
-                  تغییرات نسخه جدید
-                </h3>
-              </div>
+                  <h3 className="font-black text-slate-900">
+                    تغییرات نسخه جدید
+                  </h3>
+                </div>
 
-              <div className="mt-4 space-y-3">
-                <ContractChanges
-                  previous={
-                    previousVersion.draft
-                  }
-                  current={
-                    contract.draft
-                  }
-                />
-              </div>
-            </section>
-          )}
+                <div className="mt-4">
+                  <ContractChanges
+                    previous={
+                      previousVersion.draft
+                    }
+                    current={
+                      contract.draft
+                    }
+                  />
+                </div>
+              </section>
+            )
+          }
 
           <section className="mt-6 border-t border-slate-200 pt-5">
             <div className="flex items-center gap-2">
@@ -434,151 +548,253 @@ export default function ClientContractDecisionModal({
             </div>
 
             <div className="mt-4 space-y-3">
-              {[...
-                contract.auditTrail,
-              ]
-                .reverse()
-                .map(
-                  (
-                    event
-                  ) => (
-                    <div
-                      key={
-                        event.id
-                      }
-                      className="rounded-xl border border-slate-200 bg-slate-50 p-3"
-                    >
-                      <p className="text-sm font-bold leading-6 text-slate-800">
-                        {
-                          event.label
+              {
+                [
+                  ...contract.auditTrail,
+                ]
+                  .reverse()
+                  .map(
+                    (
+                      event,
+                    ) => (
+                      <div
+                        key={
+                          event.id
                         }
-                      </p>
+                        className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+                      >
+                        <p className="text-sm font-bold leading-6 text-slate-800">
+                          {
+                            event.label
+                          }
+                        </p>
 
-                      <p className="mt-1 text-[11px] font-semibold text-slate-400">
-                        {
-                          formatDateTime(
-                            event.createdAt
-                          )
-                        }
-                      </p>
-                    </div>
+                        <p className="mt-1 text-[11px] font-semibold text-slate-400">
+                          {
+                            formatDateTime(
+                              event.createdAt,
+                            )
+                          }
+                        </p>
+                      </div>
+                    ),
                   )
-                )}
+              }
             </div>
           </section>
 
-          {error && (
-            <p className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
-              {error}
-            </p>
-          )}
+          {
+            contract.status ===
+              'rejected' &&
+            contract.rejectionReason &&
+            (
+              <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
+                <p className="text-xs font-black text-red-700">
+                  دلیل رد قرارداد
+                </p>
 
-          {canApprove && (
-            <div className="mt-6">
-              {!requestChanges ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={
-                      handleApprove
-                    }
-                    className="flex h-12 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-black text-white transition hover:bg-emerald-700"
-                  >
-                    <CheckCircle2
-                      size={18}
-                    />
-
-                    تأیید نسخه قرارداد
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setRequestChanges(
-                        true
-                      )
-                    }
-                    className="flex h-12 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-black text-amber-700"
-                  >
-                    <MessageSquareText
-                      size={18}
-                    />
-
-                    درخواست اصلاح
-                  </button>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                  <label className="text-sm font-black text-amber-900">
-                    موارد مورد نیاز برای اصلاح
-                  </label>
-
-                  <textarea
-                    rows={4}
-                    value={
-                      feedback
-                    }
-                    onChange={(
-                      event
-                    ) => {
-                      setFeedback(
-                        event.target.value
-                      )
-
-                      setError(
-                        null
-                      )
-                    }}
-                    className="mt-3 w-full resize-none rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm font-semibold leading-7 text-slate-900 outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100"
-                  />
-
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={
-                        handleRequestChanges
-                      }
-                      className="inline-flex h-11 items-center gap-2 rounded-xl bg-amber-600 px-5 text-sm font-black text-white"
-                    >
-                      <Send
-                        size={16}
-                      />
-
-                      ارسال درخواست اصلاح
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setRequestChanges(
-                          false
-                        )
-                      }
-                      className="h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700"
-                    >
-                      انصراف
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {contract.status ===
-            'completed' && (
-            <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <div className="flex items-center gap-2">
-                <CheckCircle2
-                  size={20}
-                  className="text-emerald-600"
-                />
-
-                <p className="font-black text-emerald-900">
-                  قرارداد تکمیل شده است
+                <p className="mt-2 text-sm font-semibold leading-7 text-red-900">
+                  {
+                    contract.rejectionReason
+                  }
                 </p>
               </div>
-            </div>
-          )}
+            )
+          }
+
+          {
+            error &&
+            (
+              <p className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                {
+                  error
+                }
+              </p>
+            )
+          }
+
+          {
+            canApprove &&
+            (
+              <div className="mt-6">
+                {
+                  !requestChanges
+                    ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          disabled={
+                            Boolean(
+                              pendingAction,
+                            )
+                          }
+                          onClick={() => {
+                            void handleApprove()
+                          }}
+                          className="flex h-12 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {
+                            pendingAction ===
+                            'approve'
+                              ? (
+                                <Loader2
+                                  size={18}
+                                  className="animate-spin"
+                                />
+                              )
+                              : (
+                                <CheckCircle2
+                                  size={18}
+                                />
+                              )
+                          }
+
+                          تأیید نسخه قرارداد
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={
+                            Boolean(
+                              pendingAction,
+                            )
+                          }
+                          onClick={() => {
+                            setRequestChanges(
+                              true,
+                            )
+
+                            setError(
+                              null,
+                            )
+                          }}
+                          className="flex h-12 items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 text-sm font-black text-amber-700 disabled:opacity-60"
+                        >
+                          <MessageSquareText
+                            size={18}
+                          />
+
+                          درخواست اصلاح
+                        </button>
+                      </div>
+                    )
+                    : (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                        <label className="text-sm font-black text-amber-900">
+                          موارد مورد نیاز برای اصلاح
+                        </label>
+
+                        <textarea
+                          rows={
+                            4
+                          }
+                          value={
+                            feedback
+                          }
+                          disabled={
+                            Boolean(
+                              pendingAction,
+                            )
+                          }
+                          onChange={(
+                            event,
+                          ) => {
+                            setFeedback(
+                              event.target.value,
+                            )
+
+                            setError(
+                              null,
+                            )
+                          }}
+                          maxLength={
+                            2000
+                          }
+                          className="mt-3 w-full resize-none rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm font-semibold leading-7 text-slate-900 outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100 disabled:opacity-70"
+                        />
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={
+                              Boolean(
+                                pendingAction,
+                              )
+                            }
+                            onClick={() => {
+                              void handleRequestChanges()
+                            }}
+                            className="inline-flex h-11 items-center gap-2 rounded-xl bg-amber-600 px-5 text-sm font-black text-white disabled:opacity-60"
+                          >
+                            {
+                              pendingAction ===
+                              'changes'
+                                ? (
+                                  <Loader2
+                                    size={16}
+                                    className="animate-spin"
+                                  />
+                                )
+                                : (
+                                  <Send
+                                    size={16}
+                                  />
+                                )
+                            }
+
+                            ارسال درخواست اصلاح
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={
+                              Boolean(
+                                pendingAction,
+                              )
+                            }
+                            onClick={() => {
+                              setRequestChanges(
+                                false,
+                              )
+
+                              setFeedback(
+                                '',
+                              )
+
+                              setError(
+                                null,
+                              )
+                            }}
+                            className="h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 disabled:opacity-60"
+                          >
+                            انصراف
+                          </button>
+                        </div>
+                      </div>
+                    )
+                }
+              </div>
+            )
+          }
+
+          {
+            contract.status ===
+            'completed' &&
+            (
+              <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2
+                    size={20}
+                    className="text-emerald-600"
+                  />
+
+                  <p className="font-black text-emerald-900">
+                    قرارداد تکمیل شده است
+                  </p>
+                </div>
+              </div>
+            )
+          }
         </div>
       </section>
     </div>
@@ -598,11 +814,15 @@ function Info({
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
       <p className="text-[11px] font-bold text-slate-500">
-        {label}
+        {
+          label
+        }
       </p>
 
       <p className="mt-1.5 text-sm font-black leading-6 text-slate-900">
-        {value}
+        {
+          value
+        }
       </p>
     </div>
   )
@@ -621,11 +841,15 @@ function TextBox({
   return (
     <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
       <p className="text-xs font-black text-slate-600">
-        {label}
+        {
+          label
+        }
       </p>
 
       <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-7 text-slate-800">
-        {value}
+        {
+          value
+        }
       </p>
     </div>
   )
@@ -652,172 +876,136 @@ function ContractChanges({
       string
   }> = []
 
-  if (
-    previous.subject !==
-    current.subject
-  ) {
-    changes.push({
-      label:
-        'موضوع قرارداد',
-
-      before:
-        previous.subject,
-
-      after:
-        current.subject,
-    })
-  }
-
-  if (
-    previous.scope !==
-    current.scope
-  ) {
-    changes.push({
-      label:
-        'دامنه خدمات',
-
-      before:
-        previous.scope,
-
-      after:
-        current.scope,
-    })
-  }
-
-  if (
-    previous.feeToman !==
-    current.feeToman
-  ) {
-    changes.push({
-      label:
-        'حق‌الزحمه',
-
-      before:
-        `${previous.feeToman.toLocaleString(
-          'fa-IR'
-        )} تومان`,
-
-      after:
-        `${current.feeToman.toLocaleString(
-          'fa-IR'
-        )} تومان`,
-    })
-  }
-
-  if (
-    previous.paymentDetails !==
-    current.paymentDetails
-  ) {
-    changes.push({
-      label:
-        'شرایط پرداخت',
-
-      before:
-        previous.paymentDetails,
-
-      after:
-        current.paymentDetails,
-    })
-  }
-
-  if (
-    previous.servicePeriod !==
-    current.servicePeriod
-  ) {
-    changes.push({
-      label:
-        'مدت خدمات',
-
-      before:
-        previous.servicePeriod,
-
-      after:
-        current.servicePeriod,
-    })
-  }
-
-  if (
+  const push =
     (
-      previous.additionalTerms ??
-      ''
-    ) !==
-    (
-      current.additionalTerms ??
-      ''
-    )
-  ) {
-    changes.push({
       label:
-        'شروط تکمیلی',
+        string,
 
       before:
-        previous.additionalTerms ||
-        '—',
+        string,
 
       after:
-        current.additionalTerms ||
-        '—',
-    })
-  }
+        string,
+    ) => {
+      if (
+        before !==
+        after
+      ) {
+        changes.push({
+          label,
+
+          before:
+            before ||
+            '—',
+
+          after:
+            after ||
+            '—',
+        })
+      }
+    }
+
+  push(
+    'موضوع قرارداد',
+    previous.subject,
+    current.subject,
+  )
+
+  push(
+    'دامنه خدمات',
+    previous.scope,
+    current.scope,
+  )
+
+  push(
+    'حق‌الزحمه',
+    `${previous.feeToman.toLocaleString(
+      'fa-IR',
+    )} تومان`,
+    `${current.feeToman.toLocaleString(
+      'fa-IR',
+    )} تومان`,
+  )
+
+  push(
+    'شرایط پرداخت',
+    previous.paymentDetails,
+    current.paymentDetails,
+  )
+
+  push(
+    'مدت خدمات',
+    previous.servicePeriod,
+    current.servicePeriod,
+  )
+
+  push(
+    'شروط تکمیلی',
+    previous.additionalTerms ??
+      '',
+    current.additionalTerms ??
+      '',
+  )
 
   if (
     changes.length ===
     0
   ) {
     return (
-      <p className="rounded-xl bg-slate-50 p-4 text-sm font-semibold text-slate-600">
-        تغییری در محتوای اصلی قرارداد
-        ایجاد نشده است.
+      <p className="rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-500">
+        تغییر محتوایی نسبت به نسخه قبل ثبت نشده است.
       </p>
     )
   }
 
   return (
-    <>
-      {changes.map(
-        (
-          change
-        ) => (
-          <div
-            key={
-              change.label
-            }
-            className="rounded-xl border border-violet-100 bg-violet-50/50 p-4"
-          >
-            <p className="text-sm font-black text-violet-900">
-              {
+    <div className="space-y-3">
+      {
+        changes.map(
+          (
+            change,
+          ) => (
+            <div
+              key={
                 change.label
               }
-            </p>
+              className="rounded-xl border border-violet-100 bg-violet-50/50 p-3"
+            >
+              <p className="text-xs font-black text-violet-700">
+                {
+                  change.label
+                }
+              </p>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg bg-white p-3">
-                <p className="text-[10px] font-black text-slate-400">
-                  نسخه قبل
-                </p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-lg bg-white p-2.5">
+                  <p className="text-[10px] font-bold text-slate-400">
+                    نسخه قبل
+                  </p>
 
-                <p className="mt-1 text-xs font-semibold leading-6 text-slate-600">
-                  {
-                    change.before
-                  }
-                </p>
-              </div>
+                  <p className="mt-1 whitespace-pre-wrap text-xs font-semibold leading-6 text-slate-600">
+                    {
+                      change.before
+                    }
+                  </p>
+                </div>
 
-              <div className="rounded-lg border border-violet-200 bg-white p-3">
-                <p className="text-[10px] font-black text-violet-600">
-                  نسخه جدید
-                </p>
+                <div className="rounded-lg bg-white p-2.5">
+                  <p className="text-[10px] font-bold text-violet-500">
+                    نسخه جدید
+                  </p>
 
-                <p className="mt-1 text-xs font-bold leading-6 text-slate-800">
-                  {
-                    change.after
-                  }
-                </p>
+                  <p className="mt-1 whitespace-pre-wrap text-xs font-semibold leading-6 text-slate-800">
+                    {
+                      change.after
+                    }
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          ),
         )
-      )}
-    </>
+      }
+    </div>
   )
 }

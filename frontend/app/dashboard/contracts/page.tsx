@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -17,6 +18,7 @@ import {
   Clock3,
   FileText,
   Filter,
+  Loader2,
   RefreshCw,
   Search,
   Send,
@@ -26,15 +28,14 @@ import {
 
 import OnlineContractReviewModal from '@/components/dashboard/contracts/OnlineContractReviewModal'
 
-import {
-  getMockOnlineContracts,
-  subscribeMockOnlineContracts,
-} from '@/features/client-portal/data/mock-online-contracts'
-
 import type {
   OnlineContractRecord,
   OnlineContractStatus,
 } from '@/features/client-portal/types/contract'
+
+import {
+  getLawyerOnlineContracts,
+} from '@/services/online-contract.service'
 
 type StatusFilter =
   | 'all'
@@ -42,13 +43,16 @@ type StatusFilter =
 
 function getStatusMeta(
   status:
-    OnlineContractStatus
+    OnlineContractStatus,
 ) {
-  switch (status) {
+  switch (
+    status
+  ) {
     case 'waiting_lawyer_review':
       return {
         label:
           'در انتظار بررسی شما',
+
         className:
           'border-amber-200 bg-amber-50 text-amber-700',
       }
@@ -57,6 +61,7 @@ function getStatusMeta(
       return {
         label:
           'در انتظار تأیید موکل',
+
         className:
           'border-blue-200 bg-blue-50 text-blue-700',
       }
@@ -65,6 +70,7 @@ function getStatusMeta(
       return {
         label:
           'نیازمند تأیید نهایی',
+
         className:
           'border-violet-200 bg-violet-50 text-violet-700',
       }
@@ -73,6 +79,7 @@ function getStatusMeta(
       return {
         label:
           'تکمیل‌شده',
+
         className:
           'border-emerald-200 bg-emerald-50 text-emerald-700',
       }
@@ -81,6 +88,7 @@ function getStatusMeta(
       return {
         label:
           'رد شده',
+
         className:
           'border-red-200 bg-red-50 text-red-700',
       }
@@ -89,6 +97,7 @@ function getStatusMeta(
       return {
         label:
           'لغوشده',
+
         className:
           'border-slate-200 bg-slate-100 text-slate-600',
       }
@@ -101,21 +110,23 @@ export default function OnlineContractsPage() {
     setContracts,
   ] =
     useState<OnlineContractRecord[]>(
-      []
+      [],
     )
 
   const [
     search,
     setSearch,
   ] =
-    useState('')
+    useState(
+      '',
+    )
 
   const [
     statusFilter,
     setStatusFilter,
   ] =
     useState<StatusFilter>(
-      'all'
+      'all',
     )
 
   const [
@@ -123,23 +134,104 @@ export default function OnlineContractsPage() {
     setSelectedContract,
   ] =
     useState<OnlineContractRecord | null>(
-      null
+      null,
+    )
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(
+      true,
+    )
+
+  const [
+    refreshing,
+    setRefreshing,
+  ] =
+    useState(
+      false,
+    )
+
+  const [
+    error,
+    setError,
+  ] =
+    useState<string | null>(
+      null,
     )
 
   const reload =
-    () => {
-      setContracts(
-        getMockOnlineContracts()
-      )
-    }
+    useCallback(
+      async (
+        mode:
+          | 'initial'
+          | 'refresh' =
+          'refresh',
+      ) => {
+        if (
+          mode ===
+          'initial'
+        ) {
+          setLoading(
+            true,
+          )
+        } else {
+          setRefreshing(
+            true,
+          )
+        }
 
-  useEffect(() => {
-    reload()
+        setError(
+          null,
+        )
 
-    return subscribeMockOnlineContracts(
-      reload
+        try {
+          const result =
+            await getLawyerOnlineContracts({
+              page:
+                1,
+
+              limit:
+                100,
+            })
+
+          setContracts(
+            result.items,
+          )
+        } catch (
+          caughtError:
+            unknown
+        ) {
+          setError(
+            caughtError instanceof
+              Error
+              ? caughtError.message
+              : 'دریافت قراردادها ناموفق بود.',
+          )
+        } finally {
+          setLoading(
+            false,
+          )
+
+          setRefreshing(
+            false,
+          )
+        }
+      },
+      [],
     )
-  }, [])
+
+  useEffect(
+    () => {
+      void reload(
+        'initial',
+      )
+    },
+    [
+      reload,
+    ],
+  )
 
   const stats =
     useMemo(
@@ -149,28 +241,36 @@ export default function OnlineContractsPage() {
 
         actions:
           contracts.filter(
-            (contract) =>
+            (
+              contract,
+            ) =>
               contract.status ===
                 'waiting_lawyer_review' ||
               contract.status ===
-                'waiting_lawyer_signature'
+                'waiting_lawyer_signature',
           ).length,
 
         waitingClient:
           contracts.filter(
-            (contract) =>
+            (
+              contract,
+            ) =>
               contract.status ===
-              'waiting_client_approval'
+              'waiting_client_approval',
           ).length,
 
         completed:
           contracts.filter(
-            (contract) =>
+            (
+              contract,
+            ) =>
               contract.status ===
-              'completed'
+              'completed',
           ).length,
       }),
-      [contracts]
+      [
+        contracts,
+      ],
     )
 
   const filtered =
@@ -180,11 +280,13 @@ export default function OnlineContractsPage() {
           search
             .trim()
             .toLocaleLowerCase(
-              'fa-IR'
+              'fa-IR',
             )
 
         return contracts.filter(
-          (contract) => {
+          (
+            contract,
+          ) => {
             if (
               statusFilter !==
                 'all' &&
@@ -194,7 +296,9 @@ export default function OnlineContractsPage() {
               return false
             }
 
-            if (!query) {
+            if (
+              !query
+            ) {
               return true
             }
 
@@ -204,19 +308,23 @@ export default function OnlineContractsPage() {
               contract.draft.client.phone,
               contract.draft.subject,
             ]
-              .join(' ')
-              .toLocaleLowerCase(
-                'fa-IR'
+              .join(
+                ' ',
               )
-              .includes(query)
-          }
+              .toLocaleLowerCase(
+                'fa-IR',
+              )
+              .includes(
+                query,
+              )
+          },
         )
       },
       [
         contracts,
         search,
         statusFilter,
-      ]
+      ],
     )
 
   return (
@@ -237,21 +345,36 @@ export default function OnlineContractsPage() {
               </h1>
 
               <p className="mt-2 text-sm font-semibold text-slate-600">
-                بررسی درخواست‌ها، اصلاح
-                قرارداد و مدیریت مراحل تأیید.
+                بررسی درخواست‌ها، اصلاح نسخه، تأیید موکل و نهایی‌سازی قراردادها.
               </p>
             </div>
 
             <button
               type="button"
-              onClick={
-                reload
+              disabled={
+                refreshing
               }
-              className="flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700"
+              onClick={() => {
+                void reload(
+                  'refresh',
+                )
+              }}
+              className="flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 disabled:opacity-60"
             >
-              <RefreshCw
-                size={17}
-              />
+              {
+                refreshing
+                  ? (
+                    <Loader2
+                      size={17}
+                      className="animate-spin"
+                    />
+                  )
+                  : (
+                    <RefreshCw
+                      size={17}
+                    />
+                  )
+              }
 
               بروزرسانی
             </button>
@@ -313,10 +436,10 @@ export default function OnlineContractsPage() {
                   search
                 }
                 onChange={(
-                  event
+                  event,
                 ) =>
                   setSearch(
-                    event.target.value
+                    event.target.value,
                   )
                 }
                 placeholder="نام موکل، موبایل، موضوع یا شناسه..."
@@ -335,11 +458,10 @@ export default function OnlineContractsPage() {
                   statusFilter
                 }
                 onChange={(
-                  event
+                  event,
                 ) =>
                   setStatusFilter(
-                    event.target
-                      .value as StatusFilter
+                    event.target.value as StatusFilter,
                   )
                 }
                 className="h-12 w-full rounded-xl border border-slate-300 bg-white pr-11 pl-4 text-sm font-black"
@@ -372,145 +494,208 @@ export default function OnlineContractsPage() {
           </div>
         </section>
 
+        {
+          error &&
+          (
+            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
+              {
+                error
+              }
+            </div>
+          )
+        }
+
         <section className="mt-6">
-          {filtered.length >
-          0 ? (
-            <div className="grid gap-4 xl:grid-cols-2">
-              {filtered.map(
-                (contract) => {
-                  const status =
-                    getStatusMeta(
-                      contract.status
-                    )
+          {
+            loading
+              ? (
+                <div className="rounded-[22px] border border-slate-200 bg-white py-16 text-center">
+                  <Loader2
+                    size={28}
+                    className="mx-auto animate-spin text-blue-600"
+                  />
 
-                  return (
-                    <article
-                      key={
-                        contract.id
-                      }
-                      className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p
-                              dir="ltr"
-                              className="text-xs font-black text-blue-700"
-                            >
-                              {contract.reference}
-                            </p>
-
-                            <span
-                              className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${status.className}`}
-                            >
-                              {status.label}
-                            </span>
-                          </div>
-
-                          <h2 className="mt-2 text-lg font-black">
-                            {contract.draft.subject}
-                          </h2>
-                        </div>
-
-                        <div className="rounded-xl bg-emerald-50 px-3 py-2">
-                          <p className="text-[10px] font-bold text-emerald-700">
-                            حق‌الزحمه
-                          </p>
-
-                          <p className="mt-1 text-sm font-black text-emerald-800">
-                            {contract.draft.feeToman.toLocaleString(
-                              'fa-IR'
-                            )}
-                            {' '}
-                            تومان
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 rounded-xl bg-slate-50 p-3">
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                          <UsersRound
-                            size={14}
-                          />
-
-                          موکل
-                        </div>
-
-                        <p className="mt-1.5 text-sm font-black">
-                          {contract.draft.client.fullName}
-                        </p>
-                      </div>
-
-                      {contract.clientFeedback && (
-                        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                          <p className="text-xs font-black text-amber-700">
-                            درخواست اصلاح موکل
-                          </p>
-
-                          <p className="mt-1 text-xs font-semibold text-amber-900">
-                            {contract.clientFeedback}
-                          </p>
-                        </div>
-                      )}
-
-                      {contract.status ===
-                        'rejected' &&
-                        contract.rejectionReason && (
-                        <div className="mt-3 flex gap-2 rounded-xl border border-red-100 bg-red-50 p-3">
-                          <XCircle
-                            size={16}
-                            className="text-red-600"
-                          />
-
-                          <p className="text-xs font-semibold text-red-700">
-                            {contract.rejectionReason}
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="mt-4 grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSelectedContract(
-                              contract
+                  <p className="mt-3 text-sm font-bold text-slate-500">
+                    در حال دریافت قراردادها...
+                  </p>
+                </div>
+              )
+              : filtered.length >
+                0
+                ? (
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    {
+                      filtered.map(
+                        (
+                          contract,
+                        ) => {
+                          const status =
+                            getStatusMeta(
+                              contract.status,
                             )
-                          }
-                          className="h-10 rounded-xl bg-slate-900 text-sm font-black text-white"
-                        >
-                          {contract.status ===
-                          'waiting_lawyer_review'
-                            ? 'بررسی قرارداد'
-                            : contract.status ===
-                                'waiting_lawyer_signature'
-                              ? 'تأیید نهایی'
-                              : 'مشاهده'}
-                        </button>
 
-                        <Link
-                          href={`/dashboard/contracts/${contract.id}/document`}
-                          className="flex h-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-sm font-black text-blue-700"
-                        >
-                          سند قرارداد
-                        </Link>
-                      </div>
-                    </article>
-                  )
-                }
-              )}
-            </div>
-          ) : (
-            <div className="rounded-[22px] border border-dashed border-slate-300 bg-white py-14 text-center">
-              <FileText
-                size={26}
-                className="mx-auto text-slate-400"
-              />
+                          return (
+                            <article
+                              key={
+                                contract.id
+                              }
+                              className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p
+                                      dir="ltr"
+                                      className="text-xs font-black text-blue-700"
+                                    >
+                                      {
+                                        contract.reference
+                                      }
+                                    </p>
 
-              <p className="mt-4 font-black">
-                قراردادی پیدا نشد
-              </p>
-            </div>
-          )}
+                                    <span
+                                      className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${status.className}`}
+                                    >
+                                      {
+                                        status.label
+                                      }
+                                    </span>
+                                  </div>
+
+                                  <h2 className="mt-2 text-lg font-black">
+                                    {
+                                      contract.draft.subject
+                                    }
+                                  </h2>
+                                </div>
+
+                                <div className="shrink-0 rounded-xl bg-emerald-50 px-3 py-2">
+                                  <p className="text-[10px] font-bold text-emerald-700">
+                                    حق‌الزحمه
+                                  </p>
+
+                                  <p className="mt-1 text-sm font-black text-emerald-800">
+                                    {
+                                      contract.draft.feeToman.toLocaleString(
+                                        'fa-IR',
+                                      )
+                                    }
+                                    {' '}
+                                    تومان
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="mt-4 rounded-xl bg-slate-50 p-3">
+                                <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                                  <UsersRound
+                                    size={14}
+                                  />
+
+                                  موکل
+                                </div>
+
+                                <p className="mt-1.5 text-sm font-black">
+                                  {
+                                    contract.draft.client.fullName
+                                  }
+                                </p>
+
+                                <p
+                                  dir="ltr"
+                                  className="mt-1 text-right text-xs font-semibold text-slate-500"
+                                >
+                                  {
+                                    contract.draft.client.phone
+                                  }
+                                </p>
+                              </div>
+
+                              {
+                                contract.clientFeedback &&
+                                (
+                                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                                    <p className="text-xs font-black text-amber-700">
+                                      درخواست اصلاح موکل
+                                    </p>
+
+                                    <p className="mt-1 whitespace-pre-wrap text-xs font-semibold leading-6 text-amber-900">
+                                      {
+                                        contract.clientFeedback
+                                      }
+                                    </p>
+                                  </div>
+                                )
+                              }
+
+                              {
+                                contract.status ===
+                                  'rejected' &&
+                                contract.rejectionReason &&
+                                (
+                                  <div className="mt-3 flex gap-2 rounded-xl border border-red-100 bg-red-50 p-3">
+                                    <XCircle
+                                      size={16}
+                                      className="shrink-0 text-red-600"
+                                    />
+
+                                    <p className="text-xs font-semibold leading-6 text-red-700">
+                                      {
+                                        contract.rejectionReason
+                                      }
+                                    </p>
+                                  </div>
+                                )
+                              }
+
+                              <div className="mt-4 grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedContract(
+                                      contract,
+                                    )
+                                  }
+                                  className="h-10 rounded-xl bg-slate-900 text-sm font-black text-white"
+                                >
+                                  {
+                                    contract.status ===
+                                    'waiting_lawyer_review'
+                                      ? 'بررسی قرارداد'
+                                      : contract.status ===
+                                          'waiting_lawyer_signature'
+                                        ? 'تأیید نهایی'
+                                        : 'مشاهده'
+                                  }
+                                </button>
+
+                                <Link
+                                  href={`/dashboard/contracts/${contract.id}/document`}
+                                  className="flex h-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-sm font-black text-blue-700"
+                                >
+                                  سند قرارداد
+                                </Link>
+                              </div>
+                            </article>
+                          )
+                        },
+                      )
+                    }
+                  </div>
+                )
+                : (
+                  <div className="rounded-[22px] border border-dashed border-slate-300 bg-white py-14 text-center">
+                    <FileText
+                      size={26}
+                      className="mx-auto text-slate-400"
+                    />
+
+                    <p className="mt-4 font-black">
+                      قراردادی پیدا نشد
+                    </p>
+                  </div>
+                )
+          }
         </section>
       </div>
 
@@ -520,13 +705,12 @@ export default function OnlineContractsPage() {
         }
         onClose={() =>
           setSelectedContract(
-            null
+            null,
           )
         }
-        onUpdated={() => {
-          reload()
-          setSelectedContract(
-            null
+        onUpdated={async () => {
+          await reload(
+            'refresh',
           )
         }}
       />
@@ -540,9 +724,14 @@ function Stat({
   icon:
     Icon,
 }: {
-  label: string
-  value: number
-  icon: LucideIcon
+  label:
+    string
+
+  value:
+    number
+
+  icon:
+    LucideIcon
 }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -552,13 +741,17 @@ function Stat({
           className="text-blue-600"
         />
 
-        {label}
+        {
+          label
+        }
       </div>
 
       <p className="mt-3 text-2xl font-black">
-        {value.toLocaleString(
-          'fa-IR'
-        )}
+        {
+          value.toLocaleString(
+            'fa-IR',
+          )
+        }
       </p>
     </article>
   )

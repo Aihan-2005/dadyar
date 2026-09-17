@@ -9,15 +9,11 @@ import {
 
 import Link from 'next/link'
 
-import type {
-  LucideIcon,
-} from 'lucide-react'
-
 import {
-  ArrowRight,
   CheckCircle2,
   CircleDollarSign,
   FileText,
+  Loader2,
   Send,
   ShieldCheck,
   UserRound,
@@ -33,14 +29,10 @@ import {
 import {
   ONLINE_CONTRACT_TEMPLATES,
   getOnlineContractTemplate,
-} from '@/features/client-portal/data/mock-contract-templates'
-
-import {
-  createMockOnlineContract,
-} from '@/features/client-portal/data/mock-online-contracts'
+} from '@/features/client-portal/data/contract-templates'
 
 import type {
-  OnlineContractDraft,
+  CreateOnlineContractInput,
   OnlineContractPaymentMode,
   OnlineContractRecord,
   OnlineLegalContractTemplateKey,
@@ -51,364 +43,363 @@ import type {
 } from '@/features/client-portal/types/lawyer'
 
 import {
+  formatDateInput,
+  parseFinanceDate,
+} from '@/features/finance/utils/date'
+
+import {
   formatMoneyInput,
   normalizeDigits,
   toOptionalFiniteNumber,
 } from '@/features/finance/utils/number'
 
 import {
-  formatDateInput,
-  parseFinanceDate,
-} from '@/features/finance/utils/date'
-
-
-
+  createClientOnlineContract,
+} from '@/services/online-contract.service'
 
 export interface LawyerOnlineContractPanelProps {
   lawyer: ClientPortalLawyer
 }
-
-
-
 
 type ContractStage =
   | 'edit'
   | 'review'
   | 'submitted'
 
-
-  
 const PAYMENT_LABELS: Record<
   OnlineContractPaymentMode,
   string
 > = {
-  full: 'پرداخت کامل',
-  staged: 'پرداخت مرحله‌ای',
-  installments: 'پرداخت اقساطی',
+  full:
+    'پرداخت کامل',
+
+  staged:
+    'پرداخت مرحله‌ای',
+
+  installments:
+    'پرداخت اقساطی',
 }
 
 const INPUT_CLASS =
-  'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
+  'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100'
 
 const TEXTAREA_CLASS =
-  'w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-7 text-slate-900 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
+  'w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-7 text-slate-900 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100'
 
+function normalizeNationalId(
+  value:
+    string,
+): string {
+  return normalizeDigits(
+    value,
+  )
+    .replace(
+      /\D/g,
+      '',
+    )
+    .slice(
+      0,
+      10,
+    )
+}
 
-  
 export default function LawyerOnlineContractPanel({
   lawyer,
 }: LawyerOnlineContractPanelProps) {
   const defaultTemplate =
-    ONLINE_CONTRACT_TEMPLATES[0]
-
-
+    ONLINE_CONTRACT_TEMPLATES[
+      0
+    ]
 
   const [
     stage,
     setStage,
-  ] = useState<ContractStage>(
-    'edit'
-  )
+  ] =
+    useState<ContractStage>(
+      'edit',
+    )
 
-
-  
+  const [
+    account,
+    setAccount,
+  ] =
+    useState<ClientPortalAccount | null>(
+      null,
+    )
 
   const [
     templateKey,
     setTemplateKey,
   ] =
     useState<OnlineLegalContractTemplateKey>(
-      defaultTemplate.key
+      defaultTemplate.key,
     )
-
-
-    
-  const [
-    clientFullName,
-    setClientFullName,
-  ] = useState('')
-
-  const [
-    clientPhone,
-    setClientPhone,
-  ] = useState('')
 
   const [
     clientNationalId,
     setClientNationalId,
-  ] = useState('')
+  ] =
+    useState(
+      '',
+    )
 
   const [
     clientAddress,
     setClientAddress,
-  ] = useState('')
-
-  
-
+  ] =
+    useState(
+      '',
+    )
 
   const [
     subject,
     setSubject,
-  ] = useState(
-    defaultTemplate.defaultSubject
-  )
+  ] =
+    useState(
+      defaultTemplate.defaultSubject,
+    )
 
   const [
     scope,
     setScope,
-  ] = useState(
-    defaultTemplate.defaultScope
-  )
+  ] =
+    useState(
+      defaultTemplate.defaultScope,
+    )
 
   const [
     feeInput,
     setFeeInput,
-  ] = useState('')
+  ] =
+    useState(
+      '',
+    )
 
   const [
     paymentMode,
     setPaymentMode,
   ] =
     useState<OnlineContractPaymentMode>(
-      'full'
+      'full',
     )
 
   const [
     paymentDetails,
     setPaymentDetails,
-  ] = useState('')
+  ] =
+    useState(
+      '',
+    )
 
   const [
     startDate,
     setStartDate,
-  ] = useState('')
+  ] =
+    useState(
+      '',
+    )
 
   const [
     servicePeriod,
     setServicePeriod,
-  ] = useState('')
+  ] =
+    useState(
+      '',
+    )
 
   const [
     additionalTerms,
     setAdditionalTerms,
-  ] = useState('')
-
-  
+  ] =
+    useState(
+      '',
+    )
 
   const [
-    reviewDraft,
-    setReviewDraft,
+    reviewInput,
+    setReviewInput,
   ] =
-    useState<OnlineContractDraft | null>(
-      null
+    useState<CreateOnlineContractInput | null>(
+      null,
     )
 
   const [
     confirmDraft,
     setConfirmDraft,
-  ] = useState(false)
-
-
-  
+  ] =
+    useState(
+      false,
+    )
 
   const [
     submittedContract,
     setSubmittedContract,
   ] =
     useState<OnlineContractRecord | null>(
-      null
+      null,
     )
-
-  
-    
 
   const [
     authOpen,
     setAuthOpen,
-  ] = useState(false)
+  ] =
+    useState(
+      false,
+    )
 
-
-  
-
+  const [
+    submitting,
+    setSubmitting,
+  ] =
+    useState(
+      false,
+    )
 
   const [
     error,
     setError,
   ] =
     useState<string | null>(
-      null
+      null,
     )
-
-
-    
 
   const selectedTemplate =
     useMemo(
       () =>
         getOnlineContractTemplate(
-          templateKey
+          templateKey,
         ),
-      [templateKey]
+
+      [
+        templateKey,
+      ],
     )
 
-    
-  useEffect(() => {
-    const account =
-      getCurrentClientPortalAccount()
+  useEffect(
+    () => {
+      setAccount(
+        getCurrentClientPortalAccount(),
+      )
 
-    setStage(
-      'edit'
-    )
+      setStage(
+        'edit',
+      )
 
-    setTemplateKey(
-      defaultTemplate.key
-    )
+      setTemplateKey(
+        defaultTemplate.key,
+      )
 
-    setClientFullName(
-      account?.fullName ??
-        ''
-    )
+      setClientNationalId(
+        '',
+      )
 
-    setClientPhone(
-      account?.phone ??
-        ''
-    )
+      setClientAddress(
+        '',
+      )
 
-    setClientNationalId(
-      ''
-    )
+      setSubject(
+        defaultTemplate.defaultSubject,
+      )
 
-    setClientAddress(
-      ''
-    )
+      setScope(
+        defaultTemplate.defaultScope,
+      )
 
-    setSubject(
-      defaultTemplate.defaultSubject
-    )
+      setFeeInput(
+        '',
+      )
 
-    setScope(
-      defaultTemplate.defaultScope
-    )
+      setPaymentMode(
+        'full',
+      )
 
-    setFeeInput(
-      ''
-    )
+      setPaymentDetails(
+        '',
+      )
 
-    setPaymentMode(
-      'full'
-    )
+      setStartDate(
+        '',
+      )
 
-    setPaymentDetails(
-      ''
-    )
+      setServicePeriod(
+        '',
+      )
 
-    setStartDate(
-      ''
-    )
+      setAdditionalTerms(
+        '',
+      )
 
-    setServicePeriod(
-      ''
-    )
+      setReviewInput(
+        null,
+      )
 
-    setAdditionalTerms(
-      ''
-    )
+      setConfirmDraft(
+        false,
+      )
 
-    setReviewDraft(
-      null
-    )
+      setSubmittedContract(
+        null,
+      )
 
-    setConfirmDraft(
-      false
-    )
+      setAuthOpen(
+        false,
+      )
 
-    setSubmittedContract(
-      null
-    )
+      setSubmitting(
+        false,
+      )
 
-    setAuthOpen(
-      false
-    )
-
-    setError(
-      null
-    )
-  }, [
-    lawyer.id,
-    defaultTemplate.key,
-    defaultTemplate.defaultSubject,
-    defaultTemplate.defaultScope,
-  ])
-
- 
-  
+      setError(
+        null,
+      )
+    },
+    [
+      lawyer.id,
+      defaultTemplate.key,
+      defaultTemplate.defaultScope,
+      defaultTemplate.defaultSubject,
+    ],
+  )
 
   const handleTemplateChange =
     (
       nextKey:
-        OnlineLegalContractTemplateKey
+        OnlineLegalContractTemplateKey,
     ) => {
       const nextTemplate =
         getOnlineContractTemplate(
-          nextKey
+          nextKey,
         )
 
       setTemplateKey(
-        nextKey
+        nextKey,
       )
 
       setSubject(
-        nextTemplate.defaultSubject
+        nextTemplate.defaultSubject,
       )
 
       setScope(
-        nextTemplate.defaultScope
+        nextTemplate.defaultScope,
       )
 
       setError(
-        null
+        null,
       )
     }
 
- 
-    
-
-  const buildDraft =
+  const buildInput =
     ():
-      | OnlineContractDraft
-      | null => {
+      CreateOnlineContractInput |
+      null => {
       setError(
-        null
+        null,
       )
 
-      const fullName =
-        clientFullName.trim()
-
-      const phone =
-        normalizeDigits(
-          clientPhone
-        )
-          .replace(
-            /\D/g,
-            ''
-          )
-          .slice(
-            0,
-            11
-          )
-
       const nationalId =
-        normalizeDigits(
-          clientNationalId
+        normalizeNationalId(
+          clientNationalId,
         )
-          .replace(
-            /\D/g,
-            ''
-          )
-          .slice(
-            0,
-            10
-          )
 
       const normalizedSubject =
         subject.trim()
@@ -427,52 +418,26 @@ export default function LawyerOnlineContractPanel({
 
       const feeToman =
         toOptionalFiniteNumber(
-          feeInput
+          feeInput,
         )
 
       const normalizedStartDate =
         formatDateInput(
-          startDate
+          startDate,
         )
 
       const parsedStartDate =
         parseFinanceDate(
-          normalizedStartDate
+          normalizedStartDate,
         )
-
-   
-        
-
-      if (
-        fullName.length <
-        3
-      ) {
-        setError(
-          'نام و نام خانوادگی موکل را کامل وارد کنید.'
-        )
-
-        return null
-      }
-
-      if (
-        !/^09\d{9}$/.test(
-          phone
-        )
-      ) {
-        setError(
-          'شماره موبایل معتبر وارد کنید.'
-        )
-
-        return null
-      }
 
       if (
         !/^\d{10}$/.test(
-          nationalId
+          nationalId,
         )
       ) {
         setError(
-          'کد ملی باید دقیقاً ۱۰ رقم باشد.'
+          'کد ملی باید دقیقاً ۱۰ رقم باشد.',
         )
 
         return null
@@ -483,7 +448,7 @@ export default function LawyerOnlineContractPanel({
         5
       ) {
         setError(
-          'موضوع قرارداد را کامل‌تر وارد کنید.'
+          'موضوع قرارداد را کامل‌تر وارد کنید.',
         )
 
         return null
@@ -494,7 +459,7 @@ export default function LawyerOnlineContractPanel({
         20
       ) {
         setError(
-          'دامنه خدمات باید حداقل ۲۰ کاراکتر باشد.'
+          'دامنه خدمات باید حداقل ۲۰ کاراکتر باشد.',
         )
 
         return null
@@ -506,7 +471,7 @@ export default function LawyerOnlineContractPanel({
           0
       ) {
         setError(
-          'مبلغ حق‌الزحمه را وارد کنید.'
+          'مبلغ حق‌الزحمه را وارد کنید.',
         )
 
         return null
@@ -516,7 +481,7 @@ export default function LawyerOnlineContractPanel({
         !parsedStartDate
       ) {
         setError(
-          'تاریخ شروع قرارداد معتبر نیست.'
+          'تاریخ شروع قرارداد معتبر نیست.',
         )
 
         return null
@@ -527,7 +492,7 @@ export default function LawyerOnlineContractPanel({
         3
       ) {
         setError(
-          'مدت یا محدوده زمانی خدمات را مشخص کنید.'
+          'مدت یا محدوده زمانی خدمات را مشخص کنید.',
         )
 
         return null
@@ -540,47 +505,23 @@ export default function LawyerOnlineContractPanel({
           5
       ) {
         setError(
-          'جزئیات پرداخت را تکمیل کنید.'
+          'جزئیات پرداخت را تکمیل کنید.',
         )
 
         return null
       }
 
-   
-      
-
       return {
+        lawyerId:
+          lawyer.id,
+
         templateKey,
 
-        client: {
-          fullName,
-          phone,
-          nationalId,
+        nationalId,
 
-          address:
-            clientAddress.trim() ||
-            undefined,
-        },
-
-        lawyer: {
-          id:
-            lawyer.id,
-
-          fullName:
-            lawyer.fullName,
-
-          title:
-            lawyer.title,
-
-          licenseNumber:
-            lawyer.licenseNumber,
-
-          barAssociation:
-            lawyer.barAssociation,
-
-          city:
-            lawyer.city,
-        },
+        address:
+          clientAddress.trim() ||
+          undefined,
 
         subject:
           normalizedSubject,
@@ -611,213 +552,178 @@ export default function LawyerOnlineContractPanel({
       }
     }
 
-    
-
-
   const handleReview =
     () => {
-      const draft =
-        buildDraft()
+      const input =
+        buildInput()
 
-      if (!draft) {
+      if (
+        !input
+      ) {
         return
       }
 
-      setReviewDraft(
-        draft
+      setReviewInput(
+        input,
       )
 
       setConfirmDraft(
-        false
+        false,
       )
 
       setStage(
-        'review'
+        'review',
       )
     }
 
-  
-    
-
-  const createContract =
-    (
-      account:
-        ClientPortalAccount
+  const submitContract =
+    async (
+      authenticatedAccount:
+        ClientPortalAccount,
     ) => {
-      if (!reviewDraft) {
-        setError(
-          'اطلاعات قرارداد در دسترس نیست.'
-        )
-
+      if (
+        !reviewInput ||
+        submitting
+      ) {
         return
       }
 
-      const authenticatedDraft:
-        OnlineContractDraft = {
-        ...reviewDraft,
+      setSubmitting(
+        true,
+      )
 
-        client: {
-          ...reviewDraft.client,
-
-          fullName:
-            account.fullName,
-
-          phone:
-            account.phone,
-        },
-      }
+      setError(
+        null,
+      )
 
       try {
         const created =
-          createMockOnlineContract(
-            authenticatedDraft
+          await createClientOnlineContract(
+            reviewInput,
           )
 
-        setSubmittedContract(
-          created
+        setAccount(
+          authenticatedAccount,
         )
 
-        setReviewDraft(
-          authenticatedDraft
+        setSubmittedContract(
+          created,
         )
 
         setAuthOpen(
-          false
-        )
-
-        setError(
-          null
+          false,
         )
 
         setStage(
-          'submitted'
+          'submitted',
         )
       } catch (
-        caughtError
+        caughtError:
+          unknown
       ) {
         setError(
           caughtError instanceof
             Error
             ? caughtError.message
-            : 'ثبت قرارداد انجام نشد.'
+            : 'ثبت قرارداد انجام نشد.',
+        )
+      } finally {
+        setSubmitting(
+          false,
         )
       }
     }
-
- 
-    
 
   const handleSubmit =
-    () => {
-      setError(
-        null
-      )
-
-      if (!reviewDraft) {
+    async () => {
+      if (
+        !reviewInput
+      ) {
         setStage(
-          'edit'
+          'edit',
         )
 
         return
       }
 
-      if (!confirmDraft) {
+      if (
+        !confirmDraft
+      ) {
         setError(
-          'برای ادامه، صحت اطلاعات قرارداد را تأیید کنید.'
+          'برای ادامه، صحت اطلاعات قرارداد را تأیید کنید.',
         )
 
         return
       }
 
-      const account =
+      const currentAccount =
         getCurrentClientPortalAccount()
 
-      if (!account) {
+      if (
+        !currentAccount
+      ) {
         setAuthOpen(
-          true
+          true,
         )
 
         return
       }
 
-      createContract(
-        account
+      await submitContract(
+        currentAccount,
       )
     }
-
-
-    
 
   const handleNewContract =
     () => {
-      const account =
-        getCurrentClientPortalAccount()
-
       setStage(
-        'edit'
+        'edit',
       )
 
-      setReviewDraft(
-        null
+      setReviewInput(
+        null,
       )
 
       setSubmittedContract(
-        null
+        null,
       )
 
       setConfirmDraft(
-        false
-      )
-
-      setAuthOpen(
-        false
-      )
-
-      setError(
-        null
-      )
-
-      setClientFullName(
-        account?.fullName ??
-          ''
-      )
-
-      setClientPhone(
-        account?.phone ??
-          ''
+        false,
       )
 
       setClientNationalId(
-        ''
+        '',
       )
 
       setClientAddress(
-        ''
+        '',
       )
 
       setFeeInput(
-        ''
+        '',
       )
 
       setPaymentDetails(
-        ''
+        '',
       )
 
       setStartDate(
-        ''
+        '',
       )
 
       setServicePeriod(
-        ''
+        '',
       )
 
       setAdditionalTerms(
-        ''
+        '',
+      )
+
+      setError(
+        null,
       )
     }
-
-
-    
 
   if (
     stage ===
@@ -825,7 +731,7 @@ export default function LawyerOnlineContractPanel({
     submittedContract
   ) {
     return (
-      <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
+      <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
         <div className="flex items-start gap-3">
           <CheckCircle2
             size={24}
@@ -834,58 +740,39 @@ export default function LawyerOnlineContractPanel({
 
           <div className="min-w-0 flex-1">
             <p className="text-xs font-black text-emerald-700">
-              قرارداد آنلاین
+              قرارداد آنلاین ثبت شد
             </p>
 
             <h3 className="mt-1 text-lg font-black text-emerald-950">
-              قرارداد برای وکیل ارسال شد
+              درخواست برای بررسی وکیل ارسال شد
             </h3>
 
-            <p className="mt-2 text-sm font-semibold leading-7 text-emerald-800">
-              پس از بررسی وکیل، وضعیت و نسخه
-              جدید قرارداد در بخش قراردادهای
-              شما قابل مشاهده خواهد بود.
-            </p>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <SummaryItem
-                label="شناسه قرارداد"
-                value={
+            <p className="mt-2 text-sm font-semibold leading-7 text-emerald-900">
+              شناسه قرارداد:
+              {' '}
+              <span
+                dir="ltr"
+                className="font-black"
+              >
+                {
                   submittedContract.reference
                 }
-                dir="ltr"
-              />
+              </span>
+            </p>
 
-              <SummaryItem
-                label="نسخه"
-                value={
-                  submittedContract.version.toLocaleString(
-                    'fa-IR'
-                  )
-                }
-              />
-
-              <SummaryItem
-                label="وکیل"
-                value={
-                  submittedContract.draft.lawyer.fullName
-                }
-              />
-
-              <SummaryItem
-                label="مبلغ"
-                value={`${submittedContract.draft.feeToman.toLocaleString(
-                  'fa-IR'
-                )} تومان`}
-              />
-            </div>
-
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+            <div className="mt-4 flex flex-wrap gap-2">
               <Link
                 href="/client-portal/contracts"
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700"
+                className="inline-flex h-11 items-center rounded-xl bg-emerald-700 px-4 text-sm font-black text-white"
               >
                 قراردادهای من
+              </Link>
+
+              <Link
+                href={`/client-portal/contracts/${submittedContract.id}/document`}
+                className="inline-flex h-11 items-center rounded-xl border border-emerald-300 bg-white px-4 text-sm font-black text-emerald-800"
+              >
+                مشاهده سند
               </Link>
 
               <button
@@ -893,7 +780,7 @@ export default function LawyerOnlineContractPanel({
                 onClick={
                   handleNewContract
                 }
-                className="h-11 rounded-xl border border-emerald-300 bg-white px-5 text-sm font-black text-emerald-700 transition hover:bg-emerald-100"
+                className="h-11 rounded-xl border border-emerald-300 bg-white px-4 text-sm font-black text-emerald-800"
               >
                 قرارداد جدید
               </button>
@@ -904,1011 +791,791 @@ export default function LawyerOnlineContractPanel({
     )
   }
 
-
-
-  if (
-    stage ===
-      'review' &&
-    reviewDraft
-  ) {
-    return (
-      <>
-        <section className="rounded-2xl border border-blue-200 bg-white p-4 sm:p-5">
-          <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-xs font-black text-blue-700">
-                بررسی قرارداد
-              </p>
-
-              <h3 className="mt-1 text-lg font-black text-slate-950">
-                پیش‌نمایش قرارداد
-              </h3>
-
-              <p className="mt-2 text-xs font-semibold leading-6 text-slate-500">
-                پیش از ارسال، اطلاعات و شرایط
-                قرارداد را بررسی کنید.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setStage(
-                  'edit'
-                )
-
-                setError(
-                  null
-                )
-              }}
-              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-            >
-              <ArrowRight
-                size={15}
-              />
-
-              ویرایش
-            </button>
+  return (
+    <>
+      <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
+            <FileText
+              size={21}
+            />
           </div>
 
-          <PreviewSection title="طرفین قرارداد">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <PreviewItem
-                label="موکل"
-                value={
-                  reviewDraft.client.fullName
-                }
-              />
-
-              <PreviewItem
-                label="شماره موبایل"
-                value={
-                  reviewDraft.client.phone
-                }
-                dir="ltr"
-              />
-
-              <PreviewItem
-                label="کد ملی"
-                value={
-                  reviewDraft.client.nationalId
-                }
-                dir="ltr"
-              />
-
-              <PreviewItem
-                label="وکیل"
-                value={
-                  reviewDraft.lawyer.fullName
-                }
-              />
-            </div>
-          </PreviewSection>
-
-          <PreviewSection title="موضوع و خدمات">
-            <PreviewText
-              label="موضوع قرارداد"
-              value={
-                reviewDraft.subject
-              }
-            />
-
-            <PreviewText
-              label="دامنه خدمات"
-              value={
-                reviewDraft.scope
-              }
-            />
-          </PreviewSection>
-
-          <PreviewSection title="شرایط مالی و زمانی">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <PreviewItem
-                label="حق‌الزحمه"
-                value={`${reviewDraft.feeToman.toLocaleString(
-                  'fa-IR'
-                )} تومان`}
-              />
-
-              <PreviewItem
-                label="روش پرداخت"
-                value={
-                  PAYMENT_LABELS[
-                    reviewDraft.paymentMode
-                  ]
-                }
-              />
-
-              <PreviewItem
-                label="تاریخ شروع"
-                value={
-                  reviewDraft.startDate
-                }
-                dir="ltr"
-              />
-
-              <PreviewItem
-                label="مدت خدمات"
-                value={
-                  reviewDraft.servicePeriod
-                }
-              />
-            </div>
-
-            <PreviewText
-              label="جزئیات پرداخت"
-              value={
-                reviewDraft.paymentDetails
-              }
-            />
-          </PreviewSection>
-
-          <PreviewSection title="شروط قرارداد">
-            <ClauseList
-              items={
-                selectedTemplate.standardTerms
-              }
-            />
-
-            {reviewDraft.additionalTerms && (
-              <PreviewText
-                label="شروط تکمیلی"
-                value={
-                  reviewDraft.additionalTerms
-                }
-              />
-            )}
-          </PreviewSection>
-
-          <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-            <input
-              type="checkbox"
-              checked={
-                confirmDraft
-              }
-              onChange={(
-                event
-              ) => {
-                setConfirmDraft(
-                  event.target.checked
-                )
-
-                setError(
-                  null
-                )
-              }}
-              className="mt-1 h-4 w-4 accent-blue-600"
-            />
-
-            <span className="text-sm font-semibold leading-6 text-slate-700">
-              اطلاعات، مبلغ و شرایط قرارداد
-              را بررسی کرده‌ام.
-            </span>
-          </label>
-
-          {error && (
-            <p
-              role="alert"
-              className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700"
-            >
-              {error}
+          <div>
+            <p className="text-xs font-black text-violet-700">
+              قرارداد آنلاین
             </p>
-          )}
 
-          <button
-            type="button"
-            onClick={
-              handleSubmit
-            }
-            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-emerald-500 to-teal-600 px-4 text-sm font-black text-white shadow-md shadow-emerald-100 transition hover:from-emerald-600 hover:to-teal-700"
-          >
-            <Send
-              size={18}
-            />
+            <h2 className="mt-1 text-xl font-black text-slate-950">
+              تنظیم قرارداد با
+              {' '}
+              {
+                lawyer.fullName
+              }
+            </h2>
 
-            ارسال برای بررسی وکیل
-          </button>
-        </section>
+            <p className="mt-2 text-sm font-semibold leading-7 text-slate-600">
+              اطلاعات هویتی حساب موکل و مشخصات وکیل هنگام ثبت توسط سرور بررسی و در قرارداد ذخیره می‌شوند.
+            </p>
+          </div>
+        </div>
 
-        <ClientAuthGateModal
-          open={
-            authOpen
-          }
-          title="برای ارسال قرارداد وارد شوید"
-          onClose={() =>
+        {
+          stage ===
+          'edit'
+            ? (
+              <div className="mt-6 space-y-6">
+                <Section
+                  icon={
+                    <FileText
+                      size={18}
+                    />
+                  }
+                  title="نوع و موضوع قرارداد"
+                >
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {
+                      ONLINE_CONTRACT_TEMPLATES.map(
+                        (
+                          template,
+                        ) => (
+                          <button
+                            key={
+                              template.key
+                            }
+                            type="button"
+                            onClick={() =>
+                              handleTemplateChange(
+                                template.key,
+                              )
+                            }
+                            className={`rounded-2xl border p-4 text-right transition ${
+                              templateKey ===
+                              template.key
+                                ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-100'
+                                : 'border-slate-200 bg-white hover:border-slate-300'
+                            }`}
+                          >
+                            <p className="text-sm font-black text-slate-950">
+                              {
+                                template.title
+                              }
+                            </p>
+
+                            <p className="mt-2 text-xs font-semibold leading-6 text-slate-500">
+                              {
+                                template.shortDescription
+                              }
+                            </p>
+                          </button>
+                        ),
+                      )
+                    }
+                  </div>
+
+                  <div className="mt-4 grid gap-4">
+                    <Field label="موضوع قرارداد">
+                      <input
+                        value={
+                          subject
+                        }
+                        onChange={(
+                          event,
+                        ) => {
+                          setSubject(
+                            event.target.value,
+                          )
+
+                          setError(
+                            null,
+                          )
+                        }}
+                        maxLength={
+                          180
+                        }
+                        className={
+                          INPUT_CLASS
+                        }
+                      />
+                    </Field>
+
+                    <Field label="دامنه خدمات">
+                      <textarea
+                        value={
+                          scope
+                        }
+                        onChange={(
+                          event,
+                        ) => {
+                          setScope(
+                            event.target.value,
+                          )
+
+                          setError(
+                            null,
+                          )
+                        }}
+                        rows={
+                          5
+                        }
+                        maxLength={
+                          1600
+                        }
+                        className={
+                          TEXTAREA_CLASS
+                        }
+                      />
+                    </Field>
+                  </div>
+                </Section>
+
+                <Section
+                  icon={
+                    <UserRound
+                      size={18}
+                    />
+                  }
+                  title="اطلاعات موکل"
+                >
+                  <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs font-bold leading-6 text-blue-800">
+                    {
+                      account
+                        ? (
+                          <>
+                            قرارداد با حساب «
+                            {
+                              account.fullName ||
+                              'موکل'
+                            }
+                            » و شماره
+                            {' '}
+                            <span dir="ltr">
+                              {
+                                account.phone
+                              }
+                            </span>
+                            {' '}
+                            ثبت می‌شود.
+                          </>
+                        )
+                        : 'نام و شماره موبایل از حسابی که هنگام ثبت وارد آن می‌شوید خوانده می‌شود و از فرم قابل جعل نیست.'
+                    }
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="کد ملی">
+                      <input
+                        value={
+                          clientNationalId
+                        }
+                        onChange={(
+                          event,
+                        ) => {
+                          setClientNationalId(
+                            normalizeNationalId(
+                              event.target.value,
+                            ),
+                          )
+
+                          setError(
+                            null,
+                          )
+                        }}
+                        inputMode="numeric"
+                        dir="ltr"
+                        maxLength={
+                          10
+                        }
+                        placeholder="0123456789"
+                        className={
+                          INPUT_CLASS
+                        }
+                      />
+                    </Field>
+
+                    <Field label="نشانی موکل (اختیاری)">
+                      <input
+                        value={
+                          clientAddress
+                        }
+                        onChange={(
+                          event,
+                        ) => {
+                          setClientAddress(
+                            event.target.value,
+                          )
+
+                          setError(
+                            null,
+                          )
+                        }}
+                        maxLength={
+                          500
+                        }
+                        className={
+                          INPUT_CLASS
+                        }
+                      />
+                    </Field>
+                  </div>
+                </Section>
+
+                <Section
+                  icon={
+                    <CircleDollarSign
+                      size={18}
+                    />
+                  }
+                  title="حق‌الزحمه و زمان‌بندی"
+                >
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="حق‌الزحمه (تومان)">
+                      <input
+                        value={
+                          feeInput
+                        }
+                        onChange={(
+                          event,
+                        ) => {
+                          setFeeInput(
+                            formatMoneyInput(
+                              event.target.value,
+                            ),
+                          )
+
+                          setError(
+                            null,
+                          )
+                        }}
+                        inputMode="numeric"
+                        dir="ltr"
+                        className={
+                          INPUT_CLASS
+                        }
+                      />
+                    </Field>
+
+                    <Field label="روش پرداخت">
+                      <select
+                        value={
+                          paymentMode
+                        }
+                        onChange={(
+                          event,
+                        ) => {
+                          setPaymentMode(
+                            event.target.value as OnlineContractPaymentMode,
+                          )
+
+                          setError(
+                            null,
+                          )
+                        }}
+                        className={
+                          INPUT_CLASS
+                        }
+                      >
+                        <option value="full">
+                          پرداخت کامل
+                        </option>
+
+                        <option value="staged">
+                          پرداخت مرحله‌ای
+                        </option>
+
+                        <option value="installments">
+                          پرداخت اقساطی
+                        </option>
+                      </select>
+                    </Field>
+
+                    <Field label="تاریخ شروع">
+                      <input
+                        value={
+                          startDate
+                        }
+                        onChange={(
+                          event,
+                        ) => {
+                          setStartDate(
+                            formatDateInput(
+                              event.target.value,
+                            ),
+                          )
+
+                          setError(
+                            null,
+                          )
+                        }}
+                        dir="ltr"
+                        placeholder="1405/07/01"
+                        className={
+                          INPUT_CLASS
+                        }
+                      />
+                    </Field>
+
+                    <Field label="مدت / محدوده زمانی خدمات">
+                      <input
+                        value={
+                          servicePeriod
+                        }
+                        onChange={(
+                          event,
+                        ) => {
+                          setServicePeriod(
+                            event.target.value,
+                          )
+
+                          setError(
+                            null,
+                          )
+                        }}
+                        maxLength={
+                          500
+                        }
+                        placeholder="مثلاً تا پایان مرحله بدوی"
+                        className={
+                          INPUT_CLASS
+                        }
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="mt-4">
+                    <Field label="جزئیات پرداخت">
+                      <textarea
+                        value={
+                          paymentDetails
+                        }
+                        onChange={(
+                          event,
+                        ) => {
+                          setPaymentDetails(
+                            event.target.value,
+                          )
+
+                          setError(
+                            null,
+                          )
+                        }}
+                        rows={
+                          2
+                        }
+                        maxLength={
+                          1000
+                        }
+                        placeholder={
+                          paymentMode ===
+                          'full'
+                            ? 'اختیاری؛ در صورت خالی بودن متن پیش‌فرض درج می‌شود.'
+                            : 'زمان و مبلغ هر مرحله یا قسط را مشخص کنید.'
+                        }
+                        className={
+                          TEXTAREA_CLASS
+                        }
+                      />
+                    </Field>
+                  </div>
+                </Section>
+
+                <Section
+                  icon={
+                    <ShieldCheck
+                      size={18}
+                    />
+                  }
+                  title="شروط تکمیلی"
+                >
+                  <textarea
+                    value={
+                      additionalTerms
+                    }
+                    onChange={(
+                      event,
+                    ) => {
+                      setAdditionalTerms(
+                        event.target.value,
+                      )
+
+                      setError(
+                        null,
+                      )
+                    }}
+                    rows={
+                      4
+                    }
+                    maxLength={
+                      3000
+                    }
+                    placeholder="در صورت نیاز شروط یا توافق‌های تکمیلی را وارد کنید."
+                    className={
+                      TEXTAREA_CLASS
+                    }
+                  />
+                </Section>
+
+                {
+                  error &&
+                  (
+                    <ErrorBox
+                      message={
+                        error
+                      }
+                    />
+                  )
+                }
+
+                <button
+                  type="button"
+                  onClick={
+                    handleReview
+                  }
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 text-sm font-black text-white transition hover:bg-slate-800"
+                >
+                  <FileText
+                    size={18}
+                  />
+
+                  بررسی پیش‌نویس
+                </button>
+              </div>
+            )
+            : (
+              reviewInput &&
+              (
+                <div className="mt-6">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-black text-blue-700">
+                      پیش‌نمایش قبل از ارسال
+                    </p>
+
+                    <h3 className="mt-2 text-lg font-black text-slate-950">
+                      {
+                        reviewInput.subject
+                      }
+                    </h3>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <ReviewItem
+                        label="نوع قرارداد"
+                        value={
+                          selectedTemplate.title
+                        }
+                      />
+
+                      <ReviewItem
+                        label="وکیل"
+                        value={
+                          lawyer.fullName
+                        }
+                      />
+
+                      <ReviewItem
+                        label="حق‌الزحمه"
+                        value={`${reviewInput.feeToman.toLocaleString(
+                          'fa-IR',
+                        )} تومان`}
+                      />
+
+                      <ReviewItem
+                        label="روش پرداخت"
+                        value={
+                          PAYMENT_LABELS[
+                            reviewInput.paymentMode
+                          ]
+                        }
+                      />
+
+                      <ReviewItem
+                        label="تاریخ شروع"
+                        value={
+                          reviewInput.startDate
+                        }
+                      />
+
+                      <ReviewItem
+                        label="مدت خدمات"
+                        value={
+                          reviewInput.servicePeriod
+                        }
+                      />
+                    </div>
+
+                    <ReviewText
+                      label="دامنه خدمات"
+                      value={
+                        reviewInput.scope
+                      }
+                    />
+
+                    <ReviewText
+                      label="شرایط پرداخت"
+                      value={
+                        reviewInput.paymentDetails
+                      }
+                    />
+
+                    {
+                      reviewInput.additionalTerms &&
+                      (
+                        <ReviewText
+                          label="شروط تکمیلی"
+                          value={
+                            reviewInput.additionalTerms
+                          }
+                        />
+                      )
+                    }
+                  </div>
+
+                  <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white p-4">
+                    <input
+                      type="checkbox"
+                      checked={
+                        confirmDraft
+                      }
+                      onChange={(
+                        event,
+                      ) => {
+                        setConfirmDraft(
+                          event.target.checked,
+                        )
+
+                        setError(
+                          null,
+                        )
+                      }}
+                      className="mt-1 h-4 w-4"
+                    />
+
+                    <span className="text-sm font-bold leading-7 text-slate-700">
+                      اطلاعات این پیش‌نویس را بررسی کردم و می‌خواهم آن را برای بررسی وکیل ارسال کنم.
+                    </span>
+                  </label>
+
+                  {
+                    error &&
+                    (
+                      <ErrorBox
+                        message={
+                          error
+                        }
+                      />
+                    )
+                  }
+
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      disabled={
+                        submitting
+                      }
+                      onClick={() => {
+                        void handleSubmit()
+                      }}
+                      className="flex h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {
+                        submitting
+                          ? (
+                            <Loader2
+                              size={18}
+                              className="animate-spin"
+                            />
+                          )
+                          : (
+                            <Send
+                              size={18}
+                            />
+                          )
+                      }
+
+                      ارسال برای وکیل
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={
+                        submitting
+                      }
+                      onClick={() => {
+                        setStage(
+                          'edit',
+                        )
+
+                        setError(
+                          null,
+                        )
+                      }}
+                      className="h-12 rounded-xl border border-slate-300 bg-white px-5 text-sm font-black text-slate-700 disabled:opacity-60"
+                    >
+                      بازگشت و ویرایش
+                    </button>
+                  </div>
+                </div>
+              )
+            )
+        }
+      </section>
+
+      <ClientAuthGateModal
+        open={
+          authOpen
+        }
+        title="ورود برای ثبت قرارداد"
+        onClose={() => {
+          if (
+            !submitting
+          ) {
             setAuthOpen(
-              false
+              false,
             )
           }
-          onAuthenticated={
-            createContract
-          }
-        />
-      </>
-    )
-  }
+        }}
+        onAuthenticated={(
+          authenticatedAccount,
+        ) => {
+          setAccount(
+            authenticatedAccount,
+          )
 
-  
-
-
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
-      {/* Header */}
-
-      <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
-          <FileText
-            size={21}
-          />
-        </div>
-
-        <div>
-          <p className="text-xs font-black text-violet-700">
-            قرارداد آنلاین
-          </p>
-
-          <h3 className="mt-1 text-lg font-black text-slate-950">
-            درخواست قرارداد خدمات حقوقی
-          </h3>
-
-          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
-            نوع قرارداد، دامنه خدمات، مدت و
-            شرایط مالی را مشخص کنید.
-          </p>
-        </div>
-      </div>
-
-      {/* Templates */}
-
-      <div className="mt-5">
-        <p className="text-sm font-black text-slate-800">
-          نوع قرارداد
-        </p>
-
-        <div className="mt-2 grid gap-2 lg:grid-cols-3">
-          {ONLINE_CONTRACT_TEMPLATES.map(
-            (
-              template
-            ) => {
-              const active =
-                template.key ===
-                templateKey
-
-              return (
-                <button
-                  key={
-                    template.key
-                  }
-                  type="button"
-                  onClick={() =>
-                    handleTemplateChange(
-                      template.key
-                    )
-                  }
-                  className={`rounded-xl border p-3 text-right transition ${
-                    active
-                      ? 'border-violet-400 bg-violet-50 ring-2 ring-violet-100'
-                      : 'border-slate-200 bg-white hover:border-violet-200'
-                  }`}
-                >
-                  <p className="text-sm font-black text-slate-900">
-                    {template.title}
-                  </p>
-
-                  <p className="mt-1.5 text-xs font-semibold leading-5 text-slate-500">
-                    {template.shortDescription}
-                  </p>
-                </button>
-              )
-            }
-          )}
-        </div>
-      </div>
-
-      {/* Client */}
-
-      <FormSection
-        icon={
-          UserRound
-        }
-        title="مشخصات موکل"
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <FormField
-            label="نام و نام خانوادگی"
-            required
-          >
-            <input
-              value={
-                clientFullName
-              }
-              onChange={(
-                event
-              ) => {
-                setClientFullName(
-                  event.target.value
-                )
-
-                setError(
-                  null
-                )
-              }}
-              maxLength={120}
-              placeholder="مثلاً علی رضایی"
-              className={
-                INPUT_CLASS
-              }
-            />
-          </FormField>
-
-          <FormField
-            label="شماره موبایل"
-            required
-          >
-            <input
-              value={
-                clientPhone
-              }
-              onChange={(
-                event
-              ) => {
-                setClientPhone(
-                  normalizeDigits(
-                    event.target.value
-                  )
-                    .replace(
-                      /\D/g,
-                      ''
-                    )
-                    .slice(
-                      0,
-                      11
-                    )
-                )
-
-                setError(
-                  null
-                )
-              }}
-              inputMode="tel"
-              dir="ltr"
-              placeholder="09123456789"
-              className={
-                INPUT_CLASS
-              }
-            />
-          </FormField>
-
-          <FormField
-            label="کد ملی"
-            required
-          >
-            <input
-              value={
-                clientNationalId
-              }
-              onChange={(
-                event
-              ) => {
-                setClientNationalId(
-                  normalizeDigits(
-                    event.target.value
-                  )
-                    .replace(
-                      /\D/g,
-                      ''
-                    )
-                    .slice(
-                      0,
-                      10
-                    )
-                )
-
-                setError(
-                  null
-                )
-              }}
-              inputMode="numeric"
-              dir="ltr"
-              placeholder="1234567890"
-              className={
-                INPUT_CLASS
-              }
-            />
-          </FormField>
-
-          <FormField label="نشانی">
-            <input
-              value={
-                clientAddress
-              }
-              onChange={(
-                event
-              ) => {
-                setClientAddress(
-                  event.target.value
-                )
-
-                setError(
-                  null
-                )
-              }}
-              maxLength={300}
-              placeholder="نشانی محل سکونت"
-              className={
-                INPUT_CLASS
-              }
-            />
-          </FormField>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3.5">
-          <p className="text-xs font-bold text-slate-500">
-            وکیل طرف قرارداد
-          </p>
-
-          <p className="mt-1 text-sm font-black text-slate-900">
-            {lawyer.fullName}
-            {' — '}
-            {lawyer.title}
-          </p>
-
-          <p className="mt-1 text-xs font-semibold text-slate-500">
-            شماره پروانه:
-            {' '}
-            {lawyer.licenseNumber}
-            {' • '}
-            {lawyer.barAssociation}
-          </p>
-        </div>
-      </FormSection>
-
-      {/* Subject */}
-
-      <FormSection
-        icon={
-          FileText
-        }
-        title="موضوع و دامنه خدمات"
-      >
-        <FormField
-          label="موضوع قرارداد"
-          required
-        >
-          <input
-            value={
-              subject
-            }
-            onChange={(
-              event
-            ) => {
-              setSubject(
-                event.target.value
-              )
-
-              setError(
-                null
-              )
-            }}
-            maxLength={180}
-            className={
-              INPUT_CLASS
-            }
-          />
-        </FormField>
-
-        <div className="mt-3">
-          <FormField
-            label="دامنه خدمات"
-            required
-          >
-            <textarea
-              rows={4}
-              value={
-                scope
-              }
-              onChange={(
-                event
-              ) => {
-                setScope(
-                  event.target.value
-                )
-
-                setError(
-                  null
-                )
-              }}
-              maxLength={1600}
-              className={
-                TEXTAREA_CLASS
-              }
-            />
-          </FormField>
-        </div>
-      </FormSection>
-
-      {/* Finance */}
-
-      <FormSection
-        icon={
-          CircleDollarSign
-        }
-        title="حق‌الزحمه و پرداخت"
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <FormField
-            label="مبلغ حق‌الزحمه"
-            required
-          >
-            <div className="relative">
-              <input
-                value={
-                  feeInput
-                }
-                onChange={(
-                  event
-                ) => {
-                  setFeeInput(
-                    formatMoneyInput(
-                      event.target.value
-                    )
-                  )
-
-                  setError(
-                    null
-                  )
-                }}
-                inputMode="numeric"
-                dir="ltr"
-                placeholder="5,000,000"
-                className={`${INPUT_CLASS} pl-20`}
-              />
-
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-500">
-                تومان
-              </span>
-            </div>
-          </FormField>
-
-          <FormField
-            label="تاریخ شروع"
-            required
-          >
-            <input
-              value={
-                startDate
-              }
-              onChange={(
-                event
-              ) => {
-                setStartDate(
-                  formatDateInput(
-                    event.target.value
-                  )
-                )
-
-                setError(
-                  null
-                )
-              }}
-              inputMode="numeric"
-              dir="ltr"
-              placeholder="1405/06/15"
-              className={
-                INPUT_CLASS
-              }
-            />
-          </FormField>
-        </div>
-
-        {/* Payment Mode */}
-
-        <div className="mt-4">
-          <p className="text-sm font-black text-slate-800">
-            روش پرداخت
-          </p>
-
-          <div className="mt-2 grid gap-2 sm:grid-cols-3">
-            {(
-              [
-                'full',
-                'staged',
-                'installments',
-              ] as const
-            ).map(
-              (
-                mode
-              ) => (
-                <button
-                  key={
-                    mode
-                  }
-                  type="button"
-                  onClick={() => {
-                    setPaymentMode(
-                      mode
-                    )
-
-                    setError(
-                      null
-                    )
-                  }}
-                  className={`rounded-xl border px-3 py-3 text-sm font-black transition ${
-                    paymentMode ===
-                    mode
-                      ? 'border-emerald-400 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-100'
-                      : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-200'
-                  }`}
-                >
-                  {PAYMENT_LABELS[
-                    mode
-                  ]}
-                </button>
-              )
-            )}
-          </div>
-        </div>
-
-        {/* Details */}
-
-        <div className="mt-3">
-          <FormField
-            label="جزئیات پرداخت"
-            hint={
-              paymentMode ===
-              'full'
-                ? 'اختیاری'
-                : 'برای این روش پرداخت الزامی'
-            }
-          >
-            <textarea
-              rows={2}
-              value={
-                paymentDetails
-              }
-              onChange={(
-                event
-              ) => {
-                setPaymentDetails(
-                  event.target.value
-                )
-
-                setError(
-                  null
-                )
-              }}
-              maxLength={600}
-              placeholder={
-                paymentMode ===
-                'full'
-                  ? 'مثلاً پرداخت کامل در زمان توافق'
-                  : 'مثلاً ۵۰٪ در شروع و ۵۰٪ پس از مرحله اول'
-              }
-              className={
-                TEXTAREA_CLASS
-              }
-            />
-          </FormField>
-        </div>
-
-        {/* Period */}
-
-        <div className="mt-3">
-          <FormField
-            label="مدت / محدوده زمانی خدمات"
-            required
-          >
-            <input
-              value={
-                servicePeriod
-              }
-              onChange={(
-                event
-              ) => {
-                setServicePeriod(
-                  event.target.value
-                )
-
-                setError(
-                  null
-                )
-              }}
-              maxLength={180}
-              placeholder="مثلاً تا پایان مرحله بدوی"
-              className={
-                INPUT_CLASS
-              }
-            />
-          </FormField>
-        </div>
-      </FormSection>
-
-      {/* Terms */}
-
-      <FormSection
-        icon={
-          ShieldCheck
-        }
-        title="شروط قرارداد"
-      >
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-black text-slate-500">
-            شروط اصلی قرارداد
-          </p>
-
-          <ClauseList
-            items={
-              selectedTemplate.standardTerms
-            }
-          />
-        </div>
-
-        <div className="mt-3">
-          <FormField label="شروط تکمیلی">
-            <textarea
-              rows={3}
-              value={
-                additionalTerms
-              }
-              onChange={(
-                event
-              ) => {
-                setAdditionalTerms(
-                  event.target.value
-                )
-
-                setError(
-                  null
-                )
-              }}
-              maxLength={1200}
-              placeholder="در صورت نیاز توضیحات یا شروط تکمیلی را وارد کنید..."
-              className={
-                TEXTAREA_CLASS
-              }
-            />
-          </FormField>
-        </div>
-      </FormSection>
-
-      {/* Error */}
-
-      {error && (
-        <p
-          role="alert"
-          className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700"
-        >
-          {error}
-        </p>
-      )}
-
-      {/* Submit */}
-
-      <button
-        type="button"
-        onClick={
-          handleReview
-        }
-        className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-violet-600 to-blue-600 px-4 text-sm font-black text-white shadow-md shadow-violet-100 transition hover:from-violet-700 hover:to-blue-700"
-      >
-        <FileText
-          size={18}
-        />
-
-        بررسی قرارداد
-      </button>
-    </section>
+          void submitContract(
+            authenticatedAccount,
+          )
+        }}
+      />
+    </>
   )
 }
 
-
-
-
-function FormSection({
-  icon:
-    Icon,
+function Section({
+  icon,
   title,
   children,
 }: {
-  icon: LucideIcon
-  title: string
-  children: ReactNode
+  icon:
+    ReactNode
+
+  title:
+    string
+
+  children:
+    ReactNode
 }) {
   return (
-    <section className="mt-6 border-t border-slate-200 pt-5">
-      <div className="mb-4 flex items-center gap-2">
-        <Icon
-          size={18}
-          className="text-blue-600"
-        />
+    <section className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+      <div className="mb-4 flex items-center gap-2 text-slate-900">
+        <span className="text-blue-600">
+          {
+            icon
+          }
+        </span>
 
-        <h4 className="font-black text-slate-900">
-          {title}
-        </h4>
+        <h3 className="font-black">
+          {
+            title
+          }
+        </h3>
       </div>
 
-      {children}
+      {
+        children
+      }
     </section>
   )
 }
 
-
-
-
-function FormField({
+function Field({
   label,
-  required = false,
-  hint,
   children,
 }: {
-  label: string
-  required?: boolean
-  hint?: string
-  children: ReactNode
+  label:
+    string
+
+  children:
+    ReactNode
 }) {
   return (
     <label className="block">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <span className="text-sm font-black text-slate-700">
-          {label}
+      <span className="mb-2 block text-xs font-black text-slate-600">
+        {
+          label
+        }
+      </span>
 
-          {required && (
-            <span className="mr-1 text-red-500">
-              *
-            </span>
-          )}
-        </span>
-
-        {hint && (
-          <span className="text-[11px] font-semibold text-slate-400">
-            {hint}
-          </span>
-        )}
-      </div>
-
-      {children}
+      {
+        children
+      }
     </label>
   )
 }
 
-
-
-
-
-function PreviewSection({
-  title,
-  children,
-}: {
-  title: string
-  children: ReactNode
-}) {
-  return (
-    <section className="mt-5 border-t border-slate-200 pt-5">
-      <h4 className="mb-3 font-black text-slate-900">
-        {title}
-      </h4>
-
-      {children}
-    </section>
-  )
-}
-
-
-
-
-
-function PreviewItem({
+function ReviewItem({
   label,
   value,
-  dir,
 }: {
-  label: string
-  value: string
-  dir?: 'rtl' | 'ltr'
+  label:
+    string
+
+  value:
+    string
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <div className="rounded-xl border border-slate-200 bg-white p-3">
       <p className="text-[11px] font-bold text-slate-500">
-        {label}
+        {
+          label
+        }
       </p>
 
-      <p
-        dir={
-          dir
+      <p className="mt-1.5 text-sm font-black text-slate-900">
+        {
+          value
         }
-        className="mt-1.5 break-words text-sm font-black leading-6 text-slate-900"
-      >
-        {value}
       </p>
     </div>
   )
 }
 
-
-
-
-function PreviewText({
+function ReviewText({
   label,
   value,
 }: {
-  label: string
-  value: string
+  label:
+    string
+
+  value:
+    string
 }) {
   return (
-    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+    <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
       <p className="text-xs font-black text-slate-600">
-        {label}
+        {
+          label
+        }
       </p>
 
       <p className="mt-2 whitespace-pre-wrap text-sm font-semibold leading-7 text-slate-800">
-        {value}
-      </p>
-    </div>
-  )
-}
-
-
-
-
-
-function ClauseList({
-  items,
-}: {
-  items: string[]
-}) {
-  return (
-    <ul className="mt-3 space-y-2">
-      {items.map(
-        (
-          item,
-          index
-        ) => (
-          <li
-            key={`${index}-${item}`}
-            className="flex items-start gap-2 text-xs font-semibold leading-6 text-slate-600"
-          >
-            <CheckCircle2
-              size={14}
-              className="mt-1 shrink-0 text-emerald-600"
-            />
-
-            <span>
-              {item}
-            </span>
-          </li>
-        )
-      )}
-    </ul>
-  )
-}
-
-
-
-
-
-function SummaryItem({
-  label,
-  value,
-  dir,
-}: {
-  label: string
-  value: string
-  dir?: 'rtl' | 'ltr'
-}) {
-  return (
-    <div className="rounded-xl border border-emerald-200 bg-white p-3">
-      <p className="text-[11px] font-bold text-emerald-700">
-        {label}
-      </p>
-
-      <p
-        dir={
-          dir
+        {
+          value
         }
-        className="mt-1.5 break-words text-sm font-black text-slate-900"
-      >
-        {value}
       </p>
     </div>
+  )
+}
+
+function ErrorBox({
+  message,
+}: {
+  message:
+    string
+}) {
+  return (
+    <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">
+      {
+        message
+      }
+    </p>
   )
 }

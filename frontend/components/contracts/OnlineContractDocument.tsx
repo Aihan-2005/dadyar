@@ -9,10 +9,6 @@ import {
   Printer,
 } from 'lucide-react'
 
-import {
-  getOnlineContractTemplate,
-} from '@/features/client-portal/data/mock-contract-templates'
-
 import type {
   OnlineContractRecord,
 } from '@/features/client-portal/types/contract'
@@ -30,9 +26,11 @@ interface OnlineContractDocumentProps {
 
 function getStatusLabel(
   contract:
-    OnlineContractRecord
+    OnlineContractRecord,
 ): string {
-  switch (contract.status) {
+  switch (
+    contract.status
+  ) {
     case 'waiting_lawyer_review':
       return 'در انتظار بررسی وکیل'
 
@@ -54,14 +52,17 @@ function getStatusLabel(
 }
 
 function formatDateTime(
-  value: string
+  value:
+    string,
 ): string {
   const date =
-    new Date(value)
+    new Date(
+      value,
+    )
 
   if (
     Number.isNaN(
-      date.getTime()
+      date.getTime(),
     )
   ) {
     return '—'
@@ -69,11 +70,17 @@ function formatDateTime(
 
   return new Intl.DateTimeFormat(
     'fa-IR',
+
     {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }
-  ).format(date)
+      dateStyle:
+        'medium',
+
+      timeStyle:
+        'short',
+    },
+  ).format(
+    date,
+  )
 }
 
 export default function OnlineContractDocument({
@@ -82,26 +89,32 @@ export default function OnlineContractDocument({
   backLabel,
 }: OnlineContractDocumentProps) {
   const template =
-    getOnlineContractTemplate(
-      contract.draft.templateKey
-    )
+    contract.templateSnapshot
 
   const clientApproval =
-    [...contract.auditTrail]
+    [
+      ...contract.auditTrail,
+    ]
       .reverse()
       .find(
-        (event) =>
+        (
+          event,
+        ) =>
           event.action ===
-          'approved_by_client'
+          'approved_by_client',
       )
 
   const lawyerApproval =
-    [...contract.auditTrail]
+    [
+      ...contract.auditTrail,
+    ]
       .reverse()
       .find(
-        (event) =>
+        (
+          event,
+        ) =>
           event.action ===
-          'signed_by_lawyer'
+          'signed_by_lawyer',
       )
 
   const paymentLabel =
@@ -109,7 +122,7 @@ export default function OnlineContractDocument({
     'full'
       ? 'پرداخت کامل'
       : contract.draft.paymentMode ===
-        'staged'
+          'staged'
         ? 'پرداخت مرحله‌ای'
         : 'پرداخت اقساطی'
 
@@ -129,7 +142,9 @@ export default function OnlineContractDocument({
             size={17}
           />
 
-          {backLabel}
+          {
+            backLabel
+          }
         </Link>
 
         <button
@@ -165,30 +180,38 @@ export default function OnlineContractDocument({
                 شماره:
                 {' '}
                 <span dir="ltr">
-                  {contract.reference}
+                  {
+                    contract.reference
+                  }
                 </span>
               </p>
 
               <p>
                 نسخه:
                 {' '}
-                {contract.version.toLocaleString(
-                  'fa-IR'
-                )}
+                {
+                  contract.version.toLocaleString(
+                    'fa-IR',
+                  )
+                }
               </p>
 
               <p>
                 وضعیت:
                 {' '}
-                {getStatusLabel(
-                  contract
-                )}
+                {
+                  getStatusLabel(
+                    contract,
+                  )
+                }
               </p>
             </div>
           </div>
 
           <h1 className="mt-7 text-center text-xl font-black">
-            {template.title}
+            {
+              template.title
+            }
           </h1>
         </header>
 
@@ -204,14 +227,17 @@ export default function OnlineContractDocument({
                   'نام و نام خانوادگی',
                   contract.draft.client.fullName,
                 ],
+
                 [
                   'شماره موبایل',
                   contract.draft.client.phone,
                 ],
+
                 [
                   'کد ملی',
                   contract.draft.client.nationalId,
                 ],
+
                 [
                   'نشانی',
                   contract.draft.client.address ||
@@ -227,17 +253,23 @@ export default function OnlineContractDocument({
                   'نام و نام خانوادگی',
                   contract.draft.lawyer.fullName,
                 ],
+
                 [
-                  'عنوان',
-                  contract.draft.lawyer.title,
+                  'تخصص',
+                  contract.draft.lawyer.specialization ||
+                    '—',
                 ],
+
                 [
                   'شماره پروانه',
-                  contract.draft.lawyer.licenseNumber,
+                  contract.draft.lawyer.licenseNumber ||
+                    '—',
                 ],
+
                 [
-                  'کانون',
-                  contract.draft.lawyer.barAssociation,
+                  'نشانی',
+                  contract.draft.lawyer.address ||
+                    '—',
                 ],
               ]}
             />
@@ -249,7 +281,9 @@ export default function OnlineContractDocument({
           title="موضوع قرارداد"
         >
           <Paragraph>
-            {contract.draft.subject}
+            {
+              contract.draft.subject
+            }
           </Paragraph>
         </DocumentSection>
 
@@ -258,7 +292,9 @@ export default function OnlineContractDocument({
           title="دامنه خدمات"
         >
           <Paragraph>
-            {contract.draft.scope}
+            {
+              contract.draft.scope
+            }
           </Paragraph>
         </DocumentSection>
 
@@ -291,7 +327,7 @@ export default function OnlineContractDocument({
             <ValueBox
               label="مبلغ حق‌الزحمه"
               value={`${contract.draft.feeToman.toLocaleString(
-                'fa-IR'
+                'fa-IR',
               )} تومان`}
             />
 
@@ -303,9 +339,13 @@ export default function OnlineContractDocument({
             />
           </div>
 
-          <Paragraph>
-            {contract.draft.paymentDetails}
-          </Paragraph>
+          <div className="mt-3">
+            <Paragraph>
+              {
+                contract.draft.paymentDetails
+              }
+            </Paragraph>
+          </div>
         </DocumentSection>
 
         <DocumentSection
@@ -341,16 +381,21 @@ export default function OnlineContractDocument({
           />
         </DocumentSection>
 
-        {contract.draft.additionalTerms && (
-          <DocumentSection
-            number="۹"
-            title="شروط تکمیلی"
-          >
-            <Paragraph>
-              {contract.draft.additionalTerms}
-            </Paragraph>
-          </DocumentSection>
-        )}
+        {
+          contract.draft.additionalTerms &&
+          (
+            <DocumentSection
+              number="۹"
+              title="شروط تکمیلی"
+            >
+              <Paragraph>
+                {
+                  contract.draft.additionalTerms
+                }
+              </Paragraph>
+            </DocumentSection>
+          )
+        }
 
         <DocumentSection
           number={
@@ -365,13 +410,13 @@ export default function OnlineContractDocument({
               title="تأیید موکل"
               approved={
                 Boolean(
-                  clientApproval
+                  clientApproval,
                 )
               }
               date={
                 clientApproval
                   ? formatDateTime(
-                      clientApproval.createdAt
+                      clientApproval.createdAt,
                     )
                   : undefined
               }
@@ -381,13 +426,13 @@ export default function OnlineContractDocument({
               title="تأیید وکیل"
               approved={
                 Boolean(
-                  lawyerApproval
+                  lawyerApproval,
                 )
               }
               date={
                 lawyerApproval
                   ? formatDateTime(
-                      lawyerApproval.createdAt
+                      lawyerApproval.createdAt,
                     )
                   : undefined
               }
@@ -395,19 +440,41 @@ export default function OnlineContractDocument({
           </div>
         </DocumentSection>
 
+        {
+          contract.status ===
+            'rejected' &&
+          contract.rejectionReason &&
+          (
+            <DocumentSection
+              number="—"
+              title="وضعیت رد قرارداد"
+            >
+              <Paragraph>
+                {
+                  contract.rejectionReason
+                }
+              </Paragraph>
+            </DocumentSection>
+          )
+        }
+
         <footer className="mt-10 border-t border-slate-300 pt-4 text-center text-[10px] font-semibold leading-5 text-slate-400">
           <p>
             شناسه قرارداد:
             {' '}
             <span dir="ltr">
-              {contract.reference}
+              {
+                contract.reference
+              }
             </span>
             {' • '}
             نسخه
             {' '}
-            {contract.version.toLocaleString(
-              'fa-IR'
-            )}
+            {
+              contract.version.toLocaleString(
+                'fa-IR',
+              )
+            }
           </p>
         </footer>
       </article>
@@ -452,22 +519,33 @@ function DocumentSection({
   title,
   children,
 }: {
-  number: string
-  title: string
-  children: React.ReactNode
+  number:
+    string
+
+  title:
+    string
+
+  children:
+    React.ReactNode
 }) {
   return (
     <section className="mt-7">
       <h2 className="flex items-center gap-2 text-sm font-black">
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-xs text-white">
-          {number}
+          {
+            number
+          }
         </span>
 
-        {title}
+        {
+          title
+        }
       </h2>
 
       <div className="mt-3">
-        {children}
+        {
+          children
+        }
       </div>
     </section>
   )
@@ -477,36 +555,55 @@ function PartyBox({
   title,
   rows,
 }: {
-  title: string
-  rows: Array<
-    [string, string]
-  >
+  title:
+    string
+
+  rows:
+    Array<
+      [
+        string,
+        string,
+      ]
+    >
 }) {
   return (
     <div className="border border-slate-300 p-4">
       <p className="font-black">
-        {title}
+        {
+          title
+        }
       </p>
 
       <dl className="mt-3 space-y-2 text-xs">
-        {rows.map(
-          ([label, value]) => (
-            <div
-              key={
-                label
-              }
-              className="flex justify-between gap-4"
-            >
-              <dt className="font-bold text-slate-500">
-                {label}
-              </dt>
+        {
+          rows.map(
+            (
+              [
+                label,
+                value,
+              ],
+            ) => (
+              <div
+                key={
+                  label
+                }
+                className="flex justify-between gap-4"
+              >
+                <dt className="font-bold text-slate-500">
+                  {
+                    label
+                  }
+                </dt>
 
-              <dd className="text-left font-black">
-                {value}
-              </dd>
-            </div>
+                <dd className="text-left font-black">
+                  {
+                    value
+                  }
+                </dd>
+              </div>
+            ),
           )
-        )}
+        }
       </dl>
     </div>
   )
@@ -516,17 +613,24 @@ function ValueBox({
   label,
   value,
 }: {
-  label: string
-  value: string
+  label:
+    string
+
+  value:
+    string
 }) {
   return (
     <div className="border border-slate-300 p-3">
       <p className="text-[11px] font-bold text-slate-500">
-        {label}
+        {
+          label
+        }
       </p>
 
       <p className="mt-1 text-sm font-black">
-        {value}
+        {
+          value
+        }
       </p>
     </div>
   )
@@ -540,7 +644,9 @@ function Paragraph({
 }) {
   return (
     <p className="whitespace-pre-wrap text-justify text-sm font-medium leading-8 text-slate-800">
-      {children}
+      {
+        children
+      }
     </p>
   )
 }
@@ -548,37 +654,42 @@ function Paragraph({
 function ClauseList({
   items,
 }: {
-  items: string[]
+  items:
+    string[]
 }) {
   return (
     <ol className="space-y-2">
-      {items.map(
-        (
-          item,
-          index
-        ) => (
-          <li
-            key={
-              item
-            }
-            className="flex items-start gap-2 text-sm font-medium leading-7"
-          >
-            <span className="font-black">
-              {(
-                index +
-                1
-              ).toLocaleString(
-                'fa-IR'
-              )}
-              .
-            </span>
+      {
+        items.map(
+          (
+            item,
+            index,
+          ) => (
+            <li
+              key={`${index}-${item}`}
+              className="flex items-start gap-2 text-sm font-medium leading-7"
+            >
+              <span className="font-black">
+                {
+                  (
+                    index +
+                    1
+                  ).toLocaleString(
+                    'fa-IR',
+                  )
+                }
+                .
+              </span>
 
-            <span>
-              {item}
-            </span>
-          </li>
+              <span>
+                {
+                  item
+                }
+              </span>
+            </li>
+          ),
         )
-      )}
+      }
     </ol>
   )
 }
@@ -588,41 +699,59 @@ function ApprovalBox({
   approved,
   date,
 }: {
-  title: string
-  approved: boolean
-  date?: string
+  title:
+    string
+
+  approved:
+    boolean
+
+  date?:
+    string
 }) {
   return (
     <div className="min-h-28 border border-slate-300 p-4">
       <div className="flex items-center gap-2">
-        {approved ? (
-          <CheckCircle2
-            size={18}
-            className="text-emerald-600"
-          />
-        ) : (
-          <Clock3
-            size={18}
-            className="text-slate-400"
-          />
-        )}
+        {
+          approved
+            ? (
+              <CheckCircle2
+                size={18}
+                className="text-emerald-600"
+              />
+            )
+            : (
+              <Clock3
+                size={18}
+                className="text-slate-400"
+              />
+            )
+        }
 
         <p className="font-black">
-          {title}
+          {
+            title
+          }
         </p>
       </div>
 
       <p className="mt-3 text-xs font-bold text-slate-600">
-        {approved
-          ? 'ثبت شده'
-          : 'در انتظار تأیید'}
+        {
+          approved
+            ? 'ثبت شده'
+            : 'در انتظار تأیید'
+        }
       </p>
 
-      {date && (
-        <p className="mt-1 text-[11px] text-slate-500">
-          {date}
-        </p>
-      )}
+      {
+        date &&
+        (
+          <p className="mt-1 text-[11px] text-slate-500">
+            {
+              date
+            }
+          </p>
+        )
+      }
     </div>
   )
 }

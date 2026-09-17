@@ -9,15 +9,19 @@ import {
   useParams,
 } from 'next/navigation'
 
-import OnlineContractDocument from '@/components/contracts/OnlineContractDocument'
-
 import {
-  getMockOnlineContractById,
-} from '@/features/client-portal/data/mock-online-contracts'
+  Loader2,
+} from 'lucide-react'
+
+import OnlineContractDocument from '@/components/contracts/OnlineContractDocument'
 
 import type {
   OnlineContractRecord,
 } from '@/features/client-portal/types/contract'
+
+import {
+  getLawyerOnlineContractById,
+} from '@/services/online-contract.service'
 
 export default function LawyerContractDocumentPage() {
   const params =
@@ -27,7 +31,9 @@ export default function LawyerContractDocumentPage() {
     params.id
 
   const contractId =
-    Array.isArray(rawId)
+    Array.isArray(
+      rawId,
+    )
       ? rawId[0]
       : rawId
 
@@ -36,54 +42,112 @@ export default function LawyerContractDocumentPage() {
     setContract,
   ] =
     useState<OnlineContractRecord | null>(
-      null
+      null,
     )
 
   const [
-    notFound,
-    setNotFound,
+    error,
+    setError,
   ] =
-    useState(false)
+    useState<string | null>(
+      null,
+    )
 
-  useEffect(() => {
-    if (!contractId) {
-      return
-    }
+  useEffect(
+    () => {
+      if (
+        !contractId
+      ) {
+        setError(
+          'شناسه قرارداد معتبر نیست.',
+        )
 
-    const found =
-      getMockOnlineContractById(
-        contractId
-      )
+        return
+      }
 
-    if (!found) {
-      setNotFound(true)
-      return
-    }
+      let cancelled =
+        false
 
-    setContract(found)
-  }, [
-    contractId,
-  ])
+      const load =
+        async () => {
+          setError(
+            null,
+          )
 
-  if (notFound) {
+          try {
+            const result =
+              await getLawyerOnlineContractById(
+                contractId,
+              )
+
+            if (
+              !cancelled
+            ) {
+              setContract(
+                result,
+              )
+            }
+          } catch (
+            caughtError:
+              unknown
+          ) {
+            if (
+              !cancelled
+            ) {
+              setError(
+                caughtError instanceof
+                  Error
+                  ? caughtError.message
+                  : 'دریافت قرارداد ناموفق بود.',
+              )
+            }
+          }
+        }
+
+      void load()
+
+      return () => {
+        cancelled =
+          true
+      }
+    },
+    [
+      contractId,
+    ],
+  )
+
+  if (
+    error
+  ) {
     return (
       <div
         dir="rtl"
-        className="flex min-h-[60vh] items-center justify-center"
+        className="flex min-h-[60vh] items-center justify-center px-4"
       >
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
+        <div className="max-w-md rounded-2xl border border-red-200 bg-white p-8 text-center shadow-sm">
           <h1 className="text-xl font-black">
-            قرارداد پیدا نشد
+            قرارداد در دسترس نیست
           </h1>
+
+          <p className="mt-3 text-sm font-semibold leading-7 text-red-700">
+            {
+              error
+            }
+          </p>
         </div>
       </div>
     )
   }
 
-  if (!contract) {
+  if (
+    !contract
+  ) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+        <Loader2
+          size={34}
+          className="animate-spin text-blue-600"
+        />
       </div>
     )
   }
@@ -98,3 +162,4 @@ export default function LawyerContractDocumentPage() {
     />
   )
 }
+

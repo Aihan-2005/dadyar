@@ -10,19 +10,23 @@ import {
   useRouter,
 } from 'next/navigation'
 
+import {
+  Loader2,
+} from 'lucide-react'
+
 import OnlineContractDocument from '@/components/contracts/OnlineContractDocument'
 
 import {
   getCurrentClientPortalAccount,
 } from '@/features/client-portal/auth/client-session'
 
-import {
-  getMockOnlineContractById,
-} from '@/features/client-portal/data/mock-online-contracts'
-
 import type {
   OnlineContractRecord,
 } from '@/features/client-portal/types/contract'
+
+import {
+  getClientOnlineContractById,
+} from '@/services/online-contract.service'
 
 export default function ClientContractDocumentPage() {
   const router =
@@ -35,7 +39,9 @@ export default function ClientContractDocumentPage() {
     params.id
 
   const contractId =
-    Array.isArray(rawId)
+    Array.isArray(
+      rawId,
+    )
       ? rawId[0]
       : rawId
 
@@ -44,77 +50,131 @@ export default function ClientContractDocumentPage() {
     setContract,
   ] =
     useState<OnlineContractRecord | null>(
-      null
+      null,
     )
 
   const [
-    notFound,
-    setNotFound,
+    error,
+    setError,
   ] =
-    useState(false)
+    useState<string | null>(
+      null,
+    )
 
-  useEffect(() => {
-    if (
-      !contractId
-    ) {
-      return
-    }
+  useEffect(
+    () => {
+      if (
+        !contractId
+      ) {
+        setError(
+          'شناسه قرارداد معتبر نیست.',
+        )
 
-    const account =
-      getCurrentClientPortalAccount()
+        return
+      }
 
-    if (!account) {
-      const returnTo =
-        `/client-portal/contracts/${contractId}/document`
+      const account =
+        getCurrentClientPortalAccount()
 
-      router.replace(
-        `/client-login?returnTo=${encodeURIComponent(
-          returnTo
-        )}`
-      )
+      if (
+        !account
+      ) {
+        const returnTo =
+          `/client-portal/contracts/${contractId}/document`
 
-      return
-    }
+        router.replace(
+          `/client-login?returnTo=${encodeURIComponent(
+            returnTo,
+          )}`,
+        )
 
-    const found =
-      getMockOnlineContractById(
-        contractId
-      )
+        return
+      }
 
-    if (
-      !found ||
-      found.draft.client.phone !==
-        account.phone
-    ) {
-      setNotFound(true)
-      return
-    }
+      let cancelled =
+        false
 
-    setContract(found)
-  }, [
-    contractId,
-    router,
-  ])
+      const load =
+        async () => {
+          setError(
+            null,
+          )
 
-  if (notFound) {
+          try {
+            const result =
+              await getClientOnlineContractById(
+                contractId,
+              )
+
+            if (
+              !cancelled
+            ) {
+              setContract(
+                result,
+              )
+            }
+          } catch (
+            caughtError:
+              unknown
+          ) {
+            if (
+              !cancelled
+            ) {
+              setError(
+                caughtError instanceof
+                  Error
+                  ? caughtError.message
+                  : 'دریافت قرارداد ناموفق بود.',
+              )
+            }
+          }
+        }
+
+      void load()
+
+      return () => {
+        cancelled =
+          true
+      }
+    },
+    [
+      contractId,
+      router,
+    ],
+  )
+
+  if (
+    error
+  ) {
     return (
       <main
         dir="rtl"
         className="flex min-h-dvh items-center justify-center bg-slate-100 px-4"
       >
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
-          <h1 className="text-xl font-black">
-            قرارداد پیدا نشد
+        <div className="max-w-md rounded-2xl border border-red-200 bg-white p-8 text-center shadow-sm">
+          <h1 className="text-xl font-black text-slate-950">
+            قرارداد در دسترس نیست
           </h1>
+
+          <p className="mt-3 text-sm font-semibold leading-7 text-red-700">
+            {
+              error
+            }
+          </p>
         </div>
       </main>
     )
   }
 
-  if (!contract) {
+  if (
+    !contract
+  ) {
     return (
       <main className="flex min-h-dvh items-center justify-center bg-slate-100">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+        <Loader2
+          size={34}
+          className="animate-spin text-blue-600"
+        />
       </main>
     )
   }

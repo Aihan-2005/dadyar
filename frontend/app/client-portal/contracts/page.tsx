@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -17,16 +18,12 @@ import {
   CheckCircle2,
   Clock3,
   FileText,
+  Loader2,
   RefreshCw,
   Search,
 } from 'lucide-react'
 
 import ClientContractDecisionModal from '@/components/client-portal/ClientContractDecisionModal'
-
-import {
-  getMockClientOnlineContracts,
-  subscribeMockOnlineContracts,
-} from '@/features/client-portal/data/mock-online-contracts'
 
 import {
   hasValidTemporaryClientSession,
@@ -37,9 +34,13 @@ import type {
   OnlineContractStatus,
 } from '@/features/client-portal/types/contract'
 
+import {
+  getClientOnlineContracts,
+} from '@/services/online-contract.service'
+
 function getStatusMeta(
   status:
-    OnlineContractStatus
+    OnlineContractStatus,
 ) {
   switch (
     status
@@ -109,17 +110,31 @@ export default function ClientContractsPage() {
     setReady,
   ] =
     useState(
-      false
+      false,
+    )
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(
+      true,
+    )
+
+  const [
+    refreshing,
+    setRefreshing,
+  ] =
+    useState(
+      false,
     )
 
   const [
     contracts,
     setContracts,
   ] =
-    useState<
-      OnlineContractRecord[]
-    >(
-      []
+    useState<OnlineContractRecord[]>(
+      [],
     )
 
   const [
@@ -127,49 +142,111 @@ export default function ClientContractsPage() {
     setSearch,
   ] =
     useState(
-      ''
+      '',
     )
 
   const [
     selectedContract,
     setSelectedContract,
   ] =
-    useState<
-      OnlineContractRecord | null
-    >(
-      null
+    useState<OnlineContractRecord | null>(
+      null,
+    )
+
+  const [
+    error,
+    setError,
+  ] =
+    useState<string | null>(
+      null,
     )
 
   const reload =
+    useCallback(
+      async (
+        mode:
+          | 'initial'
+          | 'refresh' =
+          'refresh',
+      ) => {
+        if (
+          mode ===
+          'initial'
+        ) {
+          setLoading(
+            true,
+          )
+        } else {
+          setRefreshing(
+            true,
+          )
+        }
+
+        setError(
+          null,
+        )
+
+        try {
+          const result =
+            await getClientOnlineContracts({
+              page:
+                1,
+
+              limit:
+                100,
+            })
+
+          setContracts(
+            result.items,
+          )
+        } catch (
+          caughtError:
+            unknown
+        ) {
+          setError(
+            caughtError instanceof
+              Error
+              ? caughtError.message
+              : 'دریافت قراردادها ناموفق بود.',
+          )
+        } finally {
+          setLoading(
+            false,
+          )
+
+          setRefreshing(
+            false,
+          )
+        }
+      },
+      [],
+    )
+
+  useEffect(
     () => {
-      setContracts(
-        getMockClientOnlineContracts()
+      if (
+        !hasValidTemporaryClientSession()
+      ) {
+        router.replace(
+          '/client-login?returnTo=%2Fclient-portal%2Fcontracts',
+        )
+
+        return
+      }
+
+      setReady(
+        true,
       )
-    }
 
-  useEffect(() => {
-    if (
-      !hasValidTemporaryClientSession()
-    ) {
-      router.replace(
-        '/client-login'
+      void reload(
+        'initial',
       )
-
-      return
-    }
-
-    setReady(
-      true
-    )
-
-    reload()
-
-    return subscribeMockOnlineContracts(
-      reload
-    )
-  }, [
-    router,
-  ])
+    },
+    [
+      router,
+      reload,
+    ],
+  )
 
   const filtered =
     useMemo(
@@ -178,16 +255,18 @@ export default function ClientContractsPage() {
           search
             .trim()
             .toLocaleLowerCase(
-              'fa-IR'
+              'fa-IR',
             )
 
-        if (!query) {
+        if (
+          !query
+        ) {
           return contracts
         }
 
         return contracts.filter(
           (
-            contract
+            contract,
           ) =>
             [
               contract.reference,
@@ -195,32 +274,29 @@ export default function ClientContractsPage() {
               contract.draft.lawyer.fullName,
             ]
               .join(
-                ' '
+                ' ',
               )
               .toLocaleLowerCase(
-                'fa-IR'
+                'fa-IR',
               )
               .includes(
-                query
-              )
+                query,
+              ),
         )
       },
       [
         contracts,
         search,
-      ]
+      ],
     )
 
-  if (!ready) {
+  if (
+    !ready
+  ) {
     return (
-      <main
-        dir="rtl"
-        className="flex min-h-dvh items-center justify-center bg-slate-100"
-      >
-        <p className="font-bold text-slate-600">
-          در حال بارگذاری...
-        </p>
-      </main>
+      <LoadingPage
+        label="در حال بررسی حساب موکل..."
+      />
     )
   }
 
@@ -266,9 +342,7 @@ export default function ClientContractsPage() {
             </h1>
 
             <p className="mt-2 text-sm font-semibold text-slate-600">
-              وضعیت قراردادها و نسخه‌های
-              ارسال‌شده توسط وکیل را از این
-              بخش بررسی کنید.
+              وضعیت قراردادها، نسخه‌های وکیل و مراحل تأیید را از این بخش مدیریت کنید.
             </p>
           </section>
 
@@ -288,10 +362,10 @@ export default function ClientContractsPage() {
               value={
                 contracts.filter(
                   (
-                    item
+                    item,
                   ) =>
                     item.status ===
-                    'waiting_client_approval'
+                    'waiting_client_approval',
                 ).length
               }
               icon={
@@ -304,10 +378,10 @@ export default function ClientContractsPage() {
               value={
                 contracts.filter(
                   (
-                    item
+                    item,
                   ) =>
                     item.status ===
-                    'completed'
+                    'completed',
                 ).length
               }
               icon={
@@ -328,10 +402,10 @@ export default function ClientContractsPage() {
                   search
                 }
                 onChange={(
-                  event
+                  event,
                 ) =>
                   setSearch(
-                    event.target.value
+                    event.target.value,
                   )
                 }
                 placeholder="جستجو در قراردادها..."
@@ -341,121 +415,181 @@ export default function ClientContractsPage() {
 
             <button
               type="button"
-              onClick={
-                reload
+              disabled={
+                refreshing
               }
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-600"
+              onClick={() => {
+                void reload(
+                  'refresh',
+                )
+              }}
+              aria-label="بروزرسانی"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-300 bg-white text-slate-600 disabled:opacity-60"
             >
-              <RefreshCw
-                size={17}
-              />
+              {
+                refreshing
+                  ? (
+                    <Loader2
+                      size={17}
+                      className="animate-spin"
+                    />
+                  )
+                  : (
+                    <RefreshCw
+                      size={17}
+                    />
+                  )
+              }
             </button>
           </section>
 
-          {filtered.length >
-          0 ? (
-            <section className="mt-5 grid gap-4 lg:grid-cols-2">
-              {filtered.map(
-                (
-                  contract
-                ) => {
-                  const status =
-                    getStatusMeta(
-                      contract.status
-                    )
-
-                  return (
-                    <article
-                      key={
-                        contract.id
-                      }
-                      className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p
-                            dir="ltr"
-                            className="text-right text-xs font-black text-blue-700"
-                          >
-                            {
-                              contract.reference
-                            }
-                          </p>
-
-                          <h2 className="mt-2 text-lg font-black text-slate-950">
-                            {
-                              contract.draft.subject
-                            }
-                          </h2>
-
-                          <p className="mt-1 text-sm font-semibold text-slate-500">
-                            {
-                              contract.draft.lawyer.fullName
-                            }
-                          </p>
-                        </div>
-
-                        <span
-                          className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${status.className}`}
-                        >
-                          {
-                            status.label
-                          }
-                        </span>
-                      </div>
-
-                      <div className="mt-4 flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2.5">
-                        <span className="text-xs font-bold text-emerald-700">
-                          حق‌الزحمه
-                        </span>
-
-                        <span className="text-sm font-black text-emerald-800">
-                          {contract.draft.feeToman.toLocaleString(
-                            'fa-IR'
-                          )}
-                          {' '}
-                          تومان
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSelectedContract(
-                            contract
-                          )
-                        }
-                        className="mt-4 h-11 w-full rounded-xl bg-slate-900 text-sm font-black text-white"
-                      >
-                        {contract.status ===
-                        'waiting_client_approval'
-                          ? 'بررسی و تأیید'
-                          : 'مشاهده قرارداد'}
-                      </button>
-                    </article>
-                  )
+          {
+            error &&
+            (
+              <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
+                {
+                  error
                 }
-              )}
-            </section>
-          ) : (
-            <section className="mt-5 rounded-[22px] border border-dashed border-slate-300 bg-white px-5 py-14 text-center">
-              <FileText
-                size={28}
-                className="mx-auto text-slate-400"
-              />
+              </div>
+            )
+          }
 
-              <h2 className="mt-4 text-lg font-black text-slate-950">
-                قراردادی وجود ندارد
-              </h2>
+          {
+            loading
+              ? (
+                <section className="mt-5 rounded-2xl border border-slate-200 bg-white py-16 text-center">
+                  <Loader2
+                    size={28}
+                    className="mx-auto animate-spin text-blue-600"
+                  />
 
-              <Link
-                href="/client-portal"
-                className="mt-5 inline-flex h-11 items-center rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
-              >
-                مشاهده وکلا
-              </Link>
-            </section>
-          )}
+                  <p className="mt-3 text-sm font-bold text-slate-500">
+                    در حال دریافت قراردادها...
+                  </p>
+                </section>
+              )
+              : filtered.length >
+                0
+                ? (
+                  <section className="mt-5 grid gap-4 lg:grid-cols-2">
+                    {
+                      filtered.map(
+                        (
+                          contract,
+                        ) => {
+                          const status =
+                            getStatusMeta(
+                              contract.status,
+                            )
+
+                          return (
+                            <article
+                              key={
+                                contract.id
+                              }
+                              className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p
+                                    dir="ltr"
+                                    className="text-right text-xs font-black text-blue-700"
+                                  >
+                                    {
+                                      contract.reference
+                                    }
+                                  </p>
+
+                                  <h2 className="mt-2 text-lg font-black text-slate-950">
+                                    {
+                                      contract.draft.subject
+                                    }
+                                  </h2>
+
+                                  <p className="mt-1 text-sm font-semibold text-slate-500">
+                                    {
+                                      contract.draft.lawyer.fullName
+                                    }
+                                  </p>
+                                </div>
+
+                                <span
+                                  className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-black ${status.className}`}
+                                >
+                                  {
+                                    status.label
+                                  }
+                                </span>
+                              </div>
+
+                              <div className="mt-4 flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2.5">
+                                <span className="text-xs font-bold text-emerald-700">
+                                  حق‌الزحمه
+                                </span>
+
+                                <span className="text-sm font-black text-emerald-800">
+                                  {
+                                    contract.draft.feeToman.toLocaleString(
+                                      'fa-IR',
+                                    )
+                                  }
+                                  {' '}
+                                  تومان
+                                </span>
+                              </div>
+
+                              <div className="mt-4 grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedContract(
+                                      contract,
+                                    )
+                                  }
+                                  className="h-11 rounded-xl bg-slate-900 text-sm font-black text-white"
+                                >
+                                  {
+                                    contract.status ===
+                                    'waiting_client_approval'
+                                      ? 'بررسی و تأیید'
+                                      : 'مشاهده قرارداد'
+                                  }
+                                </button>
+
+                                <Link
+                                  href={`/client-portal/contracts/${contract.id}/document`}
+                                  className="flex h-11 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-sm font-black text-blue-700"
+                                >
+                                  سند قرارداد
+                                </Link>
+                              </div>
+                            </article>
+                          )
+                        },
+                      )
+                    }
+                  </section>
+                )
+                : (
+                  <section className="mt-5 rounded-[22px] border border-dashed border-slate-300 bg-white px-5 py-14 text-center">
+                    <FileText
+                      size={28}
+                      className="mx-auto text-slate-400"
+                    />
+
+                    <h2 className="mt-4 text-lg font-black text-slate-950">
+                      قراردادی وجود ندارد
+                    </h2>
+
+                    <Link
+                      href="/client-portal"
+                      className="mt-5 inline-flex h-11 items-center rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
+                    >
+                      مشاهده وکلا
+                    </Link>
+                  </section>
+                )
+          }
         </div>
       </main>
 
@@ -465,14 +599,43 @@ export default function ClientContractsPage() {
         }
         onClose={() =>
           setSelectedContract(
-            null
+            null,
           )
         }
-        onUpdated={
-          reload
-        }
+        onUpdated={async () => {
+          await reload(
+            'refresh',
+          )
+        }}
       />
     </>
+  )
+}
+
+function LoadingPage({
+  label,
+}: {
+  label:
+    string
+}) {
+  return (
+    <main
+      dir="rtl"
+      className="flex min-h-dvh items-center justify-center bg-slate-100"
+    >
+      <div className="text-center">
+        <Loader2
+          size={30}
+          className="mx-auto animate-spin text-blue-600"
+        />
+
+        <p className="mt-3 font-bold text-slate-600">
+          {
+            label
+          }
+        </p>
+      </div>
+    </main>
   )
 }
 
@@ -499,13 +662,15 @@ function Stat({
           className="text-blue-600"
         />
 
-        {label}
+        {
+          label
+        }
       </div>
 
       <p className="mt-3 text-2xl font-black text-slate-950">
         {
           value.toLocaleString(
-            'fa-IR'
+            'fa-IR',
           )
         }
       </p>

@@ -21,10 +21,11 @@ import {
 } from 'lucide-react'
 
 import {
-  rejectMockOnlineContract,
-  reviewMockOnlineContract,
-  signMockOnlineContractByLawyer,
-} from '@/features/client-portal/data/mock-online-contracts'
+  rejectLawyerOnlineContract,
+  reviewLawyerOnlineContract,
+  signLawyerOnlineContract,
+} from '@/services/online-contract.service'
+
 
 import type {
   OnlineContractPaymentMode,
@@ -46,6 +47,7 @@ interface OnlineContractReviewModalProps {
   onUpdated:
     () => void
 }
+
 
 const INPUT_CLASS =
   'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition disabled:bg-slate-100 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
@@ -280,7 +282,7 @@ export default function OnlineContractReviewModal({
       }
 
       try {
-        reviewMockOnlineContract(
+        reviewLawyerOnlineContract(
           contract.id,
 
           {
@@ -325,7 +327,7 @@ export default function OnlineContractReviewModal({
   const handleReject =
     () => {
       try {
-        rejectMockOnlineContract(
+        rejectLawyerOnlineContract(
           contract.id,
           rejectionReason
         )
@@ -356,7 +358,7 @@ export default function OnlineContractReviewModal({
       }
 
       try {
-        signMockOnlineContractByLawyer(
+        signLawyerOnlineContract(
           contract.id
         )
 

@@ -3,16 +3,10 @@ export type OnlineLegalContractTemplateKey =
   | 'case_legal_services'
   | 'document_services'
 
-
-  
-
 export type OnlineContractPaymentMode =
   | 'full'
   | 'staged'
   | 'installments'
-
-
-  
 
 export type OnlineContractStatus =
   | 'waiting_lawyer_review'
@@ -22,133 +16,76 @@ export type OnlineContractStatus =
   | 'rejected'
   | 'cancelled'
 
-
-
-export interface OnlineLegalContractTemplate {
-  key:
-    OnlineLegalContractTemplateKey
-
-  title:
-    string
-
-  shortDescription:
-    string
-
-  defaultSubject:
-    string
-
-  defaultScope:
-    string
-
-  lawyerObligations:
-    string[]
-
-  clientObligations:
-    string[]
-
-  standardTerms:
-    string[]
+export interface OnlineContractTemplateSnapshot {
+  key: OnlineLegalContractTemplateKey
+  title: string
+  shortDescription: string
+  lawyerObligations: string[]
+  clientObligations: string[]
+  standardTerms: string[]
 }
 
-
-
+export interface OnlineLegalContractTemplate
+  extends OnlineContractTemplateSnapshot {
+  defaultSubject: string
+  defaultScope: string
+}
 
 export interface OnlineContractClientParty {
-  fullName:
-    string
-
-  phone:
-    string
-
-  nationalId:
-    string
-
-  address?:
-    string
+  fullName: string
+  phone: string
+  nationalId: string
+  address?: string
 }
 
 export interface OnlineContractLawyerParty {
-  id:
-    string
-
-  fullName:
-    string
-
-  title:
-    string
-
-  licenseNumber:
-    string
-
-  barAssociation:
-    string
-
-  city:
-    string
+  id: string
+  fullName: string
+  specialization: string
+  licenseNumber: string
+  address: string
 }
-
-
 
 export interface OnlineContractDraft {
-  templateKey:
-    OnlineLegalContractTemplateKey
-
-  client:
-    OnlineContractClientParty
-
-  lawyer:
-    OnlineContractLawyerParty
-
-  subject:
-    string
-
-  scope:
-    string
-
-  feeToman:
-    number
-
-  paymentMode:
-    OnlineContractPaymentMode
-
-  paymentDetails:
-    string
-
-  startDate:
-    string
-
-  servicePeriod:
-    string
-
-  additionalTerms?:
-    string
+  templateKey: OnlineLegalContractTemplateKey
+  client: OnlineContractClientParty
+  lawyer: OnlineContractLawyerParty
+  subject: string
+  scope: string
+  feeToman: number
+  paymentMode: OnlineContractPaymentMode
+  paymentDetails: string
+  startDate: string
+  servicePeriod: string
+  additionalTerms?: string
 }
 
-
-
+export interface CreateOnlineContractInput {
+  lawyerId: string
+  templateKey: OnlineLegalContractTemplateKey
+  nationalId: string
+  address?: string
+  subject: string
+  scope: string
+  feeToman: number
+  paymentMode: OnlineContractPaymentMode
+  paymentDetails: string
+  startDate: string
+  servicePeriod: string
+  additionalTerms?: string
+}
 
 export type OnlineContractVersionAuthor =
   | 'client'
   | 'lawyer'
 
 export interface OnlineContractVersion {
-  version:
-    number
-
-  draft:
-    OnlineContractDraft
-
-  createdBy:
-    OnlineContractVersionAuthor
-
-  createdAt:
-    string
-
-  summary:
-    string
+  version: number
+  draft: OnlineContractDraft
+  createdBy: OnlineContractVersionAuthor
+  createdAt: string
+  summary: string
 }
-
-
 
 export type OnlineContractActor =
   | 'client'
@@ -167,86 +104,54 @@ export type OnlineContractAuditAction =
   | 'cancelled'
 
 export interface OnlineContractAuditEvent {
-  id:
-    string
-
-  action:
-    OnlineContractAuditAction
-
-  actor:
-    OnlineContractActor
-
-  label:
-    string
-
-  createdAt:
-    string
+  id: string
+  action: OnlineContractAuditAction
+  actor: OnlineContractActor
+  label: string
+  createdAt: string
 }
-
-
-
-
 
 export interface OnlineContractRecord {
-  id:
-    string
-
-  reference:
-    string
-
-  version:
-    number
-
-  status:
-    OnlineContractStatus
-
-  draft:
-    OnlineContractDraft
-
-  versions:
-    OnlineContractVersion[]
-
-  createdAt:
-    string
-
-  updatedAt:
-    string
-
-  completedAt?:
-    string
-
-  rejectionReason?:
-    string
-
-  clientFeedback?:
-    string
-
-  auditTrail:
-    OnlineContractAuditEvent[]
+  id: string
+  reference: string
+  version: number
+  status: OnlineContractStatus
+  templateSnapshot: OnlineContractTemplateSnapshot
+  draft: OnlineContractDraft
+  versions: OnlineContractVersion[]
+  createdAt: string
+  updatedAt: string
+  completedAt?: string
+  rejectionReason?: string
+  clientFeedback?: string
+  auditTrail: OnlineContractAuditEvent[]
 }
 
-
-
-
 export interface LawyerContractReviewInput {
-  subject:
-    string
+  subject: string
+  scope: string
+  feeToman: number
+  paymentMode: OnlineContractPaymentMode
+  paymentDetails: string
+  servicePeriod: string
+  additionalTerms?: string
+}
 
-  scope:
-    string
+export interface OnlineContractListParams {
+  search?: string
+  status?: OnlineContractStatus
+  page?: number
+  limit?: number
+}
 
-  feeToman:
-    number
+export interface OnlineContractPagination {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
 
-  paymentMode:
-    OnlineContractPaymentMode
-
-  paymentDetails:
-    string
-
-  servicePeriod:
-    string
-
-  additionalTerms?:
-    string
+export interface OnlineContractPage {
+  items: OnlineContractRecord[]
+  pagination: OnlineContractPagination
 }
