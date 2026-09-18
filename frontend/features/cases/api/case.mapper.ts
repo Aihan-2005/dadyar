@@ -1637,6 +1637,43 @@ export function fromApiCase(
       0
     )
 
+      const promisedAmount =
+    allPayments.reduce(
+      (
+        total,
+        {
+          payment,
+        }
+      ) => {
+        if (
+          payment.isPaid ||
+          !payment.dueDate
+        ) {
+          return total
+        }
+
+        const dueDate =
+          new Date(
+            payment.dueDate
+          )
+
+        if (
+          Number.isNaN(
+            dueDate.getTime()
+          ) ||
+          dueDate.getTime() <
+            now
+        ) {
+          return total
+        }
+
+        return (
+          total +
+          payment.amount
+        )
+      },
+      0
+    )
   const activeBranch =
     (
       source.branchHistory ??
@@ -1939,6 +1976,8 @@ export function fromApiCase(
     remainingAmount,
 
     overdueAmount,
+
+    promisedAmount,
 
     dueDate:
       getFirstDate(

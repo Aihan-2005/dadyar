@@ -250,6 +250,7 @@ export interface Case {
   paidAmount?: number
   remainingAmount?: MoneyValue
   overdueAmount?: MoneyValue
+  promisedAmount?: MoneyValue
 
   dueDate?: DateValue
   lastPaymentDate?: DateValue

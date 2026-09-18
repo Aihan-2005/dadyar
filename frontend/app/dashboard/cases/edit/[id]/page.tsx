@@ -207,6 +207,7 @@ const caseSchema = z.object({
   contractAmount: optionalNumberSchema,
   remainingAmount: optionalNumberSchema,
   overdueAmount: optionalNumberSchema,
+  promisedAmount: optionalNumberSchema,
   expenses: z.array(expenseSchema).optional(),
   otherPersons: z.array(otherPersonSchema).optional(),
 }).superRefine((data, context) => {
@@ -1182,6 +1183,11 @@ export default function EditCasePage({ params }: EditCasePageProps) {
         caseRecord.overdueAmount,
       ) || undefined,
 
+    promisedAmount:
+      toFiniteNumber(
+        caseRecord.promisedAmount,
+      ) || undefined,
+
     estimatedPrice:
       formatMoneyInput(
         caseRecord.estimatedPrice as
@@ -1487,6 +1493,54 @@ export default function EditCasePage({ params }: EditCasePageProps) {
       0
     )
 
+      const promisedTotal =
+    watchCashPayments.reduce(
+      (sum, payment) => {
+        if (
+          payment.isPaid ||
+          !payment.paymentDate
+        ) {
+          return sum
+        }
+
+        const payDate =
+          parseFinanceDate(
+            payment.paymentDate
+          )
+
+        if (!payDate) {
+          return sum
+        }
+
+        const normalizedPayDate =
+          new Date(
+            payDate.getTime()
+          )
+
+        normalizedPayDate.setHours(
+          0,
+          0,
+          0,
+          0
+        )
+
+        if (
+          normalizedPayDate.getTime() >=
+          today.getTime()
+        ) {
+          return (
+            sum +
+            toFiniteNumber(
+              payment.amount
+            )
+          )
+        }
+
+        return sum
+      },
+      0
+    )
+
   const totalCash =
     watchCashPayments.reduce(
       (sum, payment) =>
@@ -1502,7 +1556,8 @@ export default function EditCasePage({ params }: EditCasePageProps) {
 
     setValue('remainingAmount', remaining)
     setValue('overdueAmount', overdueTotal)
-  }, [contractAmount, totalPaid, overdueTotal, setValue])
+    setValue('promisedAmount', promisedTotal)
+  }, [contractAmount, totalPaid, overdueTotal, promisedTotal, setValue])
 
   const singleClientIndex = activeClients.length === 1 ? activeClients[0].index : null
 
@@ -3262,7 +3317,7 @@ export default function EditCasePage({ params }: EditCasePageProps) {
           <h2 className="text-lg font-semibold text-zinc-800 border-b-2 border-green-100 pb-3 mb-4">حق الوکاله</h2>
 
           <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-emerald-800 mb-2">مبلغ نقدی قرارداد (ریال)</label>
                 <input
@@ -3301,6 +3356,15 @@ export default function EditCasePage({ params }: EditCasePageProps) {
                 <label className="block text-sm font-medium text-emerald-800 mb-2">مبلغ معوق (ریال)</label>
                 <input
                   value={Number(watch('overdueAmount') || 0).toLocaleString()}
+                  readOnly
+                  className="w-full px-4 py-3 border border-emerald-300 rounded-lg bg-emerald-50"
+                  dir="ltr"
+                />
+              </div>
+                            <div>
+                <label className="block text-sm font-medium text-emerald-800 mb-2">مبلغ وعده‌دار (ریال)</label>
+                <input
+                  value={Number(watch('promisedAmount') || 0).toLocaleString()}
                   readOnly
                   className="w-full px-4 py-3 border border-emerald-300 rounded-lg bg-emerald-50"
                   dir="ltr"
@@ -3494,7 +3558,7 @@ export default function EditCasePage({ params }: EditCasePageProps) {
               </div>
 
               <div className="bg-green-100 p-4 rounded-lg">
-                <p className="text-green-800 font-bold text-lg">مجموع پرداخت‌ها: {totalCash.toLocaleString()} ریال</p>
+                <p className="text-green-800 font-bold text-lg">مجموع مبلغ ها: {totalCash.toLocaleString()} ریال</p>
               </div>
 
               <div className="space-y-4">

@@ -422,6 +422,9 @@ export default function CaseDetailPage({
 
             overdue:
               0,
+
+            promised:
+              0,
           }
         }
 
@@ -478,11 +481,18 @@ export default function CaseDetailPage({
               .overdueAmount
           )
 
+        const promised =
+          toNumber(
+            caseItem
+              .promisedAmount
+          )
+
         return {
           total,
           paid,
           remaining,
           overdue,
+          promised,
         }
       },
       [
@@ -969,7 +979,7 @@ export default function CaseDetailPage({
           خلاصه مالی
         </h2>
 
-        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-xl bg-zinc-50 p-4">
             <dt className="text-sm text-zinc-500">
               مبلغ قرارداد
@@ -1023,6 +1033,20 @@ export default function CaseDetailPage({
             <dd className="mt-2 text-xl font-bold text-red-700">
               {formatMoney(
                 financial.overdue
+              )}{' '}
+              <span className="text-sm font-normal">
+                تومان
+              </span>
+            </dd>
+          </div>
+                    <div className="rounded-xl bg-violet-50 p-4">
+            <dt className="text-sm text-violet-700">
+              وعده‌دار
+            </dt>
+
+            <dd className="mt-2 text-xl font-bold text-violet-700">
+              {formatMoney(
+                financial.promised
               )}{' '}
               <span className="text-sm font-normal">
                 تومان

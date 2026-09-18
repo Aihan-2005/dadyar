@@ -347,6 +347,9 @@ archiveNumberOffice:
   overdueAmount:
     optionalNumberSchema,
 
+  promisedAmount:
+    optionalNumberSchema,
+
   expenses: z
     .array(expenseSchema)
     .optional(),
@@ -810,6 +813,8 @@ const clientsError =
     remainingAmount: undefined,
 
     overdueAmount: undefined,
+    
+    promisedAmount: undefined,
 
     expenses: [],
 
@@ -1361,6 +1366,62 @@ const overdueTotal =
     0
   )
 
+const promisedTotal =
+  relevantPayments.reduce<number>(
+    (total, payment) => {
+      if (
+        payment.isPaid === true
+      ) {
+        return total
+      }
+
+      const paymentDate =
+        typeof payment.paymentDate ===
+        'string'
+          ? payment.paymentDate.trim()
+          : ''
+
+      if (!paymentDate) {
+        return total
+      }
+
+      const parsedDueDate =
+        parseFinanceDate(
+          paymentDate
+        )
+
+      if (!parsedDueDate) {
+        return total
+      }
+
+      const dueDate =
+        new Date(
+          parsedDueDate.getTime()
+        )
+
+      dueDate.setHours(
+        0,
+        0,
+        0,
+        0
+      )
+
+      if (
+        dueDate.getTime() <
+        today.getTime()
+      ) {
+        return total
+      }
+
+      return (
+        total +
+        toFiniteNumber(
+          payment.amount
+        )
+      )
+    },
+    0
+  )
 
 useEffect(() => {
   void fetchSavedClients({
@@ -1399,10 +1460,20 @@ useEffect(() => {
       shouldValidate: false,
     }
   )
+
+  setValue(
+    'promisedAmount',
+    promisedTotal,
+    {
+      shouldDirty: false,
+      shouldValidate: false,
+    }
+  )
 }, [
   contractAmount,
   totalPaid,
   overdueTotal,
+  promisedTotal,
   setValue,
 ])
 
@@ -2285,6 +2356,37 @@ const formattedCashPayments =
         0
       )
 
+          const promisedAmount =
+      formattedCashPayments.reduce(
+        (sum, payment) => {
+          if (
+            payment.isPaid ||
+            !payment.paymentDate
+          ) {
+            return sum
+          }
+
+          const dueDate =
+            parseFinanceDate(
+              payment.paymentDate
+            )
+
+          if (
+            !dueDate ||
+            dueDate.getTime() <
+              startOfToday.getTime()
+          ) {
+            return sum
+          }
+
+          return (
+            sum +
+            payment.amount
+          )
+        },
+        0
+      )
+
     const firstDueDate =
       getFirstDate(
         formattedCashPayments
@@ -2495,6 +2597,11 @@ clients:
         overdueAmount:
           String(
             overdueAmount
+          ),
+
+        promisedAmount:
+          String(
+            promisedAmount
           ),
 
         dueDate:
@@ -3774,7 +3881,7 @@ clients:
   </h2>
 
   <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-6 space-y-4">
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
       <div>
         <label className="block text-sm font-medium text-emerald-800 mb-2">
           مبلغ نقدی قرارداد (ریال)
@@ -3822,6 +3929,17 @@ clients:
         </label>
         <input
           value={Number(watch('overdueAmount') || 0).toLocaleString()}
+          readOnly
+          className="w-full px-4 py-3 border border-emerald-300 rounded-lg bg-emerald-50"
+          dir="ltr"
+        />
+      </div>
+            <div>
+        <label className="block text-sm font-medium text-emerald-800 mb-2">
+          مبلغ وعده‌دار (ریال)
+        </label>
+        <input
+          value={Number(watch('promisedAmount') || 0).toLocaleString()}
           readOnly
           className="w-full px-4 py-3 border border-emerald-300 rounded-lg bg-emerald-50"
           dir="ltr"
@@ -4076,7 +4194,7 @@ clients:
 
       <div className="bg-green-100 p-4 rounded-lg">
         <p className="text-green-800 font-bold text-lg">
-          مجموع پرداخت‌ها: {totalCash.toLocaleString()} ریال
+          مجموع مبلغ ها: {totalCash.toLocaleString()} ریال
         </p>
       </div>
 
