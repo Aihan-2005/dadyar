@@ -27,28 +27,6 @@ export interface SubscriptionPlan {
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Legacy auth compatibility
-|--------------------------------------------------------------------------
-|
-| قبلاً پلن‌ها با keyهای ثابت مثل:
-|
-| trial
-| monthly
-| three_month
-| six_month
-|
-| در Frontend تعریف می‌شدند.
-|
-| حالا source of truth خود Backend و MongoDB است و مقدار plan
-| در URL در واقع ID پلن است.
-|
-| این alias فقط برای جلوگیری از شکستن componentهای قدیمی Auth است.
-| از این به بعد SubscriptionPlanKey عملاً همان subscription plan id است.
-|
-|--------------------------------------------------------------------------
-*/
 
 export type SubscriptionPlanKey =
   string
@@ -102,12 +80,7 @@ const HIGHLIGHT_TAGS =
     'popular',
   ])
 
-
-/*
-|--------------------------------------------------------------------------
-| Plan ID
-|--------------------------------------------------------------------------
-*/
+  
 
 export function isSubscriptionPlanId(
   value:
@@ -127,28 +100,16 @@ export function isSubscriptionPlanId(
     value.trim()
 
 
-  /*
-   * SubscriptionPlanهای Backend روی MongoDB هستند.
-   * بنابراین ObjectId باید دقیقاً 24 کاراکتر hexadecimal باشد.
-   */
+  
+    
   return /^[a-f\d]{24}$/i.test(
     normalized,
   )
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Backward-compatible alias
-|--------------------------------------------------------------------------
-|
-| login/register/forgot-password فعلی هنوز این تابع را import می‌کنند.
-|
-| به‌جای برگرداندن keyهای fake قدیمی، همان Mongo ObjectId را validate
-| می‌کنیم.
-|
-|--------------------------------------------------------------------------
-*/
+
+
 
 export function isSubscriptionPlanKey(
   value:
@@ -162,28 +123,7 @@ export function isSubscriptionPlanKey(
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Legacy synchronous lookup
-|--------------------------------------------------------------------------
-|
-| پلن‌ها دیگر داخل Frontend hard-code نیستند و از Backend می‌آیند.
-| بنابراین lookup واقعی نمی‌تواند synchronous باشد.
-|
-| auth-form قدیمی فقط از getSubscriptionPlan برای نمایش title در banner
-| استفاده می‌کند و برای logic خرید به آن وابسته نیست.
-|
-| برای جلوگیری از برگرداندن اطلاعات جعلی، این تابع عمداً undefined
-| برمی‌گرداند.
-|
-| selectedPlanKey همچنان در sessionStorage حفظ می‌شود و Mongo ID واقعی
-| از بین نمی‌رود.
-|
-| در مرحله اتصال purchase API، auth-form را مستقیماً به async service
-| پلن متصل می‌کنیم و این compatibility function قابل حذف خواهد بود.
-|
-|--------------------------------------------------------------------------
-*/
+
 
 export function getSubscriptionPlan(
   key:
@@ -204,11 +144,7 @@ export function getSubscriptionPlan(
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Feature labels
-|--------------------------------------------------------------------------
-*/
+
 
 export function getSubscriptionFeatureLabel(
   code:
@@ -234,11 +170,8 @@ export function getSubscriptionFeatureLabel(
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Tier labels
-|--------------------------------------------------------------------------
-*/
+
+
 
 export function getSubscriptionTierLabel(
   tier:
@@ -264,11 +197,7 @@ export function getSubscriptionTierLabel(
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Pricing
-|--------------------------------------------------------------------------
-*/
+
 
 export function getSubscriptionPlanFinalPrice(
   plan:
@@ -366,11 +295,7 @@ export function getSubscriptionPlanDiscountAmount(
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Formatting
-|--------------------------------------------------------------------------
-*/
+
 
 export function formatSubscriptionPrice(
   value:
@@ -432,16 +357,8 @@ export function formatSubscriptionDuration(
 }
 
 
-/*
-|--------------------------------------------------------------------------
-| Highlighting
-|--------------------------------------------------------------------------
-|
-| Backend فعلاً فیلد dedicated مثل isPopular ندارد.
-| برای نمایش badge می‌توان از tagهای واقعی ثبت‌شده توسط Admin استفاده کرد.
-|
-|--------------------------------------------------------------------------
-*/
+
+
 
 export function isSubscriptionPlanHighlighted(
   plan:
