@@ -1,186 +1,471 @@
-export const SUBSCRIPTION_PLAN_KEYS = [
-  'trial',
-  'monthly',
-  'three_month',
-  'six_month',
-] as const
-
-
-export type SubscriptionPlanKey =
-  (typeof SUBSCRIPTION_PLAN_KEYS)[number]
-
-
-
 export interface SubscriptionPlan {
-
-  key: SubscriptionPlanKey
+  id: string
 
   title: string
 
-  price: number
-
-  priceLabel: string
-
-  duration: string
-
   description: string
 
-  features: readonly string[]
+  tier: string
 
-  popular: boolean
+  tags: string[]
 
+  durationMonths: number
+
+  price: number
+
+  discountPercent: number
+
+  features: string[]
+
+  isActive: boolean
+
+  sortOrder: number
+
+  createdAt?: string
+
+  updatedAt?: string
 }
 
 
+/*
+|--------------------------------------------------------------------------
+| Legacy auth compatibility
+|--------------------------------------------------------------------------
+|
+| قبلاً پلن‌ها با keyهای ثابت مثل:
+|
+| trial
+| monthly
+| three_month
+| six_month
+|
+| در Frontend تعریف می‌شدند.
+|
+| حالا source of truth خود Backend و MongoDB است و مقدار plan
+| در URL در واقع ID پلن است.
+|
+| این alias فقط برای جلوگیری از شکستن componentهای قدیمی Auth است.
+| از این به بعد SubscriptionPlanKey عملاً همان subscription plan id است.
+|
+|--------------------------------------------------------------------------
+*/
 
-export const SUBSCRIPTION_PLANS: readonly SubscriptionPlan[] = [
+export type SubscriptionPlanKey =
+  string
 
-  {
-    key: 'trial',
 
-    title: 'دوره آزمایشی',
-
-    price: 0,
-
-    priceLabel: 'رایگان',
-
-    duration: '۱۴ روز',
-
-    description:
-      'تجربه کامل امکانات دادیار قبل از خرید اشتراک.',
-
-    features: [
+const FEATURE_LABELS:
+  Record<
+    string,
+    string
+  > = {
+    CASE_MANAGEMENT:
       'مدیریت پرونده‌ها',
-      'مدیریت موکلین',
-      'گزارش مالی',
-      'مدیریت امور دفتر',
-    ],
 
-    popular: false,
-  },
+    FINANCIAL_REPORTS:
+      'گزارش‌های مالی',
 
+    SCHEDULING:
+      'زمان‌بندی و مدیریت قرارها',
 
-  {
-    key: 'monthly',
+    ONLINE_MEETINGS:
+      'جلسات آنلاین',
 
-    title: 'اشتراک یک ماهه',
-
-    price: 250000,
-
-    priceLabel:
-      '۲۵۰,۰۰۰ تومان',
-
-    duration:
-      '۱ ماه',
-
-    description:
-      'شروع حرفه‌ای مدیریت دفتر وکالت.',
-
-    features: [
-      'مدیریت پرونده‌ها',
-      'مدیریت موکلین',
-      'گزارش مالی',
-      'پشتیبانی',
-    ],
-
-    popular: false,
-  },
+    CLIENT_DIRECTORY_VISIBILITY:
+      'نمایش در جستجوی وکلا',
+  }
 
 
-  {
-    key: 'three_month',
+const TIER_LABELS:
+  Record<
+    string,
+    string
+  > = {
+    BASIC:
+      'پایه',
 
-    title:
-      'اشتراک سه ماهه',
+    STANDARD:
+      'استاندارد',
 
-    price:
-      650000,
-
-    priceLabel:
-      '۶۵۰,۰۰۰ تومان',
-
-    duration:
-      '۳ ماه',
-
-    description:
-      'مناسب استفاده مستمر و حرفه‌ای.',
-
-    features:[
-      'تمام امکانات یک ماهه',
-      'مدیریت قراردادها',
-      'یادآورها',
-      'امکانات حرفه‌ای',
-    ],
-
-    popular:false,
-  },
+    PREMIUM:
+      'حرفه‌ای',
+  }
 
 
-  {
-    key:'six_month',
-
-    title:
-      'اشتراک شش ماهه',
-
-    price:
-      1100000,
-
-    priceLabel:
-      '۱,۱۰۰,۰۰۰ تومان',
-
-    duration:
-      '۶ ماه',
-
-    description:
-      'بهترین انتخاب برای دفاتر فعال.',
-
-    features:[
-      'تمام امکانات دادیار',
-      'گزارش‌های پیشرفته',
-      'اولویت پشتیبانی',
-      'امکانات آینده',
-    ],
-
-    popular:true,
-  },
-
-]
+const HIGHLIGHT_TAGS =
+  new Set<string>([
+    'پیشنهاد',
+    'پیشنهادی',
+    'ویژه',
+    'محبوب',
+    'recommended',
+    'popular',
+  ])
 
 
+/*
+|--------------------------------------------------------------------------
+| Plan ID
+|--------------------------------------------------------------------------
+*/
+
+export function isSubscriptionPlanId(
+  value:
+    string |
+    null |
+    undefined,
+): value is string {
+  if (
+    typeof value !==
+    'string'
+  ) {
+    return false
+  }
 
 
+  const normalized =
+    value.trim()
 
-export function getSubscriptionPlan(
-  key: SubscriptionPlanKey
-){
 
-  return SUBSCRIPTION_PLANS.find(
-    plan =>
-      plan.key === key
+  /*
+   * SubscriptionPlanهای Backend روی MongoDB هستند.
+   * بنابراین ObjectId باید دقیقاً 24 کاراکتر hexadecimal باشد.
+   */
+  return /^[a-f\d]{24}$/i.test(
+    normalized,
   )
-
 }
 
 
-
-
+/*
+|--------------------------------------------------------------------------
+| Backward-compatible alias
+|--------------------------------------------------------------------------
+|
+| login/register/forgot-password فعلی هنوز این تابع را import می‌کنند.
+|
+| به‌جای برگرداندن keyهای fake قدیمی، همان Mongo ObjectId را validate
+| می‌کنیم.
+|
+|--------------------------------------------------------------------------
+*/
 
 export function isSubscriptionPlanKey(
-  value:string | null | undefined
+  value:
+    string |
+    null |
+    undefined,
 ): value is SubscriptionPlanKey {
-
-
-  return Boolean(
-
-    value &&
-
-    SUBSCRIPTION_PLAN_KEYS.includes(
-      value as SubscriptionPlanKey
-    )
-
+  return isSubscriptionPlanId(
+    value,
   )
-
 }
 
 
+/*
+|--------------------------------------------------------------------------
+| Legacy synchronous lookup
+|--------------------------------------------------------------------------
+|
+| پلن‌ها دیگر داخل Frontend hard-code نیستند و از Backend می‌آیند.
+| بنابراین lookup واقعی نمی‌تواند synchronous باشد.
+|
+| auth-form قدیمی فقط از getSubscriptionPlan برای نمایش title در banner
+| استفاده می‌کند و برای logic خرید به آن وابسته نیست.
+|
+| برای جلوگیری از برگرداندن اطلاعات جعلی، این تابع عمداً undefined
+| برمی‌گرداند.
+|
+| selectedPlanKey همچنان در sessionStorage حفظ می‌شود و Mongo ID واقعی
+| از بین نمی‌رود.
+|
+| در مرحله اتصال purchase API، auth-form را مستقیماً به async service
+| پلن متصل می‌کنیم و این compatibility function قابل حذف خواهد بود.
+|
+|--------------------------------------------------------------------------
+*/
+
+export function getSubscriptionPlan(
+  key:
+    SubscriptionPlanKey,
+):
+  | SubscriptionPlan
+  | undefined {
+  if (
+    !isSubscriptionPlanId(
+      key,
+    )
+  ) {
+    return undefined
+  }
+
+
+  return undefined
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Feature labels
+|--------------------------------------------------------------------------
+*/
+
+export function getSubscriptionFeatureLabel(
+  code:
+    string,
+): string {
+  const normalized =
+    code.trim()
+
+
+  if (
+    !normalized
+  ) {
+    return ''
+  }
+
+
+  return (
+    FEATURE_LABELS[
+      normalized
+    ] ??
+    normalized
+  )
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Tier labels
+|--------------------------------------------------------------------------
+*/
+
+export function getSubscriptionTierLabel(
+  tier:
+    string,
+): string {
+  const normalized =
+    tier.trim()
+
+
+  if (
+    !normalized
+  ) {
+    return ''
+  }
+
+
+  return (
+    TIER_LABELS[
+      normalized
+    ] ??
+    normalized
+  )
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Pricing
+|--------------------------------------------------------------------------
+*/
+
+export function getSubscriptionPlanFinalPrice(
+  plan:
+    Pick<
+      SubscriptionPlan,
+      | 'price'
+      | 'discountPercent'
+    >,
+): number {
+  const price =
+    Math.max(
+      0,
+
+      Math.round(
+        Number.isFinite(
+          plan.price,
+        )
+          ? plan.price
+          : 0,
+      ),
+    )
+
+
+  const discountPercent =
+    Math.min(
+      100,
+
+      Math.max(
+        0,
+
+        Math.round(
+          Number.isFinite(
+            plan.discountPercent,
+          )
+            ? plan.discountPercent
+            : 0,
+        ),
+      ),
+    )
+
+
+  if (
+    discountPercent ===
+    0
+  ) {
+    return price
+  }
+
+
+  return Math.max(
+    0,
+
+    Math.round(
+      price *
+        (
+          1 -
+          discountPercent /
+            100
+        ),
+    ),
+  )
+}
+
+
+export function getSubscriptionPlanDiscountAmount(
+  plan:
+    Pick<
+      SubscriptionPlan,
+      | 'price'
+      | 'discountPercent'
+    >,
+): number {
+  const price =
+    Math.max(
+      0,
+
+      Math.round(
+        Number.isFinite(
+          plan.price,
+        )
+          ? plan.price
+          : 0,
+      ),
+    )
+
+
+  return Math.max(
+    0,
+
+    price -
+      getSubscriptionPlanFinalPrice(
+        plan,
+      ),
+  )
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Formatting
+|--------------------------------------------------------------------------
+*/
+
+export function formatSubscriptionPrice(
+  value:
+    number,
+): string {
+  const normalized =
+    Math.max(
+      0,
+
+      Math.round(
+        Number.isFinite(
+          value,
+        )
+          ? value
+          : 0,
+      ),
+    )
+
+
+  if (
+    normalized ===
+    0
+  ) {
+    return 'رایگان'
+  }
+
+
+  return `${new Intl.NumberFormat(
+    'fa-IR',
+  ).format(
+    normalized,
+  )} تومان`
+}
+
+
+export function formatSubscriptionDuration(
+  durationMonths:
+    number,
+): string {
+  const normalized =
+    Math.max(
+      1,
+
+      Math.round(
+        Number.isFinite(
+          durationMonths,
+        )
+          ? durationMonths
+          : 1,
+      ),
+    )
+
+
+  return `${new Intl.NumberFormat(
+    'fa-IR',
+  ).format(
+    normalized,
+  )} ماه`
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Highlighting
+|--------------------------------------------------------------------------
+|
+| Backend فعلاً فیلد dedicated مثل isPopular ندارد.
+| برای نمایش badge می‌توان از tagهای واقعی ثبت‌شده توسط Admin استفاده کرد.
+|
+|--------------------------------------------------------------------------
+*/
+
+export function isSubscriptionPlanHighlighted(
+  plan:
+    Pick<
+      SubscriptionPlan,
+      'tags'
+    >,
+): boolean {
+  return plan.tags.some(
+    (
+      tag,
+    ) => {
+      const normalized =
+        tag
+          .trim()
+          .toLocaleLowerCase(
+            'fa-IR',
+          )
+
+
+      return HIGHLIGHT_TAGS.has(
+        normalized,
+      )
+    },
+  )
+}
 
