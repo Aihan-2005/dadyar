@@ -566,7 +566,7 @@ export default function HomePage() {
               </ol>
 
               <Link
-                href="/launch"
+                href="/login"
                 className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white transition hover:bg-blue-700"
               >
                 ورود وکلا
