@@ -20,6 +20,7 @@ import {
   CalendarClock,
   CalendarDays,
   CirclePlus,
+  CreditCard,
   FileText,
   FolderOpen,
   LayoutDashboard,
@@ -77,14 +78,15 @@ interface NavItem {
 
 export default function DashboardSidebar({
   isOpen,
-
   onClose,
 }: DashboardSidebarProps) {
   const pathname =
     usePathname()
 
+
   const router =
     useRouter()
+
 
   const user =
     useAuthStore(
@@ -94,6 +96,7 @@ export default function DashboardSidebar({
         state.user,
     )
 
+
   const logout =
     useAuthStore(
       (
@@ -101,6 +104,7 @@ export default function DashboardSidebar({
       ) =>
         state.logout,
     )
+
 
   const notifications =
     useNotificationStore(
@@ -110,18 +114,18 @@ export default function DashboardSidebar({
         state.notifications,
     )
 
+
   const [
     pendingRequestsCount,
-
     setPendingRequestsCount,
   ] =
     useState(
       0,
     )
 
+
   const [
     pendingBookingsCount,
-
     setPendingBookingsCount,
   ] =
     useState(
@@ -132,6 +136,7 @@ export default function DashboardSidebar({
   const isClient =
     user?.role ===
     'CLIENT'
+
 
   const isLawyer =
     user?.role ===
@@ -168,6 +173,7 @@ export default function DashboardSidebar({
       let active =
         true
 
+
       let loading =
         false
 
@@ -180,13 +186,14 @@ export default function DashboardSidebar({
             return
           }
 
+
           loading =
             true
+
 
           try {
             const [
               inquiryResult,
-
               bookingResult,
             ] =
               await Promise.allSettled([
@@ -286,7 +293,6 @@ export default function DashboardSidebar({
 
       window.addEventListener(
         'focus',
-
         handleFocus,
       )
 
@@ -295,17 +301,20 @@ export default function DashboardSidebar({
         active =
           false
 
+
         window.clearInterval(
           intervalId,
         )
 
+
         unsubscribeInquiries()
+
 
         unsubscribeBookings()
 
+
         window.removeEventListener(
           'focus',
-
           handleFocus,
         )
       }
@@ -373,6 +382,17 @@ export default function DashboardSidebar({
         icon:
           User,
       },
+
+      {
+        href:
+          '/dashboard/subscription',
+
+        label:
+          'اشتراک من',
+
+        icon:
+          CreditCard,
+      },
     ]
 
 
@@ -434,6 +454,7 @@ export default function DashboardSidebar({
       )
     }
 
+
     return (
       pathname ===
         href ||
@@ -447,6 +468,7 @@ export default function DashboardSidebar({
   async function handleLogout() {
     await logout()
 
+
     router.replace(
       '/login',
     )
@@ -458,6 +480,7 @@ export default function DashboardSidebar({
       '/dashboard/notifications',
     )
 
+
   const ticketsActive =
     pathname.startsWith(
       '/dashboard/tickets',
@@ -466,16 +489,20 @@ export default function DashboardSidebar({
 
   return (
     <>
-      {isOpen && (
-        <button
-          type="button"
-          aria-label="بستن منو"
-          onClick={
-            onClose
-          }
-          className="fixed inset-0 z-[60] bg-slate-950/40 backdrop-blur-sm lg:hidden"
-        />
-      )}
+      {
+        isOpen &&
+        (
+          <button
+            type="button"
+            aria-label="بستن منو"
+            onClick={
+              onClose
+            }
+            className="fixed inset-0 z-[60] bg-slate-950/40 backdrop-blur-sm lg:hidden"
+          />
+        )
+      }
+
 
       <aside
         className={`
@@ -524,12 +551,15 @@ export default function DashboardSidebar({
               </h1>
 
               <p className="mt-0.5 text-xs font-semibold text-slate-600">
-                {isClient
-                  ? 'پنل موکل'
-                  : 'مدیریت دفتر وکالت'}
+                {
+                  isClient
+                    ? 'پنل موکل'
+                    : 'مدیریت دفتر وکالت'
+                }
               </p>
             </div>
           </Link>
+
 
           <button
             type="button"
@@ -545,93 +575,103 @@ export default function DashboardSidebar({
           </button>
         </div>
 
+
         <nav className="flex-1 space-y-1.5 overflow-y-auto p-4">
-          {navItems.map(
+          {
+            navItems.map(
+              (
+                item,
+              ) => (
+                <SidebarLink
+                  key={
+                    item.href
+                  }
+                  href={
+                    item.href
+                  }
+                  label={
+                    item.label
+                  }
+                  icon={
+                    item.icon
+                  }
+                  active={
+                    isActive(
+                      item.href,
+                    )
+                  }
+                  onClick={
+                    handleNavClick
+                  }
+                />
+              ),
+            )
+          }
+
+
+          {
+            isLawyer &&
             (
-              item,
-            ) => (
-              <SidebarLink
-                key={
-                  item.href
-                }
-                href={
-                  item.href
-                }
-                label={
-                  item.label
-                }
-                icon={
-                  item.icon
-                }
-                active={
-                  isActive(
-                    item.href,
-                  )
-                }
-                onClick={
-                  handleNavClick
-                }
-              />
-            ),
-          )}
+              <>
+                <SidebarLink
+                  href="/dashboard/client-requests"
+                  label="ارتباط با موکلین"
+                  icon={
+                    MessageSquareText
+                  }
+                  active={
+                    isActive(
+                      '/dashboard/client-requests',
+                    )
+                  }
+                  badge={
+                    pendingRequestsCount
+                  }
+                  onClick={
+                    handleNavClick
+                  }
+                />
 
-          {isLawyer && (
-            <>
-              <SidebarLink
-                href="/dashboard/client-requests"
-                label="ارتباط با موکلین"
-                icon={
-                  MessageSquareText
-                }
-                active={
-                  isActive(
-                    '/dashboard/client-requests',
-                  )
-                }
-                badge={
-                  pendingRequestsCount
-                }
-                onClick={
-                  handleNavClick
-                }
-              />
 
-              <SidebarLink
-                href="/dashboard/availability"
-                label="زمان‌های آزاد"
-                icon={
-                  CalendarDays
-                }
-                active={
-                  isActive(
-                    '/dashboard/availability',
-                  )
-                }
-                onClick={
-                  handleNavClick
-                }
-              />
+                <SidebarLink
+                  href="/dashboard/availability"
+                  label="زمان‌های آزاد"
+                  icon={
+                    CalendarDays
+                  }
+                  active={
+                    isActive(
+                      '/dashboard/availability',
+                    )
+                  }
+                  onClick={
+                    handleNavClick
+                  }
+                />
 
-              <SidebarLink
-                href="/dashboard/client-bookings"
-                label="رزروهای مشاوره"
-                icon={
-                  CalendarClock
-                }
-                active={
-                  isActive(
-                    '/dashboard/client-bookings',
-                  )
-                }
-                badge={
-                  pendingBookingsCount
-                }
-                onClick={
-                  handleNavClick
-                }
-              />
-            </>
-          )}
+
+                <SidebarLink
+                  href="/dashboard/client-bookings"
+                  label="رزروهای مشاوره"
+                  icon={
+                    CalendarClock
+                  }
+                  active={
+                    isActive(
+                      '/dashboard/client-bookings',
+                    )
+                  }
+                  badge={
+                    pendingBookingsCount
+                  }
+                  onClick={
+                    handleNavClick
+                  }
+                />
+              </>
+            )
+          }
+
 
           <SidebarLink
             href="/dashboard/notifications"
@@ -650,6 +690,7 @@ export default function DashboardSidebar({
             }
           />
 
+
           <SidebarLink
             href="/dashboard/tickets"
             label="سوالات و پیشنهادات"
@@ -664,72 +705,85 @@ export default function DashboardSidebar({
             }
           />
 
-          {isLawyer && (
-            <div className="pt-4">
-              <Link
-                href="/dashboard/cases/new"
-                onClick={
-                  handleNavClick
-                }
-                className="group flex items-center gap-3 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-600 px-4 py-4 text-sm font-black text-white shadow-lg shadow-emerald-200 transition hover:-translate-y-0.5 hover:from-emerald-600 hover:to-teal-700"
-              >
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
-                  <CirclePlus
-                    size={22}
-                  />
-                </div>
 
-                <div>
-                  <p>
-                    پرونده جدید
-                  </p>
+          {
+            isLawyer &&
+            (
+              <div className="pt-4">
+                <Link
+                  href="/dashboard/cases/new"
+                  onClick={
+                    handleNavClick
+                  }
+                  className="group flex items-center gap-3 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-600 px-4 py-4 text-sm font-black text-white shadow-lg shadow-emerald-200 transition hover:-translate-y-0.5 hover:from-emerald-600 hover:to-teal-700"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+                    <CirclePlus
+                      size={22}
+                    />
+                  </div>
 
-                  <p className="mt-0.5 text-[11px] font-semibold text-emerald-50">
-                    ثبت سریع پرونده
-                  </p>
-                </div>
-              </Link>
-            </div>
-          )}
+                  <div>
+                    <p>
+                      پرونده جدید
+                    </p>
+
+                    <p className="mt-0.5 text-[11px] font-semibold text-emerald-50">
+                      ثبت سریع پرونده
+                    </p>
+                  </div>
+                </Link>
+              </div>
+            )
+          }
         </nav>
+
 
         <div className="border-t border-slate-200 p-4">
           <SupportButton />
         </div>
 
+
         <div className="border-t border-slate-200 p-4">
-          {user && (
-            <div className="mb-3 rounded-xl bg-slate-50 px-4 py-3">
-              <p className="truncate text-xs font-black text-slate-800">
-                {[
-                  user.firstName,
+          {
+            user &&
+            (
+              <div className="mb-3 rounded-xl bg-slate-50 px-4 py-3">
+                <p className="truncate text-xs font-black text-slate-800">
+                  {
+                    [
+                      user.firstName,
+                      user.lastName,
+                    ]
+                      .filter(
+                        Boolean,
+                      )
+                      .join(
+                        ' ',
+                      ) ||
+                    user.phone ||
+                    user.email ||
+                    'کاربر دادیار'
+                  }
+                </p>
 
-                  user.lastName,
-                ]
-                  .filter(
-                    Boolean,
-                  )
-                  .join(
-                    ' ',
-                  ) ||
-                  user.phone ||
-                  user.email ||
-                  'کاربر دادیار'}
-              </p>
+                <p className="mt-1 text-[10px] font-semibold text-slate-500">
+                  {
+                    isClient
+                      ? 'موکل'
+                      : 'وکیل'
+                  }
+                </p>
+              </div>
+            )
+          }
 
-              <p className="mt-1 text-[10px] font-semibold text-slate-500">
-                {isClient
-                  ? 'موکل'
-                  : 'وکیل'}
-              </p>
-            </div>
-          )}
 
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
               void handleLogout()
-            }
+            }}
             className="group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-black text-red-600 transition hover:bg-red-50"
           >
             <LogOut
@@ -749,16 +803,12 @@ export default function DashboardSidebar({
 
 function SidebarLink({
   href,
-
   label,
-
   icon:
     Icon,
-
   active,
-
-  badge = 0,
-
+  badge =
+    0,
   onClick,
 }: {
   href:
@@ -828,21 +878,30 @@ function SidebarLink({
           size={20}
         />
 
-        {badge >
-          0 && (
-          <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-white">
-            {badge >
-            99
-              ? '99+'
-              : badge.toLocaleString(
-                  'fa-IR',
-                )}
-          </span>
-        )}
+
+        {
+          badge >
+          0 &&
+          (
+            <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black text-white ring-2 ring-white">
+              {
+                badge >
+                99
+                  ? '99+'
+                  : badge.toLocaleString(
+                      'fa-IR',
+                    )
+              }
+            </span>
+          )
+        }
       </div>
 
+
       <span className="min-w-0 truncate">
-        {label}
+        {
+          label
+        }
       </span>
     </Link>
   )
