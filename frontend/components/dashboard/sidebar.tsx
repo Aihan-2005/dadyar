@@ -19,7 +19,6 @@ import type {
 import {
   CalendarClock,
   CalendarDays,
-  CirclePlus,
   CreditCard,
   FileText,
   FolderOpen,
@@ -73,6 +72,9 @@ interface NavItem {
 
   icon:
     LucideIcon
+
+  badge?:
+    number
 }
 
 
@@ -153,6 +155,7 @@ export default function DashboardSidebar({
     ).length
 
 
+ 
   useEffect(
     () => {
       if (
@@ -172,7 +175,6 @@ export default function DashboardSidebar({
 
       let active =
         true
-
 
       let loading =
         false
@@ -324,8 +326,7 @@ export default function DashboardSidebar({
       isLawyer,
     ],
   )
-
-
+ 
   const lawyerNavItems:
     NavItem[] = [
       {
@@ -363,6 +364,20 @@ export default function DashboardSidebar({
 
       {
         href:
+          '/dashboard/client-requests',
+
+        label:
+          'ارتباط با موکلین',
+
+        icon:
+          MessageSquareText,
+
+        badge:
+          pendingRequestsCount,
+      },
+
+      {
+        href:
           '/dashboard/contracts',
 
         label:
@@ -370,6 +385,45 @@ export default function DashboardSidebar({
 
         icon:
           FileText,
+      },
+
+      {
+        href:
+          '/dashboard/availability',
+
+        label:
+          'زمان‌های آزاد',
+
+        icon:
+          CalendarDays,
+      },
+
+      {
+        href:
+          '/dashboard/client-bookings',
+
+        label:
+          'رزرو مشاوره',
+
+        icon:
+          CalendarClock,
+
+        badge:
+          pendingBookingsCount,
+      },
+
+      {
+        href:
+          '/dashboard/notifications',
+
+        label:
+          'یادداشت',
+
+        icon:
+          NotebookPen,
+
+        badge:
+          unreadCount,
       },
 
       {
@@ -392,6 +446,17 @@ export default function DashboardSidebar({
 
         icon:
           CreditCard,
+      },
+
+      {
+        href:
+          '/dashboard/tickets',
+
+        label:
+          'سوالات و پیشنهادها',
+
+        icon:
+          Ticket,
       },
     ]
 
@@ -418,6 +483,31 @@ export default function DashboardSidebar({
 
         icon:
           Scale,
+      },
+
+      {
+        href:
+          '/dashboard/notifications',
+
+        label:
+          'یادداشت',
+
+        icon:
+          NotebookPen,
+
+        badge:
+          unreadCount,
+      },
+
+      {
+        href:
+          '/dashboard/tickets',
+
+        label:
+          'سوالات و پیشنهادها',
+
+        icon:
+          Ticket,
       },
     ]
 
@@ -473,18 +563,6 @@ export default function DashboardSidebar({
       '/login',
     )
   }
-
-
-  const notificationsActive =
-    pathname.startsWith(
-      '/dashboard/notifications',
-    )
-
-
-  const ticketsActive =
-    pathname.startsWith(
-      '/dashboard/tickets',
-    )
 
 
   return (
@@ -600,140 +678,14 @@ export default function DashboardSidebar({
                       item.href,
                     )
                   }
+                  badge={
+                    item.badge
+                  }
                   onClick={
                     handleNavClick
                   }
                 />
               ),
-            )
-          }
-
-
-          {
-            isLawyer &&
-            (
-              <>
-                <SidebarLink
-                  href="/dashboard/client-requests"
-                  label="ارتباط با موکلین"
-                  icon={
-                    MessageSquareText
-                  }
-                  active={
-                    isActive(
-                      '/dashboard/client-requests',
-                    )
-                  }
-                  badge={
-                    pendingRequestsCount
-                  }
-                  onClick={
-                    handleNavClick
-                  }
-                />
-
-
-                <SidebarLink
-                  href="/dashboard/availability"
-                  label="زمان‌های آزاد"
-                  icon={
-                    CalendarDays
-                  }
-                  active={
-                    isActive(
-                      '/dashboard/availability',
-                    )
-                  }
-                  onClick={
-                    handleNavClick
-                  }
-                />
-
-
-                <SidebarLink
-                  href="/dashboard/client-bookings"
-                  label="رزروهای مشاوره"
-                  icon={
-                    CalendarClock
-                  }
-                  active={
-                    isActive(
-                      '/dashboard/client-bookings',
-                    )
-                  }
-                  badge={
-                    pendingBookingsCount
-                  }
-                  onClick={
-                    handleNavClick
-                  }
-                />
-              </>
-            )
-          }
-
-
-          <SidebarLink
-            href="/dashboard/notifications"
-            label="یادداشت‌ها"
-            icon={
-              NotebookPen
-            }
-            active={
-              notificationsActive
-            }
-            badge={
-              unreadCount
-            }
-            onClick={
-              handleNavClick
-            }
-          />
-
-
-          <SidebarLink
-            href="/dashboard/tickets"
-            label="سوالات و پیشنهادات"
-            icon={
-              Ticket
-            }
-            active={
-              ticketsActive
-            }
-            onClick={
-              handleNavClick
-            }
-          />
-
-
-          {
-            isLawyer &&
-            (
-              <div className="pt-4">
-                <Link
-                  href="/dashboard/cases/new"
-                  onClick={
-                    handleNavClick
-                  }
-                  className="group flex items-center gap-3 rounded-2xl bg-gradient-to-l from-emerald-500 to-teal-600 px-4 py-4 text-sm font-black text-white shadow-lg shadow-emerald-200 transition hover:-translate-y-0.5 hover:from-emerald-600 hover:to-teal-700"
-                >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
-                    <CirclePlus
-                      size={22}
-                    />
-                  </div>
-
-                  <div>
-                    <p>
-                      پرونده جدید
-                    </p>
-
-                    <p className="mt-0.5 text-[11px] font-semibold text-emerald-50">
-                      ثبت سریع پرونده
-                    </p>
-                  </div>
-                </Link>
-              </div>
             )
           }
         </nav>
@@ -744,41 +696,10 @@ export default function DashboardSidebar({
         </div>
 
 
+     
+     
+     
         <div className="border-t border-slate-200 p-4">
-          {
-            user &&
-            (
-              <div className="mb-3 rounded-xl bg-slate-50 px-4 py-3">
-                <p className="truncate text-xs font-black text-slate-800">
-                  {
-                    [
-                      user.firstName,
-                      user.lastName,
-                    ]
-                      .filter(
-                        Boolean,
-                      )
-                      .join(
-                        ' ',
-                      ) ||
-                    user.phone ||
-                    user.email ||
-                    'کاربر دادیار'
-                  }
-                </p>
-
-                <p className="mt-1 text-[10px] font-semibold text-slate-500">
-                  {
-                    isClient
-                      ? 'موکل'
-                      : 'وکیل'
-                  }
-                </p>
-              </div>
-            )
-          }
-
-
           <button
             type="button"
             onClick={() => {
@@ -906,3 +827,5 @@ function SidebarLink({
     </Link>
   )
 }
+
+ 

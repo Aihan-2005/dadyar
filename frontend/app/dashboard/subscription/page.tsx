@@ -216,7 +216,7 @@ export default function SubscriptionPage() {
             caughtError instanceof
               Error
               ? caughtError.message
-              : 'دریافت اشتراک فعلی ناموفق بود.',
+              : 'دریافت وضعیت اشتراک ناموفق بود.',
           )
         } finally {
           setLoading(
@@ -296,10 +296,6 @@ export default function SubscriptionPage() {
           <h1 className="mt-4 text-xl font-black text-slate-950">
             بخش اشتراک مخصوص وکلا است
           </h1>
-
-          <p className="mt-2 text-sm font-semibold leading-7 text-slate-600">
-            حساب فعلی شما از نوع وکیل نیست.
-          </p>
         </div>
       </div>
     )
@@ -342,16 +338,18 @@ export default function SubscriptionPage() {
             />
 
             <span className="text-xs font-black">
-              مدیریت اشتراک
+              اشتراک
             </span>
           </div>
+
 
           <h1 className="mt-2 text-2xl font-black text-slate-950">
             اشتراک من
           </h1>
 
+
           <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
-            وضعیت اشتراک و قابلیت‌های فعال حساب وکالت شما.
+            جزئیات پلن فعال و امکانات حساب شما
           </p>
         </div>
 
@@ -375,7 +373,7 @@ export default function SubscriptionPage() {
             }
           />
 
-          بروزرسانی وضعیت
+          بروزرسانی
         </button>
       </div>
 
@@ -399,7 +397,13 @@ export default function SubscriptionPage() {
           )
           : (
             <>
-              <section className="overflow-hidden rounded-[28px] border border-emerald-200 bg-gradient-to-l from-emerald-50 via-white to-blue-50 shadow-sm">
+              {/*
+               * فقط پلن فعلی وکیل نمایش داده می‌شود.
+               *
+               * هیچ اطلاعاتی درباره روش فعال‌شدن اشتراک
+               * یا ادمینی/پرداختی بودن آن به کاربر نشان داده نمی‌شود.
+               */}
+              <section className="overflow-hidden rounded-[28px] border border-blue-200 bg-gradient-to-l from-blue-50 via-white to-violet-50 shadow-sm">
                 <div className="p-6 sm:p-8">
                   <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-start">
                     <div>
@@ -409,8 +413,9 @@ export default function SubscriptionPage() {
                             size={15}
                           />
 
-                          اشتراک فعال
+                          فعال
                         </span>
+
 
                         <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-black text-violet-700">
                           {
@@ -421,19 +426,15 @@ export default function SubscriptionPage() {
                             )
                           }
                         </span>
-
-                        <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700">
-                          {
-                            subscription.activationSource ===
-                            'PAYMENT'
-                              ? 'فعال‌شده از طریق خرید'
-                              : 'فعال‌شده توسط مدیریت'
-                          }
-                        </span>
                       </div>
 
 
-                      <h2 className="mt-5 text-3xl font-black text-slate-950">
+                      <p className="mt-5 text-xs font-black text-blue-700">
+                        پلن انتخاب‌شده
+                      </p>
+
+
+                      <h2 className="mt-1 text-3xl font-black text-slate-950">
                         {
                           subscription
                             .planSnapshot
@@ -442,22 +443,29 @@ export default function SubscriptionPage() {
                       </h2>
 
 
-                      <p className="mt-3 max-w-3xl text-sm font-semibold leading-8 text-slate-600">
-                        {
-                          subscription
-                            .planSnapshot
-                            .description
-                        }
-                      </p>
+                      {
+                        subscription
+                          .planSnapshot
+                          .description &&
+                        (
+                          <p className="mt-3 max-w-3xl text-sm font-semibold leading-8 text-slate-600">
+                            {
+                              subscription
+                                .planSnapshot
+                                .description
+                            }
+                          </p>
+                        )
+                      }
                     </div>
 
 
-                    <div className="rounded-2xl border border-white bg-white/80 p-4 text-center shadow-sm backdrop-blur">
+                    <div className="min-w-32 rounded-2xl border border-white bg-white/85 p-4 text-center shadow-sm backdrop-blur">
                       <p className="text-xs font-black text-slate-400">
-                        زمان باقی‌مانده
+                        باقی‌مانده
                       </p>
 
-                      <p className="mt-2 text-3xl font-black text-emerald-700">
+                      <p className="mt-2 text-3xl font-black text-blue-700">
                         {
                           formatNumber(
                             remainingDays,
@@ -479,7 +487,7 @@ export default function SubscriptionPage() {
                   icon={
                     Clock3
                   }
-                  label="شروع اشتراک"
+                  label="تاریخ شروع"
                   value={
                     formatDateTime(
                       subscription.startsAt,
@@ -487,17 +495,19 @@ export default function SubscriptionPage() {
                   }
                 />
 
+
                 <InfoCard
                   icon={
                     CalendarClock
                   }
-                  label="پایان اشتراک"
+                  label="تاریخ پایان"
                   value={
                     formatDateTime(
                       subscription.endsAt,
                     )
                   }
                 />
+
 
                 <InfoCard
                   icon={
@@ -511,11 +521,12 @@ export default function SubscriptionPage() {
                   )} ماه`}
                 />
 
+
                 <InfoCard
                   icon={
                     CircleDollarSign
                   }
-                  label="مبلغ نهایی پلن"
+                  label="مبلغ پلن"
                   value={
                     formatPrice(
                       finalPrice,
@@ -533,13 +544,14 @@ export default function SubscriptionPage() {
                     />
                   </div>
 
+
                   <div>
                     <h2 className="font-black text-slate-950">
-                      قابلیت‌های فعال این اشتراک
+                      امکانات پلن
                     </h2>
 
                     <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
-                      Backend این featureها را داخل Snapshot اشتراک ذخیره کرده؛ بنابراین تغییرات آینده پلن، اشتراک فعلی شما را تغییر نمی‌دهد.
+                      امکاناتی که در پلن فعلی شما قرار دارند.
                     </p>
                   </div>
                 </div>
@@ -573,24 +585,14 @@ export default function SubscriptionPage() {
                                     />
                                   </div>
 
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-black text-slate-800">
-                                      {
-                                        getSubscriptionFeatureLabel(
-                                          feature,
-                                        )
-                                      }
-                                    </p>
 
-                                    <p
-                                      dir="ltr"
-                                      className="mt-1 truncate text-right text-[10px] font-bold text-slate-400"
-                                    >
-                                      {
-                                        feature
-                                      }
-                                    </p>
-                                  </div>
+                                  <p className="text-sm font-black text-slate-800">
+                                    {
+                                      getSubscriptionFeatureLabel(
+                                        feature,
+                                      )
+                                    }
+                                  </p>
                                 </div>
                               ),
                             )
@@ -599,7 +601,7 @@ export default function SubscriptionPage() {
                     )
                     : (
                       <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">
-                        هیچ feature مشخصی برای این اشتراک ثبت نشده است.
+                        برای این پلن قابلیت جداگانه‌ای تعریف نشده است.
                       </div>
                     )
                 }
@@ -613,10 +615,11 @@ export default function SubscriptionPage() {
                   .length >
                 0 &&
                 (
-                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <p className="text-xs font-black text-slate-500">
-                      برچسب‌های پلن
+                      ویژگی‌های پلن
                     </p>
+
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       {
@@ -654,21 +657,24 @@ export default function SubscriptionPage() {
 
 function NoActiveSubscription() {
   return (
-    <section className="overflow-hidden rounded-[28px] border border-amber-200 bg-white shadow-sm">
+    <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
       <div className="p-7 text-center sm:p-10">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-100 text-amber-700">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-blue-100 text-blue-700">
           <Sparkles
             size={29}
           />
         </div>
 
+
         <h2 className="mt-5 text-2xl font-black text-slate-950">
           اشتراک فعالی ندارید
         </h2>
 
+
         <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-8 text-slate-600">
-          در حال حاضر Backend اشتراک فعالی برای این حساب وکیل برنگردانده است. پلن‌های فعال را می‌توانید در صفحه اصلی مشاهده کنید.
+          برای استفاده از امکانات پلن‌های اشتراکی، می‌توانید پلن مناسب خود را انتخاب کنید.
         </p>
+
 
         <Link
           href="/#plans"
@@ -689,9 +695,7 @@ function NoActiveSubscription() {
 function InfoCard({
   icon:
     Icon,
-
   label,
-
   value,
 }: {
   icon:
@@ -716,6 +720,7 @@ function InfoCard({
         }
       </div>
 
+
       <p className="mt-3 text-sm font-black leading-7 text-slate-900">
         {
           value
@@ -723,4 +728,5 @@ function InfoCard({
       </p>
     </article>
   )
+
 }

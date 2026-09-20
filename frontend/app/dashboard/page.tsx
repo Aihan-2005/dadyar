@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   FilePlus2,
   FolderKanban,
+  MessageSquareText,
   Scale,
   Star,
   TrendingUp,
@@ -46,12 +47,16 @@ import type {
   PublicLawyer,
 } from '@/types/public-lawyer'
 
+
 export default function DashboardPage() {
   const user =
     useAuthStore(
-      (state) =>
+      (
+        state,
+      ) =>
         state.user,
     )
+
 
   if (
     user?.role ===
@@ -62,17 +67,22 @@ export default function DashboardPage() {
     )
   }
 
+
   return (
     <LawyerDashboard />
   )
 }
 
+
 function ClientDashboard() {
   const user =
     useAuthStore(
-      (state) =>
+      (
+        state,
+      ) =>
         state.user,
     )
+
 
   const [
     featuredLawyers,
@@ -80,61 +90,85 @@ function ClientDashboard() {
   ] =
     useState<
       PublicLawyer[]
-    >([])
+    >(
+      [],
+    )
+
 
   const [
     totalLawyers,
     setTotalLawyers,
-  ] = useState(0)
+  ] =
+    useState(
+      0,
+    )
 
-  useEffect(() => {
-    let active = true
 
-    Promise.all([
-      getPublicLawyers(),
+  useEffect(
+    () => {
+      let active =
+        true
 
-      getPublicLawyers({
-        featuredOnly:
-          true,
-      }),
-    ])
-      .then(
-        ([
-          all,
-          featured,
-        ]) => {
-          if (!active) {
-            return
-          }
 
-          setTotalLawyers(
-            all.length,
-          )
+      Promise.all([
+        getPublicLawyers(),
 
-          setFeaturedLawyers(
-            featured.slice(
-              0,
-              3,
-            ),
-          )
-        },
-      )
-      .catch(() => {
-        if (active) {
-          setTotalLawyers(
-            0,
-          )
+        getPublicLawyers({
+          featuredOnly:
+            true,
+        }),
+      ])
+        .then(
+          ([
+            all,
+            featured,
+          ]) => {
+            if (
+              !active
+            ) {
+              return
+            }
 
-          setFeaturedLawyers(
-            [],
-          )
-        }
-      })
 
-    return () => {
-      active = false
-    }
-  }, [])
+            setTotalLawyers(
+              all.length,
+            )
+
+
+            setFeaturedLawyers(
+              featured.slice(
+                0,
+                3,
+              ),
+            )
+          },
+        )
+        .catch(
+          () => {
+            if (
+              active
+            ) {
+              setTotalLawyers(
+                0,
+              )
+
+              setFeaturedLawyers(
+                [],
+              )
+            }
+          },
+        )
+
+
+      return () => {
+        active =
+          false
+      }
+    },
+
+    [],
+  )
+
 
   return (
     <div
@@ -147,22 +181,22 @@ function ClientDashboard() {
             خوش آمدید
           </p>
 
+
           <h1 className="mt-2 text-2xl font-black sm:text-3xl">
-            {user?.firstName
-              ? `${
-                  user.firstName
-                } عزیز، `
-              : ''}
-            وکیل مناسب خود را پیدا
-            کنید
+            {
+              user?.firstName
+                ? `${user.firstName} عزیز، `
+                : ''
+            }
+
+            وکیل مناسب خود را پیدا کنید
           </h1>
 
+
           <p className="mt-3 max-w-2xl text-sm leading-8 text-blue-50">
-            وکلای تأییدشده دادیار را
-            بر اساس تخصص بررسی کنید و
-            اطلاعات حرفه‌ای آن‌ها را
-            ببینید.
+            وکلای تأییدشده دادیار را بر اساس تخصص بررسی کنید و اطلاعات حرفه‌ای آن‌ها را ببینید.
           </p>
+
 
           <Link
             href="/dashboard/lawyers"
@@ -181,6 +215,7 @@ function ClientDashboard() {
         </div>
       </section>
 
+
       <section className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-white p-5">
           <div className="flex items-center gap-2 text-xs font-bold text-zinc-500">
@@ -193,13 +228,16 @@ function ClientDashboard() {
           </div>
 
           <p className="mt-3 text-3xl font-black text-zinc-950">
-            {new Intl.NumberFormat(
-              'fa-IR',
-            ).format(
-              totalLawyers,
-            )}
+            {
+              new Intl.NumberFormat(
+                'fa-IR',
+              ).format(
+                totalLawyers,
+              )
+            }
           </p>
         </div>
+
 
         <div className="rounded-2xl border border-zinc-200 bg-white p-5">
           <div className="flex items-center gap-2 text-xs font-bold text-zinc-500">
@@ -212,14 +250,17 @@ function ClientDashboard() {
           </div>
 
           <p className="mt-3 text-3xl font-black text-zinc-950">
-            {new Intl.NumberFormat(
-              'fa-IR',
-            ).format(
-              featuredLawyers.length,
-            )}
+            {
+              new Intl.NumberFormat(
+                'fa-IR',
+              ).format(
+                featuredLawyers.length,
+              )
+            }
           </p>
         </div>
       </section>
+
 
       <section>
         <div className="mb-4 flex items-center justify-between gap-4">
@@ -229,10 +270,10 @@ function ClientDashboard() {
             </h2>
 
             <p className="mt-1 text-sm text-zinc-500">
-              تعدادی از وکلای منتخب
-              دادیار
+              تعدادی از وکلای منتخب دادیار
             </p>
           </div>
+
 
           <Link
             href="/dashboard/lawyers"
@@ -242,169 +283,262 @@ function ClientDashboard() {
           </Link>
         </div>
 
-        {featuredLawyers.length >
-        0 ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {featuredLawyers.map(
-              (lawyer) => (
-                <PublicLawyerCard
-                  key={
-                    lawyer.id
-                  }
-                  lawyer={
-                    lawyer
-                  }
-                />
-              ),
-            )}
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-10 text-center text-sm text-zinc-500">
-            در حال حاضر وکیل ویژه‌ای
-            برای نمایش وجود ندارد.
-          </div>
-        )}
+
+        {
+          featuredLawyers.length >
+          0
+            ? (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {
+                  featuredLawyers.map(
+                    (
+                      lawyer,
+                    ) => (
+                      <PublicLawyerCard
+                        key={
+                          lawyer.id
+                        }
+                        lawyer={
+                          lawyer
+                        }
+                      />
+                    ),
+                  )
+                }
+              </div>
+            )
+            : (
+              <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-10 text-center text-sm text-zinc-500">
+                در حال حاضر وکیل ویژه‌ای برای نمایش وجود ندارد.
+              </div>
+            )
+        }
       </section>
     </div>
   )
 }
 
+
 function LawyerDashboard() {
   const cases =
     useCasesStore(
-      (state) =>
+      (
+        state,
+      ) =>
         state.cases,
     )
 
+
   const stats =
-    useMemo(() => {
-      const activeCases =
-        cases.filter(
-          (item) =>
-            item.status !==
-            'archived',
-        ).length
+    useMemo(
+      () => {
+        const activeCases =
+          cases.filter(
+            (
+              item,
+            ) =>
+              item.status !==
+              'archived',
+          ).length
 
-      const monthlyCases =
-        cases.filter(
-          (item) =>
-            isInCurrentMonth(
-              item.createdAt,
-            ),
-        ).length
 
-      return {
-        active:
-          activeCases,
+        const monthlyCases =
+          cases.filter(
+            (
+              item,
+            ) =>
+              isInCurrentMonth(
+                item.createdAt,
+              ),
+          ).length
 
-        monthly:
-          monthlyCases,
-      }
-    }, [cases])
+
+        return {
+          active:
+            activeCases,
+
+          monthly:
+            monthlyCases,
+        }
+      },
+
+      [
+        cases,
+      ],
+    )
+
 
   return (
-    <div className="min-h-screen bg-zinc-50 p-2 sm:p-6">
-      <p className="mb-4 text-2xl font-semibold uppercase tracking-widest text-black">
-        داشبورد
-      </p>
+    <div
+      dir="rtl"
+      className="mx-auto max-w-7xl space-y-10 pb-12"
+    >
+      <section>
+        <div>
+          <p className="text-xs font-black text-blue-700">
+            مدیریت دفتر
+          </p>
 
-      <div className="mb-10 grid grid-cols-1 gap-5 md:grid-cols-2">
-        <Link
-          href="/dashboard/cases/new"
-          className="group relative overflow-hidden rounded-2xl border border-blue-100 bg-white p-6 shadow-sm transition-all duration-300 hover:border-blue-300 hover:shadow-lg"
-        >
-          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-blue-50 transition-colors group-hover:bg-blue-100" />
+          <h1 className="mt-1 text-2xl font-black text-slate-950">
+            داشبورد
+          </h1>
 
-          <div className="relative flex items-start gap-4">
-            <div className="shrink-0 rounded-xl bg-blue-500 p-3 shadow-md shadow-blue-200">
-              <FilePlus2
-                className="text-white"
-                size={22}
-              />
+          <p className="mt-2 text-sm font-semibold text-slate-500">
+            دسترسی سریع به مهم‌ترین بخش‌های دفتر وکالت
+          </p>
+        </div>
+
+
+        {/*
+         * Quick Actions
+         *
+         * پرونده جدید دیگر در Sidebar تکرار نمی‌شود
+         * و در Dashboard به‌عنوان Action اصلی باقی می‌ماند.
+         *
+         * ارتباط با موکلین هم برای دسترسی سریع اضافه شده است.
+         */}
+        <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-3">
+          <Link
+            href="/dashboard/cases/new"
+            className="group relative overflow-hidden rounded-2xl border border-blue-100 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg"
+          >
+            <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-blue-50 transition-colors group-hover:bg-blue-100" />
+
+
+            <div className="relative flex items-start gap-4">
+              <div className="shrink-0 rounded-xl bg-blue-500 p-3 shadow-md shadow-blue-200">
+                <FilePlus2
+                  className="text-white"
+                  size={22}
+                />
+              </div>
+
+
+              <div>
+                <h3 className="mb-1 text-base font-black text-zinc-900">
+                  ثبت پرونده جدید
+                </h3>
+
+                <p className="text-sm font-semibold leading-6 text-blue-950">
+                  ایجاد و ثبت اطلاعات پرونده تازه
+                </p>
+              </div>
             </div>
+          </Link>
 
-            <div>
-              <h3 className="mb-0.5 text-base font-bold text-zinc-900">
-                ثبت پرونده جدید
-              </h3>
 
-              <p className="text-blue-950">
-                ایجاد و ثبت اطلاعات
-                پرونده تازه
-              </p>
+          <Link
+            href="/dashboard/cases"
+            className="group relative overflow-hidden rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-lg"
+          >
+            <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-emerald-50 transition-colors group-hover:bg-emerald-100" />
+
+
+            <div className="relative flex items-start gap-4">
+              <div className="shrink-0 rounded-xl bg-emerald-500 p-3 shadow-md shadow-emerald-200">
+                <FolderKanban
+                  className="text-white"
+                  size={22}
+                />
+              </div>
+
+
+              <div>
+                <h3 className="mb-1 text-base font-black text-zinc-900">
+                  لیست پرونده‌ها
+                </h3>
+
+                <p className="text-sm font-semibold leading-6 text-emerald-950">
+                  مشاهده و مدیریت همه پرونده‌های ثبت‌شده
+                </p>
+              </div>
             </div>
-          </div>
-        </Link>
+          </Link>
 
-        <Link
-          href="/dashboard/cases"
-          className="group relative overflow-hidden rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm transition-all duration-300 hover:border-emerald-300 hover:shadow-lg"
-        >
-          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-emerald-50 transition-colors group-hover:bg-emerald-100" />
 
-          <div className="relative flex items-start gap-4">
-            <div className="shrink-0 rounded-xl bg-emerald-500 p-3 shadow-md shadow-emerald-200">
-              <FolderKanban
-                className="text-white"
-                size={22}
-              />
+          <Link
+            href="/dashboard/client-requests"
+            className="group relative overflow-hidden rounded-2xl border border-violet-100 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-lg"
+          >
+            <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-violet-50 transition-colors group-hover:bg-violet-100" />
+
+
+            <div className="relative flex items-start gap-4">
+              <div className="shrink-0 rounded-xl bg-violet-500 p-3 shadow-md shadow-violet-200">
+                <MessageSquareText
+                  className="text-white"
+                  size={22}
+                />
+              </div>
+
+
+              <div>
+                <h3 className="mb-1 text-base font-black text-zinc-900">
+                  ارتباط با موکلین
+                </h3>
+
+                <p className="text-sm font-semibold leading-6 text-violet-950">
+                  مشاهده درخواست‌ها و پیگیری ارتباط با موکلین
+                </p>
+              </div>
             </div>
+          </Link>
+        </div>
+      </section>
 
-            <div>
-              <h3 className="mb-0.5 text-base font-bold text-zinc-900">
-                لیست پرونده‌ها
-              </h3>
 
-              <p className="text-green-950">
-                مشاهده و مدیریت همه
-                پرونده‌های ثبت‌شده
-              </p>
-            </div>
-          </div>
-        </Link>
-      </div>
+      <section>
+        <div className="mb-4">
+          <p className="text-xs font-black text-slate-500">
+            وضعیت دفتر
+          </p>
 
-      <p className="mb-4 text-2xl font-semibold uppercase tracking-widest text-slate-950">
-        خلاصه وضعیت
-      </p>
+          <h2 className="mt-1 text-xl font-black text-slate-950">
+            خلاصه وضعیت
+          </h2>
+        </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatsCard
-          label="پرونده‌های فعال"
-          value={
-            stats.active
-          }
-          icon={
-            FolderKanban
-          }
-          color="text-blue-600"
-          bg="bg-blue-50"
-          href="/dashboard/cases?filter=active"
-        />
 
-        <StatsCard
-          label="پرونده‌های ماه جاری"
-          value={
-            stats.monthly
-          }
-          icon={
-            FilePlus2
-          }
-          color="text-emerald-600"
-          bg="bg-emerald-50"
-        />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <StatsCard
+            label="پرونده‌های فعال"
+            value={
+              stats.active
+            }
+            icon={
+              FolderKanban
+            }
+            color="text-blue-600"
+            bg="bg-blue-50"
+            href="/dashboard/cases?filter=active"
+          />
 
-        <StatsCard
-          label="گزارش مالی"
-          value="مشاهده"
-          icon={
-            TrendingUp
-          }
-          color="text-indigo-600"
-          bg="bg-indigo-50"
-          href="/dashboard/finances"
-        />
-      </div>
+
+          <StatsCard
+            label="پرونده‌های ماه جاری"
+            value={
+              stats.monthly
+            }
+            icon={
+              FilePlus2
+            }
+            color="text-emerald-600"
+            bg="bg-emerald-50"
+          />
+
+
+          <StatsCard
+            label="گزارش مالی"
+            value="مشاهده"
+            icon={
+              TrendingUp
+            }
+            color="text-indigo-600"
+            bg="bg-indigo-50"
+            href="/dashboard/finances"
+          />
+        </div>
+      </section>
     </div>
   )
 }
