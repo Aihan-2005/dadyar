@@ -134,6 +134,7 @@ export interface CaseFinance {
   paidAmount: number
   remainingDebt: number
   overdueAmount: number
+  promisedAmount: number
   expensesAmount: number
 
   lastPaymentDate?: string
@@ -158,6 +159,7 @@ export interface ClientFinanceSummary {
   totalPaid: number
   totalRemaining: number
   totalOverdue: number
+  totalPromised: number
   totalExpenses: number
 
   collectionRate: number
@@ -173,6 +175,7 @@ export interface FinancialStats {
   totalReceived: number
   totalRemaining: number
   totalOverdue: number
+  totalPromised: number
   totalExpenses: number
 
   netCollected: number

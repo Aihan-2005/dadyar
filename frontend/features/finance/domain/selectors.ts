@@ -15,6 +15,7 @@ import {
   getNextDueDate,
   getOverdueAmount,
   getPaidAmount,
+  getPromisedAmount,
   getRemainingAmount,
 } from './calculations'
 
@@ -138,6 +139,12 @@ export function buildCaseFinance(
         now
       ),
 
+          promisedAmount:
+      getPromisedAmount(
+        caseItem,
+        now
+      ),
+
     expensesAmount:
       getExpensesAmount(
         caseItem.expenses
@@ -217,6 +224,7 @@ export function buildClientFinanceSummaries(
           totalPaid: 0,
           totalRemaining: 0,
           totalOverdue: 0,
+          totalPromised: 0,
           totalExpenses: 0,
 
           collectionRate: 0,
@@ -245,6 +253,10 @@ export function buildClientFinanceSummaries(
       current.totalOverdue +=
         clientCaseFinance
           .overdueAmount
+
+      current.totalPromised +=
+        clientCaseFinance
+          .promisedAmount    
 
       current.totalExpenses +=
         clientCaseFinance
@@ -343,6 +355,11 @@ export function buildFinancialStats(
           caseFinance
             .overdueAmount,
 
+        totalPromised:
+          result.totalPromised +
+          caseFinance
+            .promisedAmount,
+
         totalExpenses:
           result.totalExpenses +
           caseFinance
@@ -353,6 +370,7 @@ export function buildFinancialStats(
         totalReceived: 0,
         totalRemaining: 0,
         totalOverdue: 0,
+        totalPromised: 0,
         totalExpenses: 0,
       }
     )

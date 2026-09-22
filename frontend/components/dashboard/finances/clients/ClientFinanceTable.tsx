@@ -1,7 +1,7 @@
 'use client'
 
 import type { ClientFinanceSummary } from '@/types/finance'
-import { AlertCircle, ChevronDown } from 'lucide-react'
+import { AlertCircle, ChevronDown, Clock } from 'lucide-react'
 
 interface Props {
   clients: ClientFinanceSummary[]
@@ -28,6 +28,7 @@ export function ClientFinanceTable({ clients, onSelectClient }: Props) {
             <Th>پرداختی‌ها</Th>
             <Th>مانده</Th>
             <Th>معوق</Th>
+            <Th>وعده‌دار</Th>
             <Th>جزئیات</Th>
           </tr>
         </thead>
@@ -101,6 +102,20 @@ export function ClientFinanceTable({ clients, onSelectClient }: Props) {
                       <AlertCircle size={14} />
                       <span className="font-medium">
                         {client.totalOverdue.toLocaleString('fa-IR')} ت
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-zinc-400">-</span>
+                  )}
+                </td>
+
+                                {/* وعده‌دار */}
+                <td className="px-6 py-4 text-center">
+                  {client.totalPromised > 0 ? (
+                    <div className="inline-flex items-center gap-1 text-violet-600">
+                      <Clock size={14} />
+                      <span className="font-medium">
+                        {client.totalPromised.toLocaleString('fa-IR')} ت
                       </span>
                     </div>
                   ) : (

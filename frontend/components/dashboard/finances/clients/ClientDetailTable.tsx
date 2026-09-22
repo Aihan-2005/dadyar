@@ -36,6 +36,7 @@ export function ClientDetailTable({ cases }: Props) {
             <Th>پرداختی‌ها</Th>
             <Th>مانده</Th>
             <Th>معوق</Th>
+            <Th>وعده‌دار</Th>
             <Th>وضعیت</Th>
             <Th>عملیات</Th>
           </tr>
@@ -123,6 +124,25 @@ export function ClientDetailTable({ cases }: Props) {
                   )}
                 </td>
 
+
+                                  {/* وعده‌دار */}
+                <td className="px-6 py-4 text-center">
+                  {item.promisedAmount > 0 ? (
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="font-medium text-violet-600">
+                        {item.promisedAmount.toLocaleString('fa-IR')} ت
+                      </span>
+                      {item.dueDate && (
+                        <span className="text-xs text-zinc-400">
+                          سررسید: {formatJalaliDate(item.dueDate)}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-zinc-400">-</span>
+                  )}
+                </td>
+                
                 {/* وضعیت */}
                 <td className="px-6 py-4 text-center">
                   <StatusBadge status={item.status} />

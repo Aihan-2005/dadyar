@@ -5,6 +5,7 @@ import type {
 
 import {
   AlertCircle,
+  Clock,
   FileText,
   Percent,
   Receipt,
@@ -176,6 +177,40 @@ export function FinanceStats({
           0
             ? 'text-red-700'
             : undefined,
+      },
+
+            {
+        title:
+          'مطالبات وعده‌دار',
+
+        value:
+          formatMoney(
+            stats.totalPromised
+          ),
+
+        description:
+          'مطالباتی که هنوز سررسیدشان نرسیده',
+
+        icon:
+          Clock,
+
+        iconClassName:
+          'bg-violet-50 text-violet-600',
+
+        badge:
+          stats.totalPromised >
+          0
+            ? 'در انتظار سررسید'
+            : 'موردی نیست',
+
+        badgeClassName:
+          stats.totalPromised >
+          0
+            ? 'bg-violet-50 text-violet-700'
+            : 'bg-emerald-50 text-emerald-700',
+
+        valueClassName:
+          'text-violet-700',
       },
 
       {

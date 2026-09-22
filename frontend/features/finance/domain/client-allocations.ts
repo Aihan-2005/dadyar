@@ -555,6 +555,7 @@ export function buildClientCaseFinances(
     ) => {
       let paidAmount = 0
       let overdueAmount = 0
+      let promisedAmount = 0
 
       payments.forEach(
         (
@@ -589,12 +590,18 @@ export function buildClientCaseFinances(
                 payment.paymentDate
             )
 
+          if (!dueDate) {
+            return
+          }
+
           if (
-            dueDate &&
             dueDate.getTime() <
-              now.getTime()
+            now.getTime()
           ) {
             overdueAmount +=
+              attributedAmount
+          } else {
+            promisedAmount +=
               attributedAmount
           }
         }
@@ -610,6 +617,12 @@ export function buildClientCaseFinances(
       overdueAmount =
         Math.min(
           overdueAmount,
+          remainingDebt
+        )
+
+              promisedAmount =
+        Math.min(
+          promisedAmount,
           remainingDebt
         )
 
@@ -650,6 +663,7 @@ export function buildClientCaseFinances(
 
         remainingDebt,
         overdueAmount,
+        promisedAmount,
 
         expensesAmount:
           expenseSplits[

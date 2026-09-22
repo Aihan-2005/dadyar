@@ -7,6 +7,7 @@ import {
   AlertCircle,
   ChevronLeft,
   CircleCheck,
+  Clock,
   Receipt,
 } from 'lucide-react'
 
@@ -62,6 +63,10 @@ export function OverviewTable({
 
               <Th>
                 معوق
+              </Th>
+
+              <Th>
+                وعده‌دار
               </Th>
 
               <Th>
@@ -201,6 +206,25 @@ function ClientRow({
 
             {formatMoney(
               client.totalOverdue
+            )}
+          </span>
+        ) : (
+          <span className="text-zinc-400">
+            —
+          </span>
+        )}
+      </td>
+
+      <td className="px-4 py-4 text-center">
+        {client.totalPromised >
+        0 ? (
+          <span className="inline-flex items-center gap-1 font-bold text-violet-700">
+            <Clock
+              size={14}
+            />
+
+            {formatMoney(
+              client.totalPromised
             )}
           </span>
         ) : (
@@ -385,6 +409,16 @@ function ClientMobileCard({
             )
           }
           className="text-red-700"
+        />
+
+        <MobileMetric
+          label="وعده‌دار"
+          value={
+            formatMoney(
+              client.totalPromised
+            )
+          }
+          className="text-violet-700"
         />
       </div>
     </article>

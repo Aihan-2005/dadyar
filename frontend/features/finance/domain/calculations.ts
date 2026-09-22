@@ -104,6 +104,22 @@ export function getOverdueAmount(
   return isPastDate(caseItem.dueDate, now) ? getRemainingAmount(caseItem) : 0
 }
 
+export function getPromisedAmount(
+  caseItem: FinanceCaseSource,
+  now = new Date()
+): number {
+  return getPayments(caseItem).reduce((sum, payment) => {
+    if (payment.isPaid) return sum
+
+    const dueDate = getPaymentDueDate(payment)
+    if (!dueDate) return sum
+
+    if (isPastDate(dueDate, now)) return sum
+
+    return sum + toFiniteNumber(payment.amount)
+  }, 0)
+}
+
 export function getFinancePaymentStatus(
   caseItem: FinanceCaseSource,
   now = new Date()
