@@ -1,31 +1,47 @@
 export interface SubscriptionPlan {
-  id: string
+  id:
+    string
 
-  title: string
+  title:
+    string
 
-  description: string
+  description:
+    string
 
-  tier: string
+  tier:
+    string
 
-  tags: string[]
+  tags:
+    string[]
+ 
+  durationDays:
+    number
 
-  durationMonths: number
+ 
+  durationMonths:
+    number
 
-  price: number
+  price:
+    number
 
-  discountPercent: number
+  discountPercent:
+    number
 
-  features: string[]
+  features:
+    string[]
 
-  isActive: boolean
+  isActive:
+    boolean
 
-  sortOrder: number
+  sortOrder:
+    number
 
-  createdAt?: string
+  createdAt?:
+    string
 
-  updatedAt?: string
+  updatedAt?:
+    string
 }
-
 
 
 export type SubscriptionPlanKey =
@@ -44,13 +60,13 @@ const FEATURE_LABELS:
       'گزارش‌های مالی',
 
     SCHEDULING:
-      'زمان‌بندی و مدیریت قرارها',
+      'زمان‌بندی و رزرو',
 
     ONLINE_MEETINGS:
       'جلسات آنلاین',
 
     CLIENT_DIRECTORY_VISIBILITY:
-      'نمایش در جستجوی وکلا',
+      'نمایش در فهرست وکلا',
   }
 
 
@@ -80,7 +96,6 @@ const HIGHLIGHT_TAGS =
     'popular',
   ])
 
-  
 
 export function isSubscriptionPlanId(
   value:
@@ -88,27 +103,14 @@ export function isSubscriptionPlanId(
     null |
     undefined,
 ): value is string {
-  if (
-    typeof value !==
-    'string'
-  ) {
-    return false
-  }
-
-
-  const normalized =
-    value.trim()
-
-
-  
-    
-  return /^[a-f\d]{24}$/i.test(
-    normalized,
+  return (
+    typeof value ===
+      'string' &&
+    /^[a-f\d]{24}$/i.test(
+      value.trim(),
+    )
   )
 }
-
-
-
 
 
 export function isSubscriptionPlanKey(
@@ -122,28 +124,15 @@ export function isSubscriptionPlanKey(
   )
 }
 
-
-
-
+ 
 export function getSubscriptionPlan(
-  key:
+  _key:
     SubscriptionPlanKey,
 ):
   | SubscriptionPlan
   | undefined {
-  if (
-    !isSubscriptionPlanId(
-      key,
-    )
-  ) {
-    return undefined
-  }
-
-
   return undefined
 }
-
-
 
 
 export function getSubscriptionFeatureLabel(
@@ -152,14 +141,6 @@ export function getSubscriptionFeatureLabel(
 ): string {
   const normalized =
     code.trim()
-
-
-  if (
-    !normalized
-  ) {
-    return ''
-  }
-
 
   return (
     FEATURE_LABELS[
@@ -170,23 +151,12 @@ export function getSubscriptionFeatureLabel(
 }
 
 
-
-
-
 export function getSubscriptionTierLabel(
   tier:
     string,
 ): string {
   const normalized =
     tier.trim()
-
-
-  if (
-    !normalized
-  ) {
-    return ''
-  }
-
 
   return (
     TIER_LABELS[
@@ -195,8 +165,6 @@ export function getSubscriptionTierLabel(
     normalized
   )
 }
-
-
 
 
 export function getSubscriptionPlanFinalPrice(
@@ -210,51 +178,29 @@ export function getSubscriptionPlanFinalPrice(
   const price =
     Math.max(
       0,
-
       Math.round(
-        Number.isFinite(
-          plan.price,
-        )
-          ? plan.price
-          : 0,
+        plan.price,
       ),
     )
 
-
-  const discountPercent =
+  const discount =
     Math.min(
       100,
-
       Math.max(
         0,
-
         Math.round(
-          Number.isFinite(
-            plan.discountPercent,
-          )
-            ? plan.discountPercent
-            : 0,
+          plan.discountPercent,
         ),
       ),
     )
 
-
-  if (
-    discountPercent ===
-    0
-  ) {
-    return price
-  }
-
-
   return Math.max(
     0,
-
     Math.round(
       price *
         (
           1 -
-          discountPercent /
+          discount /
             100
         ),
     ),
@@ -270,31 +216,15 @@ export function getSubscriptionPlanDiscountAmount(
       | 'discountPercent'
     >,
 ): number {
-  const price =
-    Math.max(
-      0,
-
-      Math.round(
-        Number.isFinite(
-          plan.price,
-        )
-          ? plan.price
-          : 0,
-      ),
-    )
-
-
   return Math.max(
     0,
 
-    price -
+    plan.price -
       getSubscriptionPlanFinalPrice(
         plan,
       ),
   )
 }
-
-
 
 
 export function formatSubscriptionPrice(
@@ -304,16 +234,10 @@ export function formatSubscriptionPrice(
   const normalized =
     Math.max(
       0,
-
       Math.round(
-        Number.isFinite(
-          value,
-        )
-          ? value
-          : 0,
+        value,
       ),
     )
-
 
   if (
     normalized ===
@@ -321,7 +245,6 @@ export function formatSubscriptionPrice(
   ) {
     return 'رایگان'
   }
-
 
   return `${new Intl.NumberFormat(
     'fa-IR',
@@ -331,33 +254,61 @@ export function formatSubscriptionPrice(
 }
 
 
+ 
 export function formatSubscriptionDuration(
-  durationMonths:
-    number,
+  input:
+    | SubscriptionPlan
+    | number,
 ): string {
-  const normalized =
-    Math.max(
-      1,
-
-      Math.round(
-        Number.isFinite(
-          durationMonths,
+  const durationDays =
+    typeof input ===
+      'number'
+      ? Math.max(
+          1,
+          Math.round(
+            input *
+              30,
+          ),
         )
-          ? durationMonths
-          : 1,
-      ),
-    )
+      : Math.max(
+          1,
+          Math.round(
+            input.durationDays,
+          ),
+        )
 
+  if (
+    durationDays %
+      30 ===
+    0
+  ) {
+    return `${new Intl.NumberFormat(
+      'fa-IR',
+    ).format(
+      durationDays /
+        30,
+    )} ماه`
+  }
+
+  if (
+    durationDays %
+      7 ===
+    0
+  ) {
+    return `${new Intl.NumberFormat(
+      'fa-IR',
+    ).format(
+      durationDays /
+        7,
+    )} هفته`
+  }
 
   return `${new Intl.NumberFormat(
     'fa-IR',
   ).format(
-    normalized,
-  )} ماه`
+    durationDays,
+  )} روز`
 }
-
-
-
 
 
 export function isSubscriptionPlanHighlighted(
@@ -370,19 +321,13 @@ export function isSubscriptionPlanHighlighted(
   return plan.tags.some(
     (
       tag,
-    ) => {
-      const normalized =
+    ) =>
+      HIGHLIGHT_TAGS.has(
         tag
           .trim()
           .toLocaleLowerCase(
             'fa-IR',
-          )
-
-
-      return HIGHLIGHT_TAGS.has(
-        normalized,
-      )
-    },
+          ),
+      ),
   )
 }
-

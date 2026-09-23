@@ -10,49 +10,89 @@ import {
   type SubscriptionPlan,
 } from '@/lib/subscription-plans'
 
+
 interface ApiEnvelope<T> {
-  success: boolean
+  success:
+    boolean
 
-  data: T
+  data:
+    T
 
-  message?: string
+  message?:
+    string
 }
+
 
 interface BackendSubscriptionPlan {
-  _id?: unknown
+  _id?:
+    unknown
 
-  id?: unknown
+  id?:
+    unknown
 
-  title?: unknown
+  title?:
+    unknown
 
-  description?: unknown
+  description?:
+    unknown
 
-  tier?: unknown
+  tier?:
+    unknown
 
-  tags?: unknown
+  tags?:
+    unknown
 
-  durationMonths?: unknown
+  durationDays?:
+    unknown
 
-  price?: unknown
+  durationMonths?:
+    unknown
 
-  discountPercent?: unknown
+  price?:
+    unknown
 
-  features?: unknown
+  discountPercent?:
+    unknown
 
-  isActive?: unknown
+  features?:
+    unknown
 
-  sortOrder?: unknown
+  isActive?:
+    unknown
 
-  createdAt?: unknown
+  sortOrder?:
+    unknown
 
-  updatedAt?: unknown
+  createdAt?:
+    unknown
+
+  updatedAt?:
+    unknown
 }
+
+
+interface BackendSubscriptionSettings {
+  trialDays?:
+    unknown
+}
+
+
+export interface PublicSubscriptionSettings {
+  trialDays:
+    number
+}
+
 
 const SUBSCRIPTION_PLANS_ENDPOINT =
   '/subscription-plans'
 
-function normalizeString(
-  value: unknown,
+const SUBSCRIPTION_SETTINGS_ENDPOINT =
+  '/subscription-plans/settings'
+
+
+function stringValue(
+  value:
+    unknown,
 ): string {
   return typeof value ===
     'string'
@@ -60,20 +100,29 @@ function normalizeString(
     : ''
 }
 
-function normalizeOptionalString(
-  value: unknown,
-): string | undefined {
-  const normalized =
-    normalizeString(
+
+function numberValue(
+  value:
+    unknown,
+
+  fallback:
+    number,
+): number {
+  return (
+    typeof value ===
+      'number' &&
+    Number.isFinite(
       value,
     )
-
-  return normalized ||
-    undefined
+  )
+    ? value
+    : fallback
 }
 
-function normalizeStringArray(
-  value: unknown,
+
+function stringArray(
+  value:
+    unknown,
 ): string[] {
   if (
     !Array.isArray(
@@ -94,193 +143,169 @@ function normalizeStringArray(
             'string',
         )
         .map(
-          (item) =>
+          (
+            item,
+          ) =>
             item.trim(),
         )
-        .filter(Boolean),
+        .filter(
+          Boolean,
+        ),
     ),
   )
 }
 
-function normalizeNumber(
-  value: unknown,
-  fallback: number,
-): number {
-  if (
-    typeof value !==
-      'number' ||
-    !Number.isFinite(
-      value,
-    )
-  ) {
-    return fallback
-  }
-
-  return value
-}
 
 function resolveId(
-  value:
+  plan:
     BackendSubscriptionPlan,
 ): string {
-  if (
-    typeof value.id ===
-      'string'
-  ) {
-    return value.id.trim()
-  }
-
-  if (
-    typeof value._id ===
-      'string'
-  ) {
-    return value._id.trim()
-  }
-
-  return ''
+  return (
+    stringValue(
+      plan.id,
+    ) ||
+    stringValue(
+      plan._id,
+    )
+  )
 }
 
-function normalizePlan(
-  value:
+
+function resolveDurationDays(
+  plan:
+    BackendSubscriptionPlan,
+): number {
+  const days =
+    numberValue(
+      plan.durationDays,
+      0,
+    )
+
+  if (
+    days >
+    0
+  ) {
+    return Math.round(
+      days,
+    )
+  }
+
+  const months =
+    numberValue(
+      plan.durationMonths,
+      0,
+    )
+
+  return Math.max(
+    1,
+    Math.round(
+      months *
+        30,
+    ),
+  )
+}
+
+
+function mapPlan(
+  raw:
     BackendSubscriptionPlan,
 ): SubscriptionPlan {
-  const durationMonths =
-    Math.max(
-      1,
-      Math.round(
-        normalizeNumber(
-          value.durationMonths,
-          1,
-        ),
-      ),
-    )
-
-  const price =
-    Math.max(
-      0,
-      Math.round(
-        normalizeNumber(
-          value.price,
-          0,
-        ),
-      ),
-    )
-
-  const discountPercent =
-    Math.min(
-      100,
-      Math.max(
-        0,
-        Math.round(
-          normalizeNumber(
-            value.discountPercent,
-            0,
-          ),
-        ),
-      ),
-    )
-
-  const sortOrder =
-    Math.max(
-      0,
-      Math.round(
-        normalizeNumber(
-          value.sortOrder,
-          0,
-        ),
-      ),
+  const durationDays =
+    resolveDurationDays(
+      raw,
     )
 
   return {
     id:
       resolveId(
-        value,
+        raw,
       ),
 
     title:
-      normalizeString(
-        value.title,
+      stringValue(
+        raw.title,
       ),
 
     description:
-      normalizeString(
-        value.description,
+      stringValue(
+        raw.description,
       ),
 
     tier:
-      normalizeString(
-        value.tier,
+      stringValue(
+        raw.tier,
       ),
 
     tags:
-      normalizeStringArray(
-        value.tags,
+      stringArray(
+        raw.tags,
       ),
 
-    durationMonths,
+    durationDays,
 
-    price,
+    durationMonths:
+      durationDays /
+      30,
 
-    discountPercent,
+    price:
+      Math.max(
+        0,
+        Math.round(
+          numberValue(
+            raw.price,
+            0,
+          ),
+        ),
+      ),
+
+    discountPercent:
+      Math.min(
+        100,
+        Math.max(
+          0,
+          Math.round(
+            numberValue(
+              raw.discountPercent,
+              0,
+            ),
+          ),
+        ),
+      ),
 
     features:
-      normalizeStringArray(
-        value.features,
+      stringArray(
+        raw.features,
       ),
 
     isActive:
-      value.isActive ===
+      raw.isActive ===
       true,
 
-    sortOrder,
+    sortOrder:
+      Math.max(
+        0,
+        Math.round(
+          numberValue(
+            raw.sortOrder,
+            0,
+          ),
+        ),
+      ),
 
     createdAt:
-      normalizeOptionalString(
-        value.createdAt,
-      ),
+      stringValue(
+        raw.createdAt,
+      ) ||
+      undefined,
 
     updatedAt:
-      normalizeOptionalString(
-        value.updatedAt,
-      ),
+      stringValue(
+        raw.updatedAt,
+      ) ||
+      undefined,
   }
 }
 
-function assertListResponse(
-  payload:
-    ApiEnvelope<
-      BackendSubscriptionPlan[]
-    >,
-): void {
-  if (
-    payload.success !==
-      true ||
-    !Array.isArray(
-      payload.data,
-    )
-  ) {
-    throw new Error(
-      'ساختار پاسخ پلن‌های اشتراکی معتبر نیست.',
-    )
-  }
-}
-
-function assertItemResponse(
-  payload:
-    ApiEnvelope<BackendSubscriptionPlan>,
-): void {
-  if (
-    payload.success !==
-      true ||
-    !payload.data ||
-    typeof payload.data !==
-      'object'
-  ) {
-    throw new Error(
-      'ساختار پاسخ پلن اشتراکی معتبر نیست.',
-    )
-  }
-}
 
 export async function getPublicSubscriptionPlans():
   Promise<SubscriptionPlan[]> {
@@ -294,16 +319,26 @@ export async function getPublicSubscriptionPlans():
         SUBSCRIPTION_PLANS_ENDPOINT,
       )
 
-    assertListResponse(
-      response.data,
-    )
+    if (
+      response.data.success !==
+        true ||
+      !Array.isArray(
+        response.data.data,
+      )
+    ) {
+      throw new Error(
+        'ساختار پاسخ پلن‌ها معتبر نیست.',
+      )
+    }
 
     return response.data.data
       .map(
-        normalizePlan,
+        mapPlan,
       )
       .filter(
-        (plan) =>
+        (
+          plan,
+        ) =>
           Boolean(
             plan.id &&
             plan.title &&
@@ -321,7 +356,8 @@ export async function getPublicSubscriptionPlans():
             second.price,
       )
   } catch (
-    error: unknown
+    error:
+      unknown
   ) {
     throw new Error(
       getApiErrorMessage(
@@ -332,8 +368,10 @@ export async function getPublicSubscriptionPlans():
   }
 }
 
+
 export async function getPublicSubscriptionPlan(
-  id: string,
+  id:
+    string,
 ): Promise<SubscriptionPlan | null> {
   const planId =
     id.trim()
@@ -356,25 +394,27 @@ export async function getPublicSubscriptionPlan(
         )}`,
       )
 
-    assertItemResponse(
-      response.data,
-    )
+    if (
+      response.data.success !==
+      true
+    ) {
+      throw new Error(
+        response.data.message ||
+        'دریافت پلن ناموفق بود.',
+      )
+    }
 
     const plan =
-      normalizePlan(
+      mapPlan(
         response.data.data,
       )
 
-    if (
-      !plan.id ||
-      !plan.isActive
-    ) {
-      return null
-    }
-
-    return plan
+    return plan.isActive
+      ? plan
+      : null
   } catch (
-    error: unknown
+    error:
+      unknown
   ) {
     if (
       axios.isAxiosError(
@@ -389,10 +429,60 @@ export async function getPublicSubscriptionPlan(
     throw new Error(
       getApiErrorMessage(
         error,
-        'دریافت اطلاعات پلن اشتراکی ناموفق بود.',
+        'دریافت اطلاعات پلن ناموفق بود.',
       ),
     )
   }
 }
 
 
+ 
+export async function getPublicSubscriptionSettings():
+  Promise<PublicSubscriptionSettings | null> {
+  try {
+    const response =
+      await api.get<
+        ApiEnvelope<BackendSubscriptionSettings>
+      >(
+        SUBSCRIPTION_SETTINGS_ENDPOINT,
+      )
+
+    const trialDays =
+      numberValue(
+        response.data.data
+          ?.trialDays,
+        0,
+      )
+
+    if (
+      response.data.success !==
+        true ||
+      !Number.isInteger(
+        trialDays,
+      ) ||
+      trialDays <
+        1
+    ) {
+      return null
+    }
+
+    return {
+      trialDays,
+    }
+  } catch (
+    error:
+      unknown
+  ) {
+    if (
+      axios.isAxiosError(
+        error,
+      ) &&
+      error.response?.status ===
+        404
+    ) {
+      return null
+    }
+
+    return null
+  }
+}
