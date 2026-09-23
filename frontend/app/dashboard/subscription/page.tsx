@@ -1,14 +1,7 @@
 'use client'
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
-
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-
 import {
   CalendarClock,
   CheckCircle2,
@@ -20,268 +13,132 @@ import {
   RefreshCcw,
   ShieldCheck,
   Sparkles,
+  type LucideIcon,
 } from 'lucide-react'
 
 import {
+  formatLawyerSubscriptionDuration,
   getRemainingSubscriptionDays,
   getSubscriptionFeatureLabel,
   getSubscriptionFinalPrice,
   getSubscriptionTierLabel,
 } from '@/lib/lawyer-subscription'
 
-import {
-  getCurrentLawyerSubscription,
-} from '@/services/lawyer-subscription.service'
+import { getCurrentLawyerSubscription } from '@/services/lawyer-subscription.service'
+import { useAuthStore } from '@/store/auth.store'
 
-import {
-  useAuthStore,
-} from '@/store/auth.store'
+import type { LawyerSubscription } from '@/types/lawyer-subscription'
 
-import type {
-  LawyerSubscription,
-} from '@/types/lawyer-subscription'
+const numberFormatter = new Intl.NumberFormat('fa-IR')
 
+const dateTimeFormatter = new Intl.DateTimeFormat('fa-IR', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
 
-function formatDateTime(
-  value:
-    string,
-): string {
-  if (
-    !value
-  ) {
+function formatDateTime(value: string): string {
+  if (!value) {
     return '—'
   }
 
+  const date = new Date(value)
 
-  const date =
-    new Date(
-      value,
-    )
-
-
-  if (
-    Number.isNaN(
-      date.getTime(),
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return '—'
   }
 
-
-  return new Intl.DateTimeFormat(
-    'fa-IR',
-
-    {
-      dateStyle:
-        'medium',
-
-      timeStyle:
-        'short',
-    },
-  ).format(
-    date,
-  )
+  return dateTimeFormatter.format(date)
 }
 
-
-function formatNumber(
-  value:
-    number,
-): string {
-  return new Intl.NumberFormat(
-    'fa-IR',
-  ).format(
-    value,
-  )
+function formatNumber(value: number): string {
+  return numberFormatter.format(value)
 }
 
-
-function formatPrice(
-  value:
-    number,
-): string {
-  if (
-    value ===
-    0
-  ) {
+function formatPrice(value: number): string {
+  if (value === 0) {
     return 'رایگان'
   }
 
-
-  return `${formatNumber(
-    value,
-  )} تومان`
+  return `${formatNumber(value)} تومان`
 }
 
-
 export default function SubscriptionPage() {
-  const user =
-    useAuthStore(
-      (
-        state,
-      ) =>
-        state.user,
-    )
+  const user = useAuthStore((state) => state.user)
 
+  const isLawyer = user?.role === 'LAWYER'
 
-  const isLawyer =
-    user?.role ===
-    'LAWYER'
+  const [subscription, setSubscription] =
+    useState<LawyerSubscription | null>(null)
 
+  const [loading, setLoading] = useState(true)
 
-  const [
-    subscription,
-    setSubscription,
-  ] =
-    useState<LawyerSubscription | null>(
-      null,
-    )
+  const [refreshing, setRefreshing] =
+    useState(false)
 
+  const [error, setError] =
+    useState<string | null>(null)
 
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(
-      true,
-    )
+  const loadSubscription = useCallback(
+    async (initial = false) => {
+      if (!isLawyer) {
+        setSubscription(null)
+        setLoading(false)
 
+        return
+      }
 
-  const [
-    refreshing,
-    setRefreshing,
-  ] =
-    useState(
-      false,
-    )
-
-
-  const [
-    error,
-    setError,
-  ] =
-    useState<string | null>(
-      null,
-    )
-
-
-  const loadSubscription =
-    useCallback(
-      async (
-        initial =
-          false,
-      ) => {
-        if (
-          !isLawyer
-        ) {
-          setLoading(
-            false,
-          )
-
-          return
+      try {
+        if (initial) {
+          setLoading(true)
+        } else {
+          setRefreshing(true)
         }
 
+        setError(null)
 
-        try {
-          if (
-            initial
-          ) {
-            setLoading(
-              true,
-            )
-          } else {
-            setRefreshing(
-              true,
-            )
-          }
+        const result =
+          await getCurrentLawyerSubscription()
 
-
-          setError(
-            null,
-          )
-
-
-          const result =
-            await getCurrentLawyerSubscription()
-
-
-          setSubscription(
-            result,
-          )
-        } catch (
-          caughtError:
-            unknown
-        ) {
-          setError(
-            caughtError instanceof
-              Error
-              ? caughtError.message
-              : 'دریافت وضعیت اشتراک ناموفق بود.',
-          )
-        } finally {
-          setLoading(
-            false,
-          )
-
-          setRefreshing(
-            false,
-          )
-        }
-      },
-
-      [
-        isLawyer,
-      ],
-    )
-
-
-  useEffect(
-    () => {
-      void loadSubscription(
-        true,
-      )
+        setSubscription(result)
+      } catch (caughtError: unknown) {
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : 'دریافت وضعیت اشتراک ناموفق بود.',
+        )
+      } finally {
+        setLoading(false)
+        setRefreshing(false)
+      }
     },
-
-    [
-      loadSubscription,
-    ],
+    [isLawyer],
   )
 
+  useEffect(() => {
+    void loadSubscription(true)
+  }, [loadSubscription])
 
-  const remainingDays =
-    useMemo(
-      () =>
-        subscription
-          ? getRemainingSubscriptionDays(
-              subscription,
-            )
-          : 0,
+  const remainingDays = useMemo(
+    () =>
+      subscription
+        ? getRemainingSubscriptionDays(
+            subscription,
+          )
+        : 0,
+    [subscription],
+  )
 
-      [
-        subscription,
-      ],
-    )
+  const finalPrice = useMemo(
+    () =>
+      subscription
+        ? getSubscriptionFinalPrice(
+            subscription,
+          )
+        : 0,
+    [subscription],
+  )
 
-
-  const finalPrice =
-    useMemo(
-      () =>
-        subscription
-          ? getSubscriptionFinalPrice(
-              subscription,
-            )
-          : 0,
-
-      [
-        subscription,
-      ],
-    )
-
-
-  if (
-    !isLawyer &&
-    user
-  ) {
+  if (!isLawyer && user) {
     return (
       <div
         dir="rtl"
@@ -301,10 +158,7 @@ export default function SubscriptionPage() {
     )
   }
 
-
-  if (
-    loading
-  ) {
+  if (loading) {
     return (
       <div
         dir="rtl"
@@ -324,7 +178,6 @@ export default function SubscriptionPage() {
     )
   }
 
-
   return (
     <div
       dir="rtl"
@@ -333,35 +186,28 @@ export default function SubscriptionPage() {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-2 text-blue-700">
-            <CreditCard
-              size={22}
-            />
+            <CreditCard size={22} />
 
             <span className="text-xs font-black">
               اشتراک
             </span>
           </div>
 
-
           <h1 className="mt-2 text-2xl font-black text-slate-950">
             اشتراک من
           </h1>
-
 
           <p className="mt-2 text-sm font-semibold leading-7 text-slate-500">
             جزئیات پلن فعال و امکانات حساب شما
           </p>
         </div>
 
-
         <button
           type="button"
-          disabled={
-            refreshing
-          }
-          onClick={() => {
+          disabled={refreshing}
+          onClick={() =>
             void loadSubscription()
-          }}
+          }
           className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <RefreshCcw
@@ -377,312 +223,222 @@ export default function SubscriptionPage() {
         </button>
       </div>
 
+      {error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold leading-7 text-red-700">
+          {error}
+        </div>
+      )}
 
-      {
-        error &&
-        (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold leading-7 text-red-700">
-            {
-              error
-            }
-          </div>
-        )
-      }
+      {!subscription ? (
+        <NoActiveSubscription />
+      ) : (
+        <>
+          <section className="overflow-hidden rounded-[28px] border border-blue-200 bg-gradient-to-l from-blue-50 via-white to-violet-50 shadow-sm">
+            <div className="p-6 sm:p-8">
+              <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-start">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700">
+                      <CheckCircle2 size={15} />
 
+                      فعال
+                    </span>
 
-      {
-        !subscription
-          ? (
-            <NoActiveSubscription />
-          )
-          : (
-            <>
-              {/*
-               * فقط پلن فعلی وکیل نمایش داده می‌شود.
-               *
-               * هیچ اطلاعاتی درباره روش فعال‌شدن اشتراک
-               * یا ادمینی/پرداختی بودن آن به کاربر نشان داده نمی‌شود.
-               */}
-              <section className="overflow-hidden rounded-[28px] border border-blue-200 bg-gradient-to-l from-blue-50 via-white to-violet-50 shadow-sm">
-                <div className="p-6 sm:p-8">
-                  <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-start">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1.5 text-xs font-black text-emerald-700">
-                          <CheckCircle2
-                            size={15}
-                          />
-
-                          فعال
-                        </span>
-
-
-                        <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-black text-violet-700">
-                          {
-                            getSubscriptionTierLabel(
-                              subscription
-                                .planSnapshot
-                                .tier,
-                            )
-                          }
-                        </span>
-                      </div>
-
-
-                      <p className="mt-5 text-xs font-black text-blue-700">
-                        پلن انتخاب‌شده
-                      </p>
-
-
-                      <h2 className="mt-1 text-3xl font-black text-slate-950">
-                        {
-                          subscription
-                            .planSnapshot
-                            .title
-                        }
-                      </h2>
-
-
-                      {
+                    <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-black text-violet-700">
+                      {getSubscriptionTierLabel(
                         subscription
                           .planSnapshot
-                          .description &&
-                        (
-                          <p className="mt-3 max-w-3xl text-sm font-semibold leading-8 text-slate-600">
-                            {
-                              subscription
-                                .planSnapshot
-                                .description
-                            }
-                          </p>
-                        )
-                      }
-                    </div>
-
-
-                    <div className="min-w-32 rounded-2xl border border-white bg-white/85 p-4 text-center shadow-sm backdrop-blur">
-                      <p className="text-xs font-black text-slate-400">
-                        باقی‌مانده
-                      </p>
-
-                      <p className="mt-2 text-3xl font-black text-blue-700">
-                        {
-                          formatNumber(
-                            remainingDays,
-                          )
-                        }
-                      </p>
-
-                      <p className="mt-1 text-xs font-bold text-slate-500">
-                        روز
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-
-              <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <InfoCard
-                  icon={
-                    Clock3
-                  }
-                  label="تاریخ شروع"
-                  value={
-                    formatDateTime(
-                      subscription.startsAt,
-                    )
-                  }
-                />
-
-
-                <InfoCard
-                  icon={
-                    CalendarClock
-                  }
-                  label="تاریخ پایان"
-                  value={
-                    formatDateTime(
-                      subscription.endsAt,
-                    )
-                  }
-                />
-
-
-                <InfoCard
-                  icon={
-                    Package
-                  }
-                  label="مدت پلن"
-                  value={`${formatNumber(
-                    subscription
-                      .planSnapshot
-                      .durationMonths,
-                  )} ماه`}
-                />
-
-
-                <InfoCard
-                  icon={
-                    CircleDollarSign
-                  }
-                  label="مبلغ پلن"
-                  value={
-                    formatPrice(
-                      finalPrice,
-                    )
-                  }
-                />
-              </section>
-
-
-              <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
-                    <ShieldCheck
-                      size={21}
-                    />
+                          .tier,
+                      )}
+                    </span>
                   </div>
 
+                  <p className="mt-5 text-xs font-black text-blue-700">
+                    پلن انتخاب‌شده
+                  </p>
 
-                  <div>
-                    <h2 className="font-black text-slate-950">
-                      امکانات پلن
-                    </h2>
+                  <h2 className="mt-1 text-3xl font-black text-slate-950">
+                    {
+                      subscription
+                        .planSnapshot
+                        .title
+                    }
+                  </h2>
 
-                    <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
-                      امکاناتی که در پلن فعلی شما قرار دارند.
-                    </p>
-                  </div>
-                </div>
-
-
-                {
-                  subscription
+                  {subscription
                     .planSnapshot
-                    .features
-                    .length >
-                  0
-                    ? (
-                      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {
-                          subscription
-                            .planSnapshot
-                            .features
-                            .map(
-                              (
-                                feature,
-                              ) => (
-                                <div
-                                  key={
-                                    feature
-                                  }
-                                  className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"
-                                >
-                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-                                    <CheckCircle2
-                                      size={18}
-                                    />
-                                  </div>
-
-
-                                  <p className="text-sm font-black text-slate-800">
-                                    {
-                                      getSubscriptionFeatureLabel(
-                                        feature,
-                                      )
-                                    }
-                                  </p>
-                                </div>
-                              ),
-                            )
-                        }
-                      </div>
-                    )
-                    : (
-                      <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">
-                        برای این پلن قابلیت جداگانه‌ای تعریف نشده است.
-                      </div>
-                    )
-                }
-              </section>
-
-
-              {
-                subscription
-                  .planSnapshot
-                  .tags
-                  .length >
-                0 &&
-                (
-                  <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <p className="text-xs font-black text-slate-500">
-                      ویژگی‌های پلن
-                    </p>
-
-
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    .description && (
+                    <p className="mt-3 max-w-3xl text-sm font-semibold leading-8 text-slate-600">
                       {
                         subscription
                           .planSnapshot
-                          .tags
-                          .map(
-                            (
-                              tag,
-                            ) => (
-                              <span
-                                key={
-                                  tag
-                                }
-                                className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600"
-                              >
-                                {
-                                  tag
-                                }
-                              </span>
-                            ),
-                          )
+                          .description
                       }
-                    </div>
-                  </section>
+                    </p>
+                  )}
+                </div>
+
+                <div className="min-w-32 rounded-2xl border border-white bg-white/85 p-4 text-center shadow-sm backdrop-blur">
+                  <p className="text-xs font-black text-slate-400">
+                    باقی‌مانده
+                  </p>
+
+                  <p className="mt-2 text-3xl font-black text-blue-700">
+                    {
+                      formatNumber(
+                        remainingDays,
+                      )
+                    }
+                  </p>
+
+                  <p className="mt-1 text-xs font-bold text-slate-500">
+                    روز
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <InfoCard
+              icon={Clock3}
+              label="تاریخ شروع"
+              value={formatDateTime(
+                subscription.startsAt,
+              )}
+            />
+
+            <InfoCard
+              icon={CalendarClock}
+              label="تاریخ پایان"
+              value={formatDateTime(
+                subscription.endsAt,
+              )}
+            />
+
+            <InfoCard
+              icon={Package}
+              label="مدت پلن"
+              value={
+                formatLawyerSubscriptionDuration(
+                  subscription,
                 )
               }
-            </>
-          )
-      }
+            />
+
+            <InfoCard
+              icon={CircleDollarSign}
+              label="مبلغ پلن"
+              value={formatPrice(
+                finalPrice,
+              )}
+            />
+          </section>
+
+          <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                <ShieldCheck size={21} />
+              </div>
+
+              <div>
+                <h2 className="font-black text-slate-950">
+                  امکانات پلن
+                </h2>
+
+                <p className="mt-1 text-sm font-semibold leading-7 text-slate-500">
+                  امکاناتی که در پلن فعلی شما قرار دارند.
+                </p>
+              </div>
+            </div>
+
+            {subscription
+              .planSnapshot
+              .features
+              .length > 0 ? (
+              <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {subscription
+                  .planSnapshot
+                  .features
+                  .map((feature) => (
+                    <div
+                      key={feature}
+                      className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                        <CheckCircle2
+                          size={18}
+                        />
+                      </div>
+
+                      <p className="text-sm font-black text-slate-800">
+                        {
+                          getSubscriptionFeatureLabel(
+                            feature,
+                          )
+                        }
+                      </p>
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">
+                برای این پلن قابلیت جداگانه‌ای تعریف نشده است.
+              </div>
+            )}
+          </section>
+
+          {subscription
+            .planSnapshot
+            .tags
+            .length > 0 && (
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-black text-slate-500">
+                ویژگی‌های پلن
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {subscription
+                  .planSnapshot
+                  .tags
+                  .map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
     </div>
   )
 }
-
 
 function NoActiveSubscription() {
   return (
     <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
       <div className="p-7 text-center sm:p-10">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-blue-100 text-blue-700">
-          <Sparkles
-            size={29}
-          />
+          <Sparkles size={29} />
         </div>
-
 
         <h2 className="mt-5 text-2xl font-black text-slate-950">
           اشتراک فعالی ندارید
         </h2>
 
-
         <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-8 text-slate-600">
           برای استفاده از امکانات پلن‌های اشتراکی، می‌توانید پلن مناسب خود را انتخاب کنید.
         </p>
-
 
         <Link
           href="/#plans"
           className="mt-6 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 text-sm font-black text-white transition hover:bg-blue-700"
         >
-          <Package
-            size={18}
-          />
+          <Package size={18} />
 
           مشاهده پلن‌ها
         </Link>
@@ -691,21 +447,14 @@ function NoActiveSubscription() {
   )
 }
 
-
 function InfoCard({
-  icon:
-    Icon,
+  icon: Icon,
   label,
   value,
 }: {
-  icon:
-    typeof Clock3
-
-  label:
-    string
-
-  value:
-    string
+  icon: LucideIcon
+  label: string
+  value: string
 }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -715,18 +464,12 @@ function InfoCard({
           className="text-blue-600"
         />
 
-        {
-          label
-        }
+        {label}
       </div>
 
-
       <p className="mt-3 text-sm font-black leading-7 text-slate-900">
-        {
-          value
-        }
+        {value}
       </p>
     </article>
   )
-
 }

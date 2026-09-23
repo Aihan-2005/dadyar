@@ -26,33 +26,48 @@ import {
 } from '@/lib/subscription-plans'
 
 import {
+  getCachedPublicSubscriptionPlans,
+  getCachedPublicSubscriptionSettings,
   getPublicSubscriptionPlans,
   getPublicSubscriptionSettings,
 } from '@/services/subscription-plan.service'
 
+const numberFormatter =
+  new Intl.NumberFormat(
+    'fa-IR',
+  )
 
 export default function SubscriptionPlansSection() {
   const [
     plans,
     setPlans,
   ] =
-    useState<
-      SubscriptionPlan[]
-    >([])
+    useState<SubscriptionPlan[]>(
+      () =>
+        getCachedPublicSubscriptionPlans() ??
+        [],
+    )
 
   const [
     trialDays,
     setTrialDays,
   ] =
     useState<number | null>(
-      null,
+      () =>
+        getCachedPublicSubscriptionSettings()
+          ?.trialDays ??
+        null,
     )
 
   const [
     loading,
     setLoading,
   ] =
-    useState(true)
+    useState(
+      () =>
+        getCachedPublicSubscriptionPlans() ===
+        null,
+    )
 
   const [
     error,
@@ -62,26 +77,30 @@ export default function SubscriptionPlansSection() {
       null,
     )
 
-
   const loadPlans =
     useCallback(
-      async () => {
+      async (
+        force = false,
+      ) => {
         try {
-          setLoading(
-            true,
-          )
+          if (force) {
+            setLoading(true)
+          }
 
-          setError(
-            null,
-          )
+          setError(null)
 
           const [
             plansResult,
             settingsResult,
           ] =
             await Promise.allSettled([
-              getPublicSubscriptionPlans(),
-              getPublicSubscriptionSettings(),
+              getPublicSubscriptionPlans({
+                force,
+              }),
+
+              getPublicSubscriptionSettings({
+                force,
+              }),
             ])
 
           if (
@@ -95,21 +114,19 @@ export default function SubscriptionPlansSection() {
             plansResult.value,
           )
 
-          setTrialDays(
+          if (
             settingsResult.status ===
-              'fulfilled'
-              ? settingsResult
-                  .value
-                  ?.trialDays ??
-                null
-              : null,
-          )
+            'fulfilled'
+          ) {
+            setTrialDays(
+              settingsResult
+                .value
+                .trialDays,
+            )
+          }
         } catch (
-          caughtError:
-            unknown
+          caughtError: unknown
         ) {
-          setPlans([])
-
           setError(
             caughtError instanceof
               Error
@@ -117,26 +134,15 @@ export default function SubscriptionPlansSection() {
               : 'دریافت پلن‌ها ناموفق بود.',
           )
         } finally {
-          setLoading(
-            false,
-          )
+          setLoading(false)
         }
       },
-
       [],
     )
 
-
-  useEffect(
-    () => {
-      void loadPlans()
-    },
-
-    [
-      loadPlans,
-    ],
-  )
-
+  useEffect(() => {
+    void loadPlans()
+  }, [loadPlans])
 
   return (
     <section
@@ -154,10 +160,10 @@ export default function SubscriptionPlansSection() {
           </h2>
 
           <p className="mt-4 text-base font-medium leading-8 text-slate-700">
-            پلن مورد نیاز خود را بر اساس مدت، امکانات و هزینه انتخاب کنید.
+            پلن مورد نیاز خود را بر اساس مدت، امکانات و هزینه انتخاب
+            کنید.
           </p>
         </div>
-
 
         {
           trialDays !==
@@ -176,9 +182,7 @@ export default function SubscriptionPlansSection() {
                     شروع کار با
                     {' '}
                     {
-                      new Intl.NumberFormat(
-                        'fa-IR',
-                      ).format(
+                      numberFormatter.format(
                         trialDays,
                       )
                     }
@@ -187,7 +191,10 @@ export default function SubscriptionPlansSection() {
                   </p>
 
                   <p className="mt-1 text-sm font-semibold leading-7 text-slate-600">
-                    اگر برای اولین بار به‌عنوان وکیل در دادیار ثبت‌نام می‌کنید، دوره رایگان شما از زمان ساخت حساب فعال می‌شود و برای شروع نیازی به خرید فوری پلن ندارید.
+                    اگر برای اولین بار به‌عنوان وکیل در دادیار
+                    ثبت‌نام می‌کنید، دوره رایگان شما از زمان ساخت
+                    حساب فعال می‌شود و برای شروع نیازی به خرید فوری
+                    پلن ندارید.
                   </p>
                 </div>
               </div>
@@ -195,9 +202,10 @@ export default function SubscriptionPlansSection() {
           )
         }
 
-
         {
-          loading
+          loading &&
+          plans.length ===
+            0
             ? (
               <div className="mt-10 flex min-h-64 items-center justify-center rounded-[28px] border border-slate-300 bg-white">
                 <div className="text-center">
@@ -212,7 +220,9 @@ export default function SubscriptionPlansSection() {
                 </div>
               </div>
             )
-            : error
+            : error &&
+              plans.length ===
+                0
               ? (
                 <div className="mx-auto mt-10 max-w-xl rounded-[24px] border border-red-200 bg-red-50 p-6 text-center">
                   <p className="text-sm font-bold leading-7 text-red-700">
@@ -223,9 +233,11 @@ export default function SubscriptionPlansSection() {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      void loadPlans()
-                    }}
+                    onClick={() =>
+                      void loadPlans(
+                        true,
+                      )
+                    }
                     className="mt-4 inline-flex h-11 items-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-black text-white"
                   >
                     <RefreshCcw
@@ -246,24 +258,34 @@ export default function SubscriptionPlansSection() {
                   </div>
                 )
                 : (
-                  <div className="mt-10 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                  <>
                     {
-                      plans.map(
-                        (
-                          plan,
-                        ) => (
-                          <SubscriptionPlanCard
-                            key={
-                              plan.id
-                            }
-                            plan={
-                              plan
-                            }
-                          />
-                        ),
+                      error &&
+                      (
+                        <div className="mx-auto mt-8 max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center text-sm font-bold text-amber-800">
+                          اطلاعات ذخیره‌شده نمایش داده می‌شود. برای
+                          دریافت آخرین تغییرات دوباره تلاش کنید.
+                        </div>
                       )
                     }
-                  </div>
+
+                    <div className="mt-10 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                      {
+                        plans.map(
+                          (plan) => (
+                            <SubscriptionPlanCard
+                              key={
+                                plan.id
+                              }
+                              plan={
+                                plan
+                              }
+                            />
+                          ),
+                        )
+                      }
+                    </div>
+                  </>
                 )
         }
       </div>
@@ -271,12 +293,10 @@ export default function SubscriptionPlansSection() {
   )
 }
 
-
 function SubscriptionPlanCard({
   plan,
 }: {
-  plan:
-    SubscriptionPlan
+  plan: SubscriptionPlan
 }) {
   const highlighted =
     isSubscriptionPlanHighlighted(
@@ -293,7 +313,6 @@ function SubscriptionPlanCard({
       0 &&
     finalPrice <
       plan.price
-
 
   return (
     <article
@@ -323,9 +342,7 @@ function SubscriptionPlanCard({
 
         {
           plan.tags.map(
-            (
-              tag,
-            ) => (
+            (tag) => (
               <span
                 key={
                   tag
@@ -368,9 +385,7 @@ function SubscriptionPlanCard({
 
               <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-black text-red-600">
                 {
-                  new Intl.NumberFormat(
-                    'fa-IR',
-                  ).format(
+                  numberFormatter.format(
                     plan.discountPercent,
                   )
                 }
@@ -402,9 +417,7 @@ function SubscriptionPlanCard({
       <ul className="flex-1 space-y-3">
         {
           plan.features.map(
-            (
-              feature,
-            ) => (
+            (feature) => (
               <li
                 key={
                   feature
@@ -431,6 +444,7 @@ function SubscriptionPlanCard({
         href={`/checkout?plan=${encodeURIComponent(
           plan.id,
         )}`}
+        prefetch
         className={`mt-8 flex h-14 items-center justify-center rounded-2xl text-base font-black transition ${
           highlighted
             ? 'bg-blue-600 text-white hover:bg-blue-700'

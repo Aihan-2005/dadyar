@@ -31,6 +31,9 @@ const TIER_LABELS:
     string,
     string
   > = {
+    TRIAL:
+      'دوره رایگان',
+
     BASIC:
       'پایه',
 
@@ -87,6 +90,57 @@ export function getSubscriptionTierLabel(
     ] ??
     normalized
   )
+}
+
+
+export function formatLawyerSubscriptionDuration(
+  subscription:
+    LawyerSubscription,
+): string {
+  const durationDays =
+    Math.max(
+      1,
+      Math.round(
+        subscription
+          .planSnapshot
+          .durationDays,
+      ),
+    )
+
+
+  if (
+    durationDays %
+      30 ===
+    0
+  ) {
+    return `${new Intl.NumberFormat(
+      'fa-IR',
+    ).format(
+      durationDays /
+        30,
+    )} ماه`
+  }
+
+
+  if (
+    durationDays %
+      7 ===
+    0
+  ) {
+    return `${new Intl.NumberFormat(
+      'fa-IR',
+    ).format(
+      durationDays /
+        7,
+    )} هفته`
+  }
+
+
+  return `${new Intl.NumberFormat(
+    'fa-IR',
+  ).format(
+    durationDays,
+  )} روز`
 }
 
 

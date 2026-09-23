@@ -12,74 +12,54 @@ import {
 
 
 interface ApiEnvelope<T> {
-  success:
-    boolean
+  success: boolean
 
-  data:
-    T
+  data: T
 
-  message?:
-    string
+  message?: string
 }
 
 
 interface BackendSubscriptionPlan {
-  _id?:
-    unknown
+  id?: unknown
 
-  id?:
-    unknown
+  _id?: unknown
 
-  title?:
-    unknown
+  title?: unknown
 
-  description?:
-    unknown
+  description?: unknown
 
-  tier?:
-    unknown
+  tier?: unknown
 
-  tags?:
-    unknown
+  tags?: unknown
 
-  durationDays?:
-    unknown
+  durationDays?: unknown
 
-  durationMonths?:
-    unknown
+  durationMonths?: unknown
 
-  price?:
-    unknown
+  price?: unknown
 
-  discountPercent?:
-    unknown
+  discountPercent?: unknown
 
-  features?:
-    unknown
+  features?: unknown
 
-  isActive?:
-    unknown
+  isActive?: unknown
 
-  sortOrder?:
-    unknown
+  sortOrder?: unknown
 
-  createdAt?:
-    unknown
+  createdAt?: unknown
 
-  updatedAt?:
-    unknown
+  updatedAt?: unknown
 }
 
 
 interface BackendSubscriptionSettings {
-  trialDays?:
-    unknown
+  trialDays?: unknown
 }
 
 
 export interface PublicSubscriptionSettings {
-  trialDays:
-    number
+  trialDays: number
 }
 
 
@@ -90,27 +70,75 @@ const SUBSCRIPTION_SETTINGS_ENDPOINT =
   '/subscription-plans/settings'
 
 
-function stringValue(
-  value:
-    unknown,
+ 
+const CACHE_TTL_MS =
+  60_000
+
+
+type TimedCache<T> = {
+  value: T
+
+  expiresAt: number
+}
+
+
+let plansCache:
+  TimedCache<SubscriptionPlan[]> | null =
+  null
+
+let settingsCache:
+  TimedCache<PublicSubscriptionSettings> | null =
+  null
+
+
+ 
+let plansRequest:
+  Promise<SubscriptionPlan[]> | null =
+  null
+
+let settingsRequest:
+  Promise<PublicSubscriptionSettings> | null =
+  null
+
+
+function isRecord(
+  value: unknown,
+): value is Record<string, unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null
+  )
+}
+
+
+function readString(
+  value: unknown,
 ): string {
-  return typeof value ===
-    'string'
+  return typeof value === 'string'
     ? value.trim()
     : ''
 }
 
 
-function numberValue(
-  value:
-    unknown,
+function readOptionalString(
+  value: unknown,
+): string | undefined {
+  const normalized =
+    readString(
+      value,
+    )
 
-  fallback:
-    number,
+  return normalized ||
+    undefined
+}
+
+
+function readNumber(
+  value: unknown,
+  fallback = 0,
 ): number {
   return (
-    typeof value ===
-      'number' &&
+    typeof value === 'number' &&
     Number.isFinite(
       value,
     )
@@ -120,9 +148,8 @@ function numberValue(
 }
 
 
-function stringArray(
-  value:
-    unknown,
+function readStringArray(
+  value: unknown,
 ): string[] {
   if (
     !Array.isArray(
@@ -139,8 +166,7 @@ function stringArray(
           (
             item,
           ): item is string =>
-            typeof item ===
-            'string',
+            typeof item === 'string',
         )
         .map(
           (
@@ -156,18 +182,43 @@ function stringArray(
 }
 
 
-function resolveId(
+function readPlanId(
   plan:
     BackendSubscriptionPlan,
 ): string {
-  return (
-    stringValue(
+  const directId =
+    readString(
       plan.id,
-    ) ||
-    stringValue(
-      plan._id,
     )
-  )
+
+  if (
+    directId
+  ) {
+    return directId
+  }
+
+
+  if (
+    typeof plan._id ===
+      'string'
+  ) {
+    return plan._id.trim()
+  }
+
+
+  if (
+    plan._id !==
+      null &&
+    plan._id !==
+      undefined
+  ) {
+    return String(
+      plan._id,
+    ).trim()
+  }
+
+
+  return ''
 }
 
 
@@ -175,105 +226,180 @@ function resolveDurationDays(
   plan:
     BackendSubscriptionPlan,
 ): number {
-  const days =
-    numberValue(
+  const durationDays =
+    readNumber(
       plan.durationDays,
-      0,
     )
 
+
   if (
-    days >
+    durationDays >
     0
   ) {
-    return Math.round(
-      days,
+    return Math.max(
+      1,
+      Math.round(
+        durationDays,
+      ),
     )
   }
 
-  const months =
-    numberValue(
+
+   
+  const durationMonths =
+    readNumber(
       plan.durationMonths,
-      0,
     )
 
-  return Math.max(
-    1,
-    Math.round(
-      months *
-        30,
-    ),
+
+  if (
+    durationMonths >
+    0
+  ) {
+    return Math.max(
+      1,
+      Math.round(
+        durationMonths *
+          30,
+      ),
+    )
+  }
+
+
+  throw new Error(
+    'مدت پلن دریافت‌شده از سرور معتبر نیست.',
   )
 }
 
 
-function mapPlan(
+function mapSubscriptionPlan(
   raw:
     BackendSubscriptionPlan,
 ): SubscriptionPlan {
+  const id =
+    readPlanId(
+      raw,
+    )
+
+
+  if (
+    !isSubscriptionPlanId(
+      id,
+    )
+  ) {
+    throw new Error(
+      'شناسه پلن دریافت‌شده از سرور معتبر نیست.',
+    )
+  }
+
+
+  const title =
+    readString(
+      raw.title,
+    )
+
+
+  const tier =
+    readString(
+      raw.tier,
+    )
+
+
   const durationDays =
     resolveDurationDays(
       raw,
     )
 
-  return {
-    id:
-      resolveId(
-        raw,
-      ),
 
-    title:
-      stringValue(
-        raw.title,
-      ),
+  const price =
+    readNumber(
+      raw.price,
+      Number.NaN,
+    )
+
+
+  const discountPercent =
+    readNumber(
+      raw.discountPercent,
+      Number.NaN,
+    )
+
+
+  if (
+    !title ||
+    !tier
+  ) {
+    throw new Error(
+      'اطلاعات پلن دریافت‌شده از سرور ناقص است.',
+    )
+  }
+
+
+  if (
+    !Number.isSafeInteger(
+      price,
+    ) ||
+    price <
+      0
+  ) {
+    throw new Error(
+      'قیمت پلن دریافت‌شده از سرور معتبر نیست.',
+    )
+  }
+
+
+  if (
+    !Number.isFinite(
+      discountPercent,
+    ) ||
+    discountPercent <
+      0 ||
+    discountPercent >
+      100
+  ) {
+    throw new Error(
+      'درصد تخفیف پلن دریافت‌شده از سرور معتبر نیست.',
+    )
+  }
+
+
+  return {
+    id,
+
+    title,
 
     description:
-      stringValue(
+      readString(
         raw.description,
       ),
 
-    tier:
-      stringValue(
-        raw.tier,
-      ),
+    tier,
 
     tags:
-      stringArray(
+      readStringArray(
         raw.tags,
       ),
 
+   
     durationDays,
 
+    
     durationMonths:
       durationDays /
       30,
 
     price:
-      Math.max(
-        0,
-        Math.round(
-          numberValue(
-            raw.price,
-            0,
-          ),
-        ),
+      Math.round(
+        price,
       ),
 
     discountPercent:
-      Math.min(
-        100,
-        Math.max(
-          0,
-          Math.round(
-            numberValue(
-              raw.discountPercent,
-              0,
-            ),
-          ),
-        ),
+      Math.round(
+        discountPercent,
       ),
 
     features:
-      stringArray(
+      readStringArray(
         raw.features,
       ),
 
@@ -285,29 +411,124 @@ function mapPlan(
       Math.max(
         0,
         Math.round(
-          numberValue(
+          readNumber(
             raw.sortOrder,
-            0,
           ),
         ),
       ),
 
     createdAt:
-      stringValue(
+      readOptionalString(
         raw.createdAt,
-      ) ||
-      undefined,
+      ),
 
     updatedAt:
-      stringValue(
+      readOptionalString(
         raw.updatedAt,
-      ) ||
-      undefined,
+      ),
   }
 }
 
 
-export async function getPublicSubscriptionPlans():
+function unwrapEnvelope<T>(
+  response:
+    ApiEnvelope<T>,
+
+  fallbackMessage:
+    string,
+): T {
+  if (
+    response.success !==
+    true
+  ) {
+    throw new Error(
+      response.message ||
+      fallbackMessage,
+    )
+  }
+
+
+  return response.data
+}
+
+
+function getFreshCache<T>(
+  cache:
+    TimedCache<T> | null,
+): T | null {
+  if (
+    !cache ||
+    cache.expiresAt <=
+      Date.now()
+  ) {
+    return null
+  }
+
+
+  return cache.value
+}
+
+
+function cacheValue<T>(
+  value:
+    T,
+): TimedCache<T> {
+  return {
+    value,
+
+    expiresAt:
+      Date.now() +
+      CACHE_TTL_MS,
+  }
+}
+
+ 
+export function getCachedPublicSubscriptionPlans():
+  SubscriptionPlan[] | null {
+  return getFreshCache(
+    plansCache,
+  )
+}
+
+ 
+export function getCachedPublicSubscriptionPlan(
+  planId:
+    string |
+    null |
+    undefined,
+): SubscriptionPlan | null {
+  if (
+    !isSubscriptionPlanId(
+      planId,
+    )
+  ) {
+    return null
+  }
+
+
+  return (
+    getFreshCache(
+      plansCache,
+    )?.find(
+      (
+        plan,
+      ) =>
+        plan.id ===
+        planId.trim(),
+    ) ??
+    null
+  )
+}
+
+
+export function getCachedPublicSubscriptionSettings():
+  PublicSubscriptionSettings | null {
+  return getFreshCache(
+    settingsCache,
+  )
+}
+ 
+async function requestPublicPlans():
   Promise<SubscriptionPlan[]> {
   try {
     const response =
@@ -319,41 +540,43 @@ export async function getPublicSubscriptionPlans():
         SUBSCRIPTION_PLANS_ENDPOINT,
       )
 
+
+    const data =
+      unwrapEnvelope(
+        response.data,
+
+        'دریافت پلن‌های اشتراکی ناموفق بود.',
+      )
+
+
     if (
-      response.data.success !==
-        true ||
       !Array.isArray(
-        response.data.data,
+        data,
       )
     ) {
       throw new Error(
-        'ساختار پاسخ پلن‌ها معتبر نیست.',
+        'ساختار پاسخ لیست پلن‌ها معتبر نیست.',
       )
     }
 
-    return response.data.data
+
+    return data
       .map(
-        mapPlan,
+        mapSubscriptionPlan,
       )
       .filter(
         (
           plan,
         ) =>
-          Boolean(
-            plan.id &&
-            plan.title &&
-            plan.isActive,
-          ),
+          plan.isActive,
       )
       .sort(
         (
-          first,
-          second,
+          a,
+          b,
         ) =>
-          first.sortOrder -
-            second.sortOrder ||
-          first.price -
-            second.price,
+          a.sortOrder -
+          b.sortOrder,
       )
   } catch (
     error:
@@ -362,6 +585,7 @@ export async function getPublicSubscriptionPlans():
     throw new Error(
       getApiErrorMessage(
         error,
+
         'دریافت پلن‌های اشتراکی ناموفق بود.',
       ),
     )
@@ -369,53 +593,232 @@ export async function getPublicSubscriptionPlans():
 }
 
 
+
+export async function getPublicSubscriptionPlans(
+  options: {
+    force?: boolean
+  } = {},
+): Promise<SubscriptionPlan[]> {
+  if (
+    !options.force
+  ) {
+    const cached =
+      getFreshCache(
+        plansCache,
+      )
+
+
+    if (
+      cached
+    ) {
+      return cached
+    }
+
+
+    
+    if (
+      plansRequest
+    ) {
+      return plansRequest
+    }
+  }
+
+
+  const request =
+    requestPublicPlans()
+      .then(
+        (
+          plans,
+        ) => {
+          plansCache =
+            cacheValue(
+              plans,
+            )
+
+          return plans
+        },
+      )
+
+
+  plansRequest =
+    request
+
+
+  try {
+    return await request
+  } finally {
+    if (
+      plansRequest ===
+      request
+    ) {
+      plansRequest =
+        null
+    }
+  }
+}
+
+
+
+
 export async function getPublicSubscriptionPlan(
-  id:
+  planId:
     string,
 ): Promise<SubscriptionPlan | null> {
-  const planId =
-    id.trim()
+  const normalizedId =
+    planId.trim()
+
 
   if (
     !isSubscriptionPlanId(
-      planId,
+      normalizedId,
     )
   ) {
     return null
   }
 
+
+  const cachedPlans =
+    getFreshCache(
+      plansCache,
+    )
+
+
+  const cachedPlan =
+    cachedPlans?.find(
+      (
+        plan,
+      ) =>
+        plan.id ===
+        normalizedId,
+    )
+
+
+  if (
+    cachedPlan
+  ) {
+    return cachedPlan
+  }
+
+
+
+  
+  if (
+    plansRequest
+  ) {
+    try {
+      const plans =
+        await plansRequest
+
+
+      const plan =
+        plans.find(
+          (
+            item,
+          ) =>
+            item.id ===
+            normalizedId,
+        )
+
+
+      if (
+        plan
+      ) {
+        return plan
+      }
+    } catch {
+
+      
+    }
+  }
+
+
   try {
     const response =
       await api.get<
-        ApiEnvelope<BackendSubscriptionPlan>
+        ApiEnvelope<
+          BackendSubscriptionPlan
+        >
       >(
         `${SUBSCRIPTION_PLANS_ENDPOINT}/${encodeURIComponent(
-          planId,
+          normalizedId,
         )}`,
       )
 
+
+    const raw =
+      unwrapEnvelope(
+        response.data,
+
+        'دریافت اطلاعات پلن ناموفق بود.',
+      )
+
+
     if (
-      response.data.success !==
-      true
+      !isRecord(
+        raw,
+      )
     ) {
       throw new Error(
-        response.data.message ||
-        'دریافت پلن ناموفق بود.',
+        'ساختار پاسخ پلن معتبر نیست.',
       )
     }
 
+
     const plan =
-      mapPlan(
-        response.data.data,
+      mapSubscriptionPlan(
+        raw,
       )
 
-    return plan.isActive
-      ? plan
-      : null
+
+    if (
+      !plan.isActive
+    ) {
+      return null
+    }
+
+
+  
+    
+    const existing =
+      getFreshCache(
+        plansCache,
+      ) ??
+      []
+
+
+    const merged = [
+      ...existing.filter(
+        (
+          item,
+        ) =>
+          item.id !==
+          plan.id,
+      ),
+
+      plan,
+    ].sort(
+      (
+        a,
+        b,
+      ) =>
+        a.sortOrder -
+        b.sortOrder,
+    )
+
+
+    plansCache =
+      cacheValue(
+        merged,
+      )
+
+
+    return plan
   } catch (
     error:
       unknown
   ) {
+
+    
     if (
       axios.isAxiosError(
         error,
@@ -426,9 +829,11 @@ export async function getPublicSubscriptionPlan(
       return null
     }
 
+
     throw new Error(
       getApiErrorMessage(
         error,
+
         'دریافت اطلاعات پلن ناموفق بود.',
       ),
     )
@@ -436,35 +841,60 @@ export async function getPublicSubscriptionPlan(
 }
 
 
- 
-export async function getPublicSubscriptionSettings():
-  Promise<PublicSubscriptionSettings | null> {
+
+async function requestPublicSettings():
+  Promise<PublicSubscriptionSettings> {
   try {
     const response =
       await api.get<
-        ApiEnvelope<BackendSubscriptionSettings>
+        ApiEnvelope<
+          BackendSubscriptionSettings
+        >
       >(
         SUBSCRIPTION_SETTINGS_ENDPOINT,
       )
 
-    const trialDays =
-      numberValue(
-        response.data.data
-          ?.trialDays,
-        0,
+
+    const data =
+      unwrapEnvelope(
+        response.data,
+
+        'دریافت تنظیمات دوره رایگان ناموفق بود.',
       )
 
+
     if (
-      response.data.success !==
-        true ||
+      !isRecord(
+        data,
+      )
+    ) {
+      throw new Error(
+        'ساختار پاسخ تنظیمات اشتراک معتبر نیست.',
+      )
+    }
+
+
+    const trialDays =
+      readNumber(
+        data.trialDays,
+        Number.NaN,
+      )
+
+
+    if (
       !Number.isInteger(
         trialDays,
       ) ||
       trialDays <
-        1
+        1 ||
+      trialDays >
+        365
     ) {
-      return null
+      throw new Error(
+        'مدت دوره رایگان دریافت‌شده از سرور معتبر نیست.',
+      )
     }
+
 
     return {
       trialDays,
@@ -473,16 +903,88 @@ export async function getPublicSubscriptionSettings():
     error:
       unknown
   ) {
-    if (
-      axios.isAxiosError(
+    throw new Error(
+      getApiErrorMessage(
         error,
-      ) &&
-      error.response?.status ===
-        404
+
+        'دریافت تنظیمات دوره رایگان ناموفق بود.',
+      ),
+    )
+  }
+}
+
+
+
+export async function getPublicSubscriptionSettings(
+  options: {
+    force?: boolean
+  } = {},
+): Promise<PublicSubscriptionSettings> {
+  if (
+    !options.force
+  ) {
+    const cached =
+      getFreshCache(
+        settingsCache,
+      )
+
+
+    if (
+      cached
     ) {
-      return null
+      return cached
     }
 
-    return null
+
+    if (
+      settingsRequest
+    ) {
+      return settingsRequest
+    }
   }
+
+
+  const request =
+    requestPublicSettings()
+      .then(
+        (
+          settings,
+        ) => {
+          settingsCache =
+            cacheValue(
+              settings,
+            )
+
+          return settings
+        },
+      )
+
+
+  settingsRequest =
+    request
+
+
+  try {
+    return await request
+  } finally {
+    if (
+      settingsRequest ===
+      request
+    ) {
+      settingsRequest =
+        null
+    }
+  }
+}
+
+
+
+
+export function invalidatePublicSubscriptionPlanCache():
+  void {
+  plansCache =
+    null
+
+  settingsCache =
+    null
 }

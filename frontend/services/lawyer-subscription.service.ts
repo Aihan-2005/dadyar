@@ -91,7 +91,7 @@ function readString(
 ): string {
   return typeof value ===
     'string'
-    ? value
+    ? value.trim()
     : ''
 }
 
@@ -100,10 +100,13 @@ function readNullableString(
   value:
     unknown,
 ): string | null {
-  return typeof value ===
-    'string'
-    ? value
-    : null
+  const normalized =
+    readString(
+      value,
+    )
+
+  return normalized ||
+    null
 }
 
 
@@ -132,6 +135,31 @@ function readObjectId(
   return String(
     value,
   )
+}
+
+
+function readNullableObjectId(
+  value:
+    unknown,
+): string | null {
+  if (
+    value ===
+      null ||
+    value ===
+      undefined
+  ) {
+    return null
+  }
+
+
+  const normalized =
+    readObjectId(
+      value,
+    ).trim()
+
+
+  return normalized ||
+    null
 }
 
 
@@ -218,6 +246,7 @@ function readActivationSource(
   switch (
     value
   ) {
+    case 'TRIAL':
     case 'ADMIN':
     case 'PAYMENT':
       return value
@@ -227,6 +256,58 @@ function readActivationSource(
         'منبع فعال‌سازی اشتراک دریافت‌شده از سرور معتبر نیست.',
       )
   }
+}
+
+
+function resolveDurationDays(
+  value:
+    Record<
+      string,
+      unknown
+    >,
+): number {
+  const durationDays =
+    readNumber(
+      value.durationDays,
+      0,
+    )
+
+
+  if (
+    durationDays >
+    0
+  ) {
+    return Math.max(
+      1,
+      Math.round(
+        durationDays,
+      ),
+    )
+  }
+
+
+  const durationMonths =
+    readNumber(
+      value.durationMonths,
+      0,
+    )
+
+
+  if (
+    durationMonths >
+    0
+  ) {
+    return Math.max(
+      1,
+      Math.round(
+        durationMonths *
+          30,
+      ),
+    )
+  }
+
+
+  return 0
 }
 
 
@@ -243,6 +324,30 @@ function mapPlanSnapshot(
       'اطلاعات پلن اشتراک معتبر نیست.',
     )
   }
+
+
+  const durationDays =
+    resolveDurationDays(
+      value,
+    )
+
+
+  if (
+    durationDays <=
+    0
+  ) {
+    throw new Error(
+      'مدت اشتراک دریافت‌شده معتبر نیست.',
+    )
+  }
+
+
+  const legacyDurationMonths =
+    readNumber(
+      value.durationMonths,
+      durationDays /
+        30,
+    )
 
 
   return {
@@ -266,10 +371,14 @@ function mapPlanSnapshot(
         value.tags,
       ),
 
+    durationDays,
+
     durationMonths:
-      readNumber(
-        value.durationMonths,
-      ),
+      legacyDurationMonths >
+      0
+        ? legacyDurationMonths
+        : durationDays /
+          30,
 
     price:
       readNumber(
@@ -318,7 +427,7 @@ function mapSubscription(
       ),
 
     planId:
-      readObjectId(
+      readNullableObjectId(
         value.planId,
       ),
 
@@ -348,7 +457,7 @@ function mapSubscription(
       ),
 
     activatedByUserId:
-      readNullableString(
+      readNullableObjectId(
         value.activatedByUserId,
       ),
 

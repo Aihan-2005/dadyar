@@ -5,6 +5,7 @@ export type LawyerSubscriptionStatus =
 
 
 export type LawyerSubscriptionActivationSource =
+  | 'TRIAL'
   | 'ADMIN'
   | 'PAYMENT'
 
@@ -26,6 +27,9 @@ export interface LawyerSubscriptionPlanSnapshot {
   tags:
     string[]
 
+  durationDays:
+    number
+ 
   durationMonths:
     number
 
@@ -47,8 +51,9 @@ export interface LawyerSubscription {
   lawyerId:
     string
 
+ 
   planId:
-    string
+    string | null
 
   planSnapshot:
     LawyerSubscriptionPlanSnapshot

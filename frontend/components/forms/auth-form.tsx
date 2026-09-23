@@ -654,7 +654,13 @@ export default function AuthForm({
     }
 
   
-
+const getLoginDestination =
+  () =>
+    selectedPlanKey
+      ? `/checkout?plan=${encodeURIComponent(
+          selectedPlanKey,
+        )}`
+      : '/dashboard'
 
 
 
@@ -754,9 +760,9 @@ export default function AuthForm({
 
         rememberSelectedPlan()
 
-        router.replace(
-          '/dashboard'
-        )
+       router.replace(
+  getLoginDestination()
+)
       } catch {
         // auth.store exposes error.
       }
@@ -916,8 +922,8 @@ export default function AuthForm({
         resetOtpFlow()
 
         router.replace(
-          '/dashboard'
-        )
+  getLoginDestination()
+)
       } catch (
       error:
         unknown
