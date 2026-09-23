@@ -66,24 +66,26 @@ function formatDateTime(
         date,
       )
 }
-
 function formatPaymentAmount(
   amount: number,
   currency: string,
 ): string {
-  const formatted =
-    numberFormatter.format(
-      amount,
-    )
-
   if (
     currency ===
     'IRR'
   ) {
-    return `${formatted} ریال`
+    const toman =
+      amount /
+      10
+
+    return `${numberFormatter.format(
+      toman,
+    )} تومان`
   }
 
-  return `${formatted} ${currency}`
+  return `${numberFormatter.format(
+    amount,
+  )} ${currency}`
 }
 
 function getPaymentStatusLabel(

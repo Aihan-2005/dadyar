@@ -482,6 +482,20 @@ export default function CheckoutClient() {
           await createSubscriptionPayment(
             plan.id,
           )
+          const expectedAmountRial =
+  finalPrice *
+  10
+
+if (
+  payment.currency !==
+    'IRR' ||
+  payment.amount !==
+    expectedAmountRial
+) {
+  throw new Error(
+    'مبلغ ایجادشده برای پرداخت با مبلغ سفارش مطابقت ندارد. لطفاً دوباره تلاش کنید.',
+  )
+}
 
         window.sessionStorage.setItem(
           'dadyar:last-payment-id',
@@ -493,10 +507,7 @@ export default function CheckoutClient() {
           plan.id,
         )
 
-        /*
-         * redirectUrl فقط از Backend دریافت می‌شود.
-         * payment.service.ts نیز دامنه زرین‌پال را validate می‌کند.
-         */
+        
         window.location.assign(
           payment.redirectUrl,
         )
