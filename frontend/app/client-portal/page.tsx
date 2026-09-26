@@ -270,35 +270,15 @@ export default function ClientPortalPage() {
    *
    * بنابراین Guest درخواست API نمی‌زند.
    */
-  useEffect(
-    () => {
-      if (
-        !account
-      ) {
-        setDirectoryLawyers(
-          [],
-        )
+useEffect(
+  () => {
+    void loadDirectory()
+  },
 
-        setDirectoryError(
-          null,
-        )
-
-        setDirectoryLoading(
-          false,
-        )
-
-        return
-      }
-
-      void loadDirectory()
-    },
-
-    [
-      account?.id,
-
-      loadDirectory,
-    ],
-  )
+  [
+    loadDirectory,
+  ],
+)
 
 
   const specialties =
@@ -554,74 +534,29 @@ export default function ClientPortalPage() {
                     className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
                   />
 
-                  <input
-                    value={
-                      filters.search
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      updateFilter(
-                        'search',
+                    <input
+                      value={
+                        filters.search
+                      }
+                      onChange={(
+                        event,
+                      ) =>
+                        updateFilter(
+                          'search',
 
-                        event.target.value,
-                      )
-                    }
-                    type="search"
-                    disabled={
-                      !account
-                    }
-                    placeholder={
-                      account
-                        ? 'نام وکیل، تخصص، شماره پروانه یا نشانی...'
-                        : 'برای مشاهده و جستجوی وکلا وارد حساب موکل شوید'
-                    }
-                    className="h-14 w-full rounded-2xl border border-slate-300 bg-white pr-12 pl-4 text-sm font-bold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 sm:text-base"
-                  />
+                          event.target.value,
+                        )
+                      }
+                      type="search"
+                      placeholder="نام وکیل، تخصص، شماره پروانه یا نشانی..."
+                      className="h-14 w-full rounded-2xl border border-slate-300 bg-white pr-12 pl-4 text-sm font-bold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 sm:text-base"
+                    />
                 </div>
               </div>
             </div>
           </section>
 
-          {!account ? (
-            <section className="mt-6 rounded-[24px] border border-blue-200 bg-white p-7 text-center shadow-sm">
-              <ShieldCheck
-                size={34}
-                className="mx-auto text-blue-600"
-              />
-
-              <h2 className="mt-4 text-xl font-black text-slate-950">
-                برای مشاهده فهرست وکلا وارد حساب موکل شوید
-              </h2>
-
-             
-             
-
-              <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
-                <Link
-                  href="/client-login?returnTo=/client-portal&mode=login"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 text-sm font-black text-white"
-                >
-                  <LogIn
-                    size={16}
-                  />
-
-                  ورود موکل
-                </Link>
-
-                <Link
-                  href="/client-login?returnTo=/client-portal&mode=register"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 text-sm font-black text-emerald-700"
-                >
-                  <UserPlus
-                    size={16}
-                  />
-
-                  ثبت‌نام موکل
-                </Link>
-              </div>
-            </section>
-          ) : (
+          
             <>
               <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <StatCard
@@ -827,7 +762,7 @@ export default function ClientPortalPage() {
                 </section>
               </div>
             </>
-          )}
+          
         </div>
       </main>
 

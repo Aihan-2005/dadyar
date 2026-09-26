@@ -16,7 +16,7 @@ import {
   LogOut,
   Scale,
   Search,
-  User,
+  Settings,
   X,
 } from 'lucide-react'
 
@@ -383,7 +383,7 @@ export function DashboardHeader({
                     </Link>
                   ) : (
                     <Link
-                      href="/dashboard/profile"
+                      href="/dashboard/settings"
                       onClick={() =>
                         setUserMenuOpen(
                           false,
@@ -391,11 +391,11 @@ export function DashboardHeader({
                       }
                       className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
                     >
-                      <User
+                      <Settings
                         size={16}
                       />
 
-                      پروفایل
+                      تنظیمات
                     </Link>
                   )}
 

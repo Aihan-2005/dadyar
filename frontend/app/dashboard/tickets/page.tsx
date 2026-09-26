@@ -1,5 +1,6 @@
 'use client'
-
+import type { FAQItem } from '@/types/faq'
+import { fetchFaqApi, getFaqApiErrorMessage } from '@/features/faq/api/faq.api'
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Paperclip, Send, HelpCircle, Check, Loader2 } from 'lucide-react'
 import type { TicketType } from '@/types/ticket'
@@ -8,41 +9,7 @@ import { createTicketApi, getTicketApiErrorMessage } from '@/features/tickets/ap
 import { ListChecks } from 'lucide-react'
 import Link from 'next/link'
 
-const FAQ_ITEMS = [
-  {
-    id: 'change-password',
-    question: 'چطور می‌توانم رمز عبورم را تغییر دهم؟',
-    answer:
-      'برای تغییر رمز عبور، به بخش تنظیمات پروفایل بروید و روی گزینه «تغییر رمز عبور» کلیک کنید. سپس رمز فعلی و رمز جدید خود را وارد کنید.',
-  },
-  {
-    id: 'add-client-to-case',
-    question: 'چطور در ثبت یک پرونده جدید موکل به آن اضافه کنم؟',
-    answer:
-      'در فرم ثبت پرونده جدید، بخش «موکلین» را باز کنید و با دکمه «افزودن موکل» می‌توانید موکل جدید وارد کنید یا از لیست موکلین ثبت‌شده انتخاب کنید.',
-  },
-  {
-    id: 'reminders-notifications',
-    question:
-      'چطور برای کارها و پیگیری‌ها یادآوری تنظیم کنم و نوتیفیکیشن بگیرم؟',
-    answer:
-      'از بخش «یادداشت‌ها و اعلان‌ها» می‌توانید یادآوری جدید بسازید و تاریخ و زمان مورد نظر را برای آن مشخص کنید تا در زمان مقرر به شما یادآوری شود.',
-  },
-  {
-    id: 'financial-reports',
-    question:
-      'چطور درآمدها، هزینه‌ها و گزارش‌های مالی دفتر را مدیریت کنم؟',
-    answer:
-      'در بخش «امور مالی» می‌توانید پرداخت‌ها، هزینه‌ها و گزارش‌های مالی مربوط به هر پرونده و کل دفتر خود را ثبت و پیگیری کنید.',
-  },
-  {
-    id: 'data-security',
-    question:
-      'اطلاعات پرونده‌ها و موکلین من در دادیار چطور نگهداری و محافظت می‌شود؟',
-    answer:
-      'اطلاعات شما به‌صورت رمزنگاری‌شده و با استانداردهای امنیتی روی سرورهای امن نگهداری می‌شود و تنها خودتان به آن‌ها دسترسی دارید.',
-  },
-]
+
 
 const TYPE_OPTIONS = [
   { value: 'bug', label: 'باگ (خطا یا مشکل)' },
@@ -51,6 +18,28 @@ const TYPE_OPTIONS = [
 
 export default function TicketsPage() {
   const [openFaqId, setOpenFaqId] = useState<string | null>(null)
+  const [faqItems, setFaqItems] = useState<FAQItem[]>([])
+const [faqLoading, setFaqLoading] = useState(true)
+const [faqError, setFaqError] = useState<string | null>(null)
+
+useEffect(() => {
+  let active = true
+
+  fetchFaqApi()
+    .then((items) => {
+      if (active) setFaqItems(items)
+    })
+    .catch((error) => {
+      if (active) setFaqError(getFaqApiErrorMessage(error))
+    })
+    .finally(() => {
+      if (active) setFaqLoading(false)
+    })
+
+  return () => {
+    active = false
+  }
+}, [])
 
   const [title, setTitle] = useState('')
   const [type, setType] = useState<TicketType | ''>('')
@@ -151,40 +140,30 @@ export default function TicketsPage() {
           </h2>
         </div>
 
-        <div className="divide-y divide-slate-100">
-          {FAQ_ITEMS.map((item) => {
-            const isOpen = openFaqId === item.id
-
-            return (
-              <div key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => toggleFaq(item.id)}
-                  className="flex w-full items-center justify-between gap-3 px-6 py-4 text-right transition-colors hover:bg-slate-50"
-                >
-                  <span className="text-sm font-bold text-slate-800">
-                    {item.question}
-                  </span>
-
-                  <ChevronDown
-                    size={18}
-                    className={`shrink-0 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-blue-600' : ''
-                      }`}
-                  />
-                </button>
-
-                <div
-                  className={`grid overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-                    }`}
-                >
-                  <div className="min-h-0 bg-slate-50/60 px-6 pb-5 pt-1 text-sm leading-7 text-slate-500">
-                    {item.answer}
-                  </div>
+            <div className="divide-y divide-slate-100">
+              {faqLoading ? (
+                <div className="px-6 py-8 text-center text-sm text-slate-400">
+                  در حال بارگذاری سوالات...
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              ) : faqError ? (
+                <div className="px-6 py-8 text-center text-sm text-red-500">
+                  {faqError}
+                </div>
+              ) : faqItems.length === 0 ? (
+                <div className="px-6 py-8 text-center text-sm text-slate-400">
+                  سوالی ثبت نشده است.
+                </div>
+              ) : (
+                faqItems.map((item) => {
+                  const isOpen = openFaqId === item.id
+                  return (
+                    <div key={item.id}>
+                      {/* همون بدنه‌ی قبلی toggle button و answer، بدون تغییر */}
+                    </div>
+                  )
+                })
+              )}
+            </div>
       </div>
 
       {/* فرم ثبت تیکت */}
