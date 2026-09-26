@@ -154,14 +154,40 @@ useEffect(() => {
                   سوالی ثبت نشده است.
                 </div>
               ) : (
-                faqItems.map((item) => {
-                  const isOpen = openFaqId === item.id
-                  return (
-                    <div key={item.id}>
-                      {/* همون بدنه‌ی قبلی toggle button و answer، بدون تغییر */}
-                    </div>
-                  )
-                })
+faqItems.map((item) => {
+  const isOpen = openFaqId === item.id
+
+  return (
+    <div key={item.id}>
+      <button
+        type="button"
+        onClick={() => toggleFaq(item.id)}
+        className="flex w-full items-center justify-between gap-3 px-6 py-4 text-right transition-colors hover:bg-slate-50"
+      >
+        <span className="text-sm font-bold text-slate-800">
+          {item.question}
+        </span>
+
+        <ChevronDown
+          size={18}
+          className={`shrink-0 text-slate-400 transition-transform duration-200 ${
+            isOpen ? 'rotate-180 text-blue-600' : ''
+          }`}
+        />
+      </button>
+
+      <div
+        className={`grid overflow-hidden transition-all duration-300 ease-in-out ${
+          isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}
+      >
+        <div className="min-h-0 bg-slate-50/60 px-6 pb-5 pt-1 text-sm leading-7 text-slate-500">
+          {item.answer}
+        </div>
+      </div>
+    </div>
+  )
+})
               )}
             </div>
       </div>
