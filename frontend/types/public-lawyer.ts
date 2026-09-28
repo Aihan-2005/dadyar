@@ -50,10 +50,16 @@ export interface PublicLawyer {
   fullName:
     string
 
+  /**
+   * در Directory عمومی همیشه null است.
+   */
   phone:
     string |
     null
 
+  /**
+   * در Directory عمومی همیشه null است.
+   */
   email:
     string |
     null
@@ -67,6 +73,9 @@ export interface PublicLawyer {
   yearsOfExperience:
     number
 
+  /**
+   * در Directory عمومی همیشه null است.
+   */
   website:
     string |
     null
@@ -96,6 +105,24 @@ export interface PublicLawyer {
     number
 
   publishedAt:
+    string |
+    null
+}
+
+
+export interface PublicLawyerContact {
+  lawyerId:
+    string
+
+  phone:
+    string |
+    null
+
+  email:
+    string |
+    null
+
+  website:
     string |
     null
 }

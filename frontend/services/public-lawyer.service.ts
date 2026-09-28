@@ -7,6 +7,7 @@ import {
 
 import type {
   PublicLawyer,
+  PublicLawyerContact,
   PublicLawyerEducation,
   PublicLawyerExperience,
   PublicLawyerListParams,
@@ -16,17 +17,29 @@ import type {
 
 
 type ApiEnvelope<T> = {
-  success: boolean
-  data: T
-  message?: string
+  success:
+    boolean
+
+  data:
+    T
+
+  message?:
+    string
 }
 
 
 type LawyerListEnvelope = {
-  success: boolean
-  data: PublicLawyer[]
-  pagination: PublicLawyerPagination
-  message?: string
+  success:
+    boolean
+
+  data:
+    PublicLawyer[]
+
+  pagination:
+    PublicLawyerPagination
+
+  message?:
+    string
 }
 
 
@@ -35,7 +48,8 @@ const DIRECTORY_ENDPOINT =
 
 
 function normalizeString(
-  value: unknown,
+  value:
+    unknown,
 ): string {
   return typeof value ===
     'string'
@@ -45,7 +59,8 @@ function normalizeString(
 
 
 function normalizeNullableString(
-  value: unknown,
+  value:
+    unknown,
 ): string | null {
   const normalized =
     normalizeString(
@@ -58,7 +73,8 @@ function normalizeNullableString(
 
 
 function normalizeStringArray(
-  value: unknown,
+  value:
+    unknown,
 ): string[] {
   if (
     !Array.isArray(
@@ -90,7 +106,8 @@ function normalizeStringArray(
 
 
 function normalizeEducation(
-  value: unknown,
+  value:
+    unknown,
 ): PublicLawyerEducation[] {
   if (
     !Array.isArray(
@@ -158,7 +175,8 @@ function normalizeEducation(
 
 
 function normalizeExperience(
-  value: unknown,
+  value:
+    unknown,
 ): PublicLawyerExperience[] {
   if (
     !Array.isArray(
@@ -231,7 +249,8 @@ function normalizeExperience(
 
 
 function normalizeLawyer(
-  value: PublicLawyer,
+  value:
+    PublicLawyer,
 ): PublicLawyer {
   const firstName =
     normalizeString(
@@ -321,13 +340,6 @@ function normalizeLawyer(
         value.bio,
       ),
 
-    /*
-     * اطلاعات تکمیلی وکیل.
-     *
-     * این بخش‌ها اختیاری‌اند و اگر Backend
-     * آرایه خالی یا مقدار نامعتبر برگرداند،
-     * خروجی امن [] خواهد بود.
-     */
     education:
       normalizeEducation(
         value.education,
@@ -374,14 +386,16 @@ function normalizeLawyer(
 
 
 function buildDirectoryParams(
-  params: PublicLawyerListParams,
+  params:
+    PublicLawyerListParams,
 ) {
   const search =
     params.search?.trim()
 
 
   const specialization =
-    params.specialization?.trim()
+    params.specialization
+      ?.trim()
 
 
   return {
@@ -429,7 +443,8 @@ function buildDirectoryParams(
 
 
 function assertListEnvelope(
-  payload: LawyerListEnvelope,
+  payload:
+    LawyerListEnvelope,
 ): void {
   if (
     payload.success !==
@@ -464,13 +479,55 @@ function assertItemEnvelope(
 }
 
 
+function normalizeContact(
+  value:
+    PublicLawyerContact,
+): PublicLawyerContact {
+  const lawyerId =
+    normalizeString(
+      value.lawyerId,
+    )
+
+
+  if (
+    !lawyerId
+  ) {
+    throw new Error(
+      'شناسه اطلاعات تماس وکیل معتبر نیست.',
+    )
+  }
+
+
+  return {
+    lawyerId,
+
+    phone:
+      normalizeNullableString(
+        value.phone,
+      ),
+
+    email:
+      normalizeNullableString(
+        value.email,
+      ),
+
+    website:
+      normalizeNullableString(
+        value.website,
+      ),
+  }
+}
+
+
 export async function getPublicLawyersPage(
   params:
     PublicLawyerListParams = {},
 ): Promise<PublicLawyerPage> {
   try {
     const response =
-      await api.get<LawyerListEnvelope>(
+      await api.get<
+        LawyerListEnvelope
+      >(
         DIRECTORY_ENDPOINT,
 
         {
@@ -497,7 +554,8 @@ export async function getPublicLawyersPage(
         response.data.pagination,
     }
   } catch (
-    error: unknown
+    error:
+      unknown
   ) {
     throw new Error(
       getApiErrorMessage(
@@ -544,7 +602,8 @@ export async function getPublicLawyers(
       Array.from(
         {
           length:
-            firstPage.pagination
+            firstPage
+              .pagination
               .totalPages -
             1,
         },
@@ -561,7 +620,8 @@ export async function getPublicLawyers(
               2,
 
             limit:
-              firstPage.pagination
+              firstPage
+                .pagination
                 .limit,
           }),
       ),
@@ -582,9 +642,11 @@ export async function getPublicLawyers(
 
 
 export async function getPublicLawyerById(
-  id: string,
+  id:
+    string,
 ): Promise<
-  PublicLawyer | null
+  PublicLawyer |
+  null
 > {
   const lawyerId =
     id.trim()
@@ -617,7 +679,8 @@ export async function getPublicLawyerById(
       response.data.data,
     )
   } catch (
-    error: unknown
+    error:
+      unknown
   ) {
     if (
       axios.isAxiosError(
@@ -640,6 +703,63 @@ export async function getPublicLawyerById(
   }
 }
 
+ 
+export async function getAuthenticatedClientLawyerContact(
+  id:
+    string,
+): Promise<PublicLawyerContact> {
+  const lawyerId =
+    id.trim()
+
+
+  if (
+    !lawyerId
+  ) {
+    throw new Error(
+      'شناسه وکیل معتبر نیست.',
+    )
+  }
+
+
+  try {
+    const response =
+      await api.get<
+        ApiEnvelope<PublicLawyerContact>
+      >(
+        `${DIRECTORY_ENDPOINT}/${encodeURIComponent(
+          lawyerId,
+        )}/contact`,
+      )
+
+
+    if (
+      response.data.success !==
+        true ||
+      !response.data.data
+    ) {
+      throw new Error(
+        'ساختار پاسخ اطلاعات تماس وکیل معتبر نیست.',
+      )
+    }
+
+
+    return normalizeContact(
+      response.data.data,
+    )
+  } catch (
+    error:
+      unknown
+  ) {
+    throw new Error(
+      getApiErrorMessage(
+        error,
+
+        'دریافت اطلاعات تماس وکیل ناموفق بود.',
+      ),
+    )
+  }
+}
+
 
 export async function getPublicLawyerSpecializations():
   Promise<string[]> {
@@ -654,7 +774,8 @@ export async function getPublicLawyerSpecializations():
           (
             lawyer,
           ) =>
-            lawyer.specialization.trim(),
+            lawyer.specialization
+              .trim(),
         )
         .filter(
           Boolean,

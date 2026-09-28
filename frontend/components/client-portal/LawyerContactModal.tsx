@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -14,12 +15,12 @@ import {
   BadgeCheck,
   BriefcaseBusiness,
   CalendarDays,
-  Check,
-  Copy,
   ExternalLink,
   FileText,
   GraduationCap,
   Languages,
+  Loader2,
+  Mail,
   MapPin,
   MessageCircle,
   Phone,
@@ -41,6 +42,14 @@ import {
 import type {
   ClientPortalLawyer,
 } from '@/features/client-portal/types/lawyer'
+
+import {
+  getAuthenticatedClientLawyerContact,
+} from '@/services/public-lawyer.service'
+
+import type {
+  PublicLawyerContact,
+} from '@/types/public-lawyer'
 
 
 interface LawyerContactModalProps {
@@ -93,6 +102,19 @@ export default function LawyerContactModal({
   lawyer,
   onClose,
 }: LawyerContactModalProps) {
+  const activeLawyerIdRef =
+    useRef<string | null>(
+      lawyer?.id ??
+      null,
+    )
+
+
+    
+  activeLawyerIdRef.current =
+    lawyer?.id ??
+    null
+
+
   const [
     activeTab,
     setActiveTab,
@@ -112,8 +134,8 @@ export default function LawyerContactModal({
 
 
   const [
-    copied,
-    setCopied,
+    pendingContactReveal,
+    setPendingContactReveal,
   ] =
     useState(
       false,
@@ -135,6 +157,33 @@ export default function LawyerContactModal({
   ] =
     useState(
       false,
+    )
+
+
+  const [
+    contact,
+    setContact,
+  ] =
+    useState<PublicLawyerContact | null>(
+      null,
+    )
+
+
+  const [
+    contactLoading,
+    setContactLoading,
+  ] =
+    useState(
+      false,
+    )
+
+
+  const [
+    contactError,
+    setContactError,
+  ] =
+    useState<string | null>(
+      null,
     )
 
 
@@ -160,6 +209,7 @@ export default function LawyerContactModal({
   )
 
 
+  
   useEffect(
     () => {
       setActiveTab(
@@ -170,11 +220,23 @@ export default function LawyerContactModal({
         null,
       )
 
-      setCopied(
+      setPendingContactReveal(
         false,
       )
 
       setAuthOpen(
+        false,
+      )
+
+      setContact(
+        null,
+      )
+
+      setContactError(
+        null,
+      )
+
+      setContactLoading(
         false,
       )
     },
@@ -198,29 +260,32 @@ export default function LawyerContactModal({
         document.body.style.overflow
 
 
-      const handleKeyDown = (
-        event:
-          KeyboardEvent,
-      ) => {
-        if (
-          event.key !==
-          'Escape'
-        ) {
-          return
+      const handleKeyDown =
+        (
+          event:
+            KeyboardEvent,
+        ) => {
+          if (
+            event.key !==
+            'Escape'
+          ) {
+            return
+          }
+
+
+     
+          
+          if (
+            document.querySelector(
+              '[data-client-auth-gate="true"]',
+            )
+          ) {
+            return
+          }
+
+
+          onClose()
         }
-
-
-        if (
-          document.querySelector(
-            '[data-client-auth-gate="true"]',
-          )
-        ) {
-          return
-        }
-
-
-        onClose()
-      }
 
 
       document.body.style.overflow =
@@ -254,24 +319,114 @@ export default function LawyerContactModal({
   )
 
 
-  if (
-    !lawyer
-  ) {
-    return null
+
+  
+  async function loadContact() {
+
+    
+    const lawyerId =
+      lawyer?.id
+
+
+    if (
+      !lawyerId ||
+      contact ||
+      contactLoading
+    ) {
+      return
+    }
+
+
+    try {
+      setContactLoading(
+        true,
+      )
+
+      setContactError(
+        null,
+      )
+
+
+      const result =
+        await getAuthenticatedClientLawyerContact(
+          lawyerId,
+        )
+
+
+        
+      if (
+        activeLawyerIdRef.current !==
+        lawyerId
+      ) {
+        return
+      }
+
+
+      
+      if (
+        result.lawyerId !==
+        lawyerId
+      ) {
+        throw new Error(
+          'اطلاعات تماس دریافت‌شده با وکیل انتخاب‌شده مطابقت ندارد.',
+        )
+      }
+
+
+      setContact(
+        result,
+      )
+    } catch (
+      caughtError:
+        unknown
+    ) {
+      /**
+       * اگر modal بین request روی وکیل دیگری رفته،
+       * error مربوط به request قبلی را نشان نمی‌دهیم.
+       */
+      if (
+        activeLawyerIdRef.current !==
+        lawyerId
+      ) {
+        return
+      }
+
+
+      setContactError(
+        caughtError instanceof
+          Error
+          ? caughtError.message
+          : 'دریافت اطلاعات تماس وکیل ناموفق بود.',
+      )
+    } finally {
+      /**
+       * فقط request متعلق به وکیل فعلی اجازه
+       * تغییر loading state را دارد.
+       */
+      if (
+        activeLawyerIdRef.current ===
+        lawyerId
+      ) {
+        setContactLoading(
+          false,
+        )
+      }
+    }
   }
 
 
-  async function handleCopyPhone() {
+
+  
+  function revealContact() {
     if (
       !account
     ) {
-      /*
-       * ورود برای مشاهده شماره تلفن
-       * نباید بعد از احراز هویت کاربر را
-       * به tab دیگری منتقل کند.
-       */
       setPendingProtectedTab(
         null,
+      )
+
+      setPendingContactReveal(
+        true,
       )
 
       setAuthOpen(
@@ -282,44 +437,12 @@ export default function LawyerContactModal({
     }
 
 
-    const phone =
-      lawyer?.phone
-
-
-    if (
-      !phone
-    ) {
-      return
-    }
-
-
-    try {
-      await navigator.clipboard.writeText(
-        phone,
-      )
-
-
-      setCopied(
-        true,
-      )
-
-
-      window.setTimeout(
-        () =>
-          setCopied(
-            false,
-          ),
-
-        1800,
-      )
-    } catch {
-      setCopied(
-        false,
-      )
-    }
+    void loadContact()
   }
 
 
+  
+  
   function openProtectedTab(
     tab:
       ProtectedLawyerTab,
@@ -329,6 +452,10 @@ export default function LawyerContactModal({
     ) {
       setPendingProtectedTab(
         tab,
+      )
+
+      setPendingContactReveal(
+        false,
       )
 
       setAuthOpen(
@@ -341,6 +468,10 @@ export default function LawyerContactModal({
 
     setPendingProtectedTab(
       null,
+    )
+
+    setPendingContactReveal(
+      false,
     )
 
     setActiveTab(
@@ -357,15 +488,24 @@ export default function LawyerContactModal({
     setPendingProtectedTab(
       null,
     )
+
+    setPendingContactReveal(
+      false,
+    )
   }
 
 
+ 
+  
   function handleAuthenticated(
     nextAccount:
       ClientPortalAccount,
   ) {
     const requestedTab =
       pendingProtectedTab
+
+    const shouldRevealContact =
+      pendingContactReveal
 
 
     setAccount(
@@ -380,14 +520,11 @@ export default function LawyerContactModal({
       null,
     )
 
+    setPendingContactReveal(
+      false,
+    )
 
-    /*
-     * فقط زمانی tab را تغییر می‌دهیم که
-     * login برای ورود به همان tab درخواست شده باشد.
-     *
-     * مثلاً login برای دیدن شماره تلفن نباید
-     * کاربر را به inquiry ببرد.
-     */
+
     if (
       requestedTab
     ) {
@@ -395,7 +532,31 @@ export default function LawyerContactModal({
         requestedTab,
       )
     }
+
+
+    if (
+      shouldRevealContact
+    ) {
+      void loadContact()
+    }
   }
+
+
+
+  
+  if (
+    !lawyer
+  ) {
+    return null
+  }
+
+
+  const hasContact =
+    Boolean(
+      contact?.phone ||
+      contact?.email ||
+      contact?.website,
+    )
 
 
   return (
@@ -427,6 +588,7 @@ export default function LawyerContactModal({
                   }
                 </div>
 
+
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2
@@ -438,6 +600,7 @@ export default function LawyerContactModal({
                       }
                     </h2>
 
+
                     {
                       lawyer.verified &&
                       (
@@ -448,6 +611,7 @@ export default function LawyerContactModal({
                       )
                     }
                   </div>
+
 
                   <p className="mt-1 text-xs font-bold text-slate-500 sm:text-sm">
                     {
@@ -473,10 +637,6 @@ export default function LawyerContactModal({
             </div>
 
 
-            {/*
-             * overflow-x-auto برای موبایل:
-             * چهار سرویس داریم و نباید tabها بشکنند.
-             */}
             <div className="overflow-x-auto px-4 pb-3 sm:px-6">
               <div className="flex min-w-max gap-1">
                 <TabButton
@@ -690,6 +850,7 @@ export default function LawyerContactModal({
                                       }
                                     </p>
 
+
                                     {
                                       item.university &&
                                       (
@@ -700,6 +861,7 @@ export default function LawyerContactModal({
                                         </p>
                                       )
                                     }
+
 
                                     {
                                       item.year &&
@@ -751,6 +913,7 @@ export default function LawyerContactModal({
                                       }
                                     </p>
 
+
                                     {
                                       item.company &&
                                       (
@@ -761,6 +924,7 @@ export default function LawyerContactModal({
                                         </p>
                                       )
                                     }
+
 
                                     {
                                       (
@@ -781,6 +945,7 @@ export default function LawyerContactModal({
                                         </p>
                                       )
                                     }
+
 
                                     {
                                       item.description &&
@@ -827,33 +992,115 @@ export default function LawyerContactModal({
 
 
                     {
-                      lawyer.website &&
+                      contact &&
                       (
-                        <ProfileSection title="وب‌سایت">
-                          <a
-                            href={
-                              lawyer.website
-                            }
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-2 text-sm font-black text-blue-700 hover:underline"
-                          >
-                            <ExternalLink
-                              size={15}
+                        <ProfileSection
+                          title="راه‌های ارتباطی"
+                          icon={
+                            <Phone
+                              size={16}
                             />
+                          }
+                        >
+                          {
+                            hasContact
+                              ? (
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                  {
+                                    contact.phone &&
+                                    (
+                                      <a
+                                        href={`tel:${contact.phone}`}
+                                        dir="ltr"
+                                        className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
+                                      >
+                                        <span>
+                                          {
+                                            contact.phone
+                                          }
+                                        </span>
 
-                            مشاهده وب‌سایت وکیل
-                          </a>
+                                        <Phone
+                                          size={16}
+                                        />
+                                      </a>
+                                    )
+                                  }
+
+
+                                  {
+                                    contact.email &&
+                                    (
+                                      <a
+                                        href={`mailto:${contact.email}`}
+                                        dir="ltr"
+                                        className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
+                                      >
+                                        <span className="truncate">
+                                          {
+                                            contact.email
+                                          }
+                                        </span>
+
+                                        <Mail
+                                          size={16}
+                                          className="shrink-0"
+                                        />
+                                      </a>
+                                    )
+                                  }
+
+
+                                  {
+                                    contact.website &&
+                                    (
+                                      <a
+                                        href={
+                                          contact.website.startsWith(
+                                            'http',
+                                          )
+                                            ? contact.website
+                                            : `https://${contact.website}`
+                                        }
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="flex min-h-11 items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm font-black text-blue-700 transition hover:bg-blue-50"
+                                      >
+                                        <span>
+                                          وب‌سایت وکیل
+                                        </span>
+
+                                        <ExternalLink
+                                          size={16}
+                                        />
+                                      </a>
+                                    )
+                                  }
+                                </div>
+                              )
+                              : (
+                                <p className="text-sm font-semibold text-slate-500">
+                                  اطلاعات تماس مستقیمی توسط این وکیل ثبت نشده است.
+                                </p>
+                              )
+                          }
                         </ProfileSection>
                       )
                     }
 
 
-                    {/*
-                     * اینجا نقطه‌ای بود که flow قرارداد قطع شده بود.
-                     * حالا قرارداد آنلاین دقیقاً کنار inquiry/booking
-                     * از همان وکیل انتخاب‌شده شروع می‌شود.
-                     */}
+                    {
+                      contactError &&
+                      (
+                        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold leading-7 text-red-700">
+                          {
+                            contactError
+                          }
+                        </div>
+                      )
+                    }
+
+
                     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                       <button
                         type="button"
@@ -909,38 +1156,34 @@ export default function LawyerContactModal({
                       <button
                         type="button"
                         disabled={
-                          !lawyer.phone
+                          contactLoading
                         }
-                        onClick={() =>
-                          void handleCopyPhone()
+                        onClick={
+                          revealContact
                         }
-                        className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 text-sm font-black text-slate-700 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 text-sm font-black text-slate-700 transition hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {
-                          copied
+                          contactLoading
                             ? (
-                              <Check
+                              <Loader2
+                                size={18}
+                                className="animate-spin"
+                              />
+                            )
+                            : (
+                              <Phone
                                 size={18}
                               />
                             )
-                            : account
-                              ? (
-                                <Copy
-                                  size={18}
-                                />
-                              )
-                              : (
-                                <Phone
-                                  size={18}
-                                />
-                              )
                         }
 
+
                         {
-                          copied
-                            ? 'کپی شد'
+                          contact
+                            ? 'اطلاعات تماس نمایش داده شد'
                             : account
-                              ? 'کپی شماره تماس'
+                              ? 'مشاهده اطلاعات تماس'
                               : 'ورود برای مشاهده تماس'
                         }
                       </button>
@@ -1128,3 +1371,4 @@ function InfoCard({
     </div>
   )
 }
+

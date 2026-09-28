@@ -29,7 +29,7 @@ export interface LawyerSubscriptionPlanSnapshot {
 
   durationDays:
     number
- 
+
   durationMonths:
     number
 
@@ -51,7 +51,6 @@ export interface LawyerSubscription {
   lawyerId:
     string
 
- 
   planId:
     string | null
 
@@ -81,4 +80,8 @@ export interface LawyerSubscription {
 
   status:
     LawyerSubscriptionStatus
+
+ 
+  remainingDays?:
+    number
 }

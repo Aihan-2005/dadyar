@@ -62,6 +62,9 @@ interface BackendLawyerSubscription {
 
   status?:
     unknown
+
+  remainingDays?:
+    unknown
 }
 
 
@@ -116,9 +119,9 @@ function readObjectId(
 ): string {
   if (
     typeof value ===
-    'string'
+      'string'
   ) {
-    return value
+    return value.trim()
   }
 
 
@@ -134,7 +137,7 @@ function readObjectId(
 
   return String(
     value,
-  )
+  ).trim()
 }
 
 
@@ -155,7 +158,7 @@ function readNullableObjectId(
   const normalized =
     readObjectId(
       value,
-    ).trim()
+    )
 
 
   return normalized ||
@@ -275,7 +278,7 @@ function resolveDurationDays(
 
   if (
     durationDays >
-    0
+      0
   ) {
     return Math.max(
       1,
@@ -285,7 +288,7 @@ function resolveDurationDays(
     )
   }
 
-
+ 
   const durationMonths =
     readNumber(
       value.durationMonths,
@@ -295,7 +298,7 @@ function resolveDurationDays(
 
   if (
     durationMonths >
-    0
+      0
   ) {
     return Math.max(
       1,
@@ -334,7 +337,7 @@ function mapPlanSnapshot(
 
   if (
     durationDays <=
-    0
+      0
   ) {
     throw new Error(
       'مدت اشتراک دریافت‌شده معتبر نیست.',
@@ -375,19 +378,28 @@ function mapPlanSnapshot(
 
     durationMonths:
       legacyDurationMonths >
-      0
+        0
         ? legacyDurationMonths
         : durationDays /
           30,
 
     price:
-      readNumber(
-        value.price,
+      Math.max(
+        0,
+        readNumber(
+          value.price,
+        ),
       ),
 
     discountPercent:
-      readNumber(
-        value.discountPercent,
+      Math.min(
+        100,
+        Math.max(
+          0,
+          readNumber(
+            value.discountPercent,
+          ),
+        ),
       ),
 
     features:
@@ -418,13 +430,54 @@ function mapSubscription(
   }
 
 
+  const lawyerId =
+    readObjectId(
+      value.lawyerId,
+    )
+
+
+  if (
+    !lawyerId
+  ) {
+    throw new Error(
+      'شناسه وکیل اشتراک معتبر نیست.',
+    )
+  }
+
+
+  const startsAt =
+    readString(
+      value.startsAt,
+    )
+
+
+  const endsAt =
+    readString(
+      value.endsAt,
+    )
+
+
+  if (
+    !startsAt ||
+    !endsAt
+  ) {
+    throw new Error(
+      'تاریخ شروع یا پایان اشتراک معتبر نیست.',
+    )
+  }
+
+
+  const serverRemainingDays =
+    readNumber(
+      value.remainingDays,
+      Number.NaN,
+    )
+
+
   return {
     id,
 
-    lawyerId:
-      readObjectId(
-        value.lawyerId,
-      ),
+    lawyerId,
 
     planId:
       readNullableObjectId(
@@ -436,15 +489,9 @@ function mapSubscription(
         value.planSnapshot,
       ),
 
-    startsAt:
-      readString(
-        value.startsAt,
-      ),
+    startsAt,
 
-    endsAt:
-      readString(
-        value.endsAt,
-      ),
+    endsAt,
 
     cancelledAt:
       readNullableString(
@@ -475,12 +522,32 @@ function mapSubscription(
       readStatus(
         value.status,
       ),
+
+   
+    ...(Number.isFinite(
+      serverRemainingDays,
+    ) &&
+    serverRemainingDays >=
+      0
+      ? {
+          remainingDays:
+            Math.max(
+              0,
+              Math.ceil(
+                serverRemainingDays,
+              ),
+            ),
+        }
+      : {}),
   }
 }
 
 
 export async function getCurrentLawyerSubscription():
-  Promise<LawyerSubscription | null> {
+  Promise<
+    LawyerSubscription |
+    null
+  > {
   try {
     const response =
       await api.get<
@@ -495,7 +562,7 @@ export async function getCurrentLawyerSubscription():
 
     if (
       response.data.success !==
-      true
+        true
     ) {
       throw new Error(
         response.data.message ||
@@ -506,9 +573,20 @@ export async function getCurrentLawyerSubscription():
 
     if (
       response.data.data ===
-      null
+        null
     ) {
       return null
+    }
+
+
+    if (
+      !isRecord(
+        response.data.data,
+      )
+    ) {
+      throw new Error(
+        'ساختار پاسخ اشتراک فعلی معتبر نیست.',
+      )
     }
 
 
@@ -522,8 +600,9 @@ export async function getCurrentLawyerSubscription():
     throw new Error(
       getApiErrorMessage(
         error,
+
         'دریافت وضعیت اشتراک ناموفق بود.',
       ),
     )
   }
-  }
+}

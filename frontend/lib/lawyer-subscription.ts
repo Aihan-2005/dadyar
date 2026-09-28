@@ -223,11 +223,28 @@ export function getSubscriptionFinalPrice(
   )
 }
 
-
 export function getRemainingSubscriptionDays(
   subscription:
     LawyerSubscription,
 ): number {
+
+  
+  if (
+    typeof subscription.remainingDays ===
+      'number' &&
+    Number.isFinite(
+      subscription.remainingDays,
+    ) &&
+    subscription.remainingDays >=
+      0
+  ) {
+    return Math.ceil(
+      subscription.remainingDays,
+    )
+  }
+
+
+  
   if (
     subscription.status !==
       'ACTIVE'
