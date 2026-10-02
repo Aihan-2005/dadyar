@@ -21,25 +21,25 @@ import type {
 
 interface ClientServiceHubProps {
   account:
-    ClientPortalAccount | null
+  ClientPortalAccount | null
 }
 
 
 interface ServiceItem {
   title:
-    string
+  string
 
   description:
-    string
+  string
 
   href:
-    string
+  string
 
   icon:
-    LucideIcon
+  LucideIcon
 
   accent:
-    string
+  string
 }
 
 
@@ -62,8 +62,8 @@ export default function ClientServiceHub({
     account
       ? href
       : loginHref(
-          href,
-        )
+        href,
+      )
 
 
   const services:
@@ -162,7 +162,7 @@ export default function ClientServiceHub({
           'قرارداد آنلاین',
 
         description:
-          'ابتدا وکیل را انتخاب کنید، سپس پیش‌نویس قرارداد، حق‌الزحمه و شرایط خدمات را برای او ارسال کنید.',
+          'ابتدا وکیل را انتخاب کنید، سپس پیش‌نویس قرارداد و شرایط خدمات را برای او ارسال کنید تا حق‌الزحمه را وکیل تعیین کند.',
 
         /*
          * ساخت قرارداد به lawyerId نیاز دارد.

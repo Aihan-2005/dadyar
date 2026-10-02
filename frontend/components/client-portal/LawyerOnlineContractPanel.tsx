@@ -10,8 +10,8 @@ import {
 import Link from 'next/link'
 
 import {
+  CalendarDays,
   CheckCircle2,
-  CircleDollarSign,
   FileText,
   Loader2,
   Send,
@@ -33,7 +33,6 @@ import {
 
 import type {
   CreateOnlineContractInput,
-  OnlineContractPaymentMode,
   OnlineContractRecord,
   OnlineLegalContractTemplateKey,
 } from '@/features/client-portal/types/contract'
@@ -48,14 +47,16 @@ import {
 } from '@/features/finance/utils/date'
 
 import {
-  formatMoneyInput,
   normalizeDigits,
-  toOptionalFiniteNumber,
 } from '@/features/finance/utils/number'
 
 import {
   createClientOnlineContract,
 } from '@/services/online-contract.service'
+
+import {
+  FEE_PLACEHOLDER_TOMAN,
+} from '@/features/client-portal/utils/contract-fee'
 
 export interface LawyerOnlineContractPanelProps {
   lawyer: ClientPortalLawyer
@@ -66,19 +67,6 @@ type ContractStage =
   | 'review'
   | 'submitted'
 
-const PAYMENT_LABELS: Record<
-  OnlineContractPaymentMode,
-  string
-> = {
-  full:
-    'پرداخت کامل',
-
-  staged:
-    'پرداخت مرحله‌ای',
-
-  installments:
-    'پرداخت اقساطی',
-}
 
 const INPUT_CLASS =
   'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100'
@@ -108,7 +96,7 @@ export default function LawyerOnlineContractPanel({
 }: LawyerOnlineContractPanelProps) {
   const defaultTemplate =
     ONLINE_CONTRACT_TEMPLATES[
-      0
+    0
     ]
 
   const [
@@ -165,30 +153,6 @@ export default function LawyerOnlineContractPanel({
   ] =
     useState(
       defaultTemplate.defaultScope,
-    )
-
-  const [
-    feeInput,
-    setFeeInput,
-  ] =
-    useState(
-      '',
-    )
-
-  const [
-    paymentMode,
-    setPaymentMode,
-  ] =
-    useState<OnlineContractPaymentMode>(
-      'full',
-    )
-
-  const [
-    paymentDetails,
-    setPaymentDetails,
-  ] =
-    useState(
-      '',
     )
 
   const [
@@ -305,18 +269,6 @@ export default function LawyerOnlineContractPanel({
         defaultTemplate.defaultScope,
       )
 
-      setFeeInput(
-        '',
-      )
-
-      setPaymentMode(
-        'full',
-      )
-
-      setPaymentDetails(
-        '',
-      )
-
       setStartDate(
         '',
       )
@@ -407,19 +359,11 @@ export default function LawyerOnlineContractPanel({
       const normalizedScope =
         scope.trim()
 
-      const normalizedPaymentDetails =
-        paymentDetails.trim()
-
       const normalizedServicePeriod =
         servicePeriod.trim()
 
       const normalizedAdditionalTerms =
         additionalTerms.trim()
-
-      const feeToman =
-        toOptionalFiniteNumber(
-          feeInput,
-        )
 
       const normalizedStartDate =
         formatDateInput(
@@ -465,17 +409,6 @@ export default function LawyerOnlineContractPanel({
         return null
       }
 
-      if (
-        !feeToman ||
-        feeToman <=
-          0
-      ) {
-        setError(
-          'مبلغ حق‌الزحمه را وارد کنید.',
-        )
-
-        return null
-      }
 
       if (
         !parsedStartDate
@@ -498,18 +431,6 @@ export default function LawyerOnlineContractPanel({
         return null
       }
 
-      if (
-        paymentMode !==
-          'full' &&
-        normalizedPaymentDetails.length <
-          5
-      ) {
-        setError(
-          'جزئیات پرداخت را تکمیل کنید.',
-        )
-
-        return null
-      }
 
       return {
         lawyerId:
@@ -529,16 +450,14 @@ export default function LawyerOnlineContractPanel({
         scope:
           normalizedScope,
 
-        feeToman,
+        feeToman:
+          FEE_PLACEHOLDER_TOMAN,
 
-        paymentMode,
+        paymentMode:
+          'full',
 
         paymentDetails:
-          paymentMode ===
-          'full'
-            ? normalizedPaymentDetails ||
-              'پرداخت کامل طبق توافق طرفین.'
-            : normalizedPaymentDetails,
+          '',
 
         startDate:
           normalizedStartDate,
@@ -618,8 +537,8 @@ export default function LawyerOnlineContractPanel({
           'submitted',
         )
       } catch (
-        caughtError:
-          unknown
+      caughtError:
+        unknown
       ) {
         setError(
           caughtError instanceof
@@ -700,14 +619,6 @@ export default function LawyerOnlineContractPanel({
         '',
       )
 
-      setFeeInput(
-        '',
-      )
-
-      setPaymentDetails(
-        '',
-      )
-
       setStartDate(
         '',
       )
@@ -727,7 +638,7 @@ export default function LawyerOnlineContractPanel({
 
   if (
     stage ===
-      'submitted' &&
+    'submitted' &&
     submittedContract
   ) {
     return (
@@ -822,7 +733,7 @@ export default function LawyerOnlineContractPanel({
 
         {
           stage ===
-          'edit'
+            'edit'
             ? (
               <div className="mt-6 space-y-6">
                 <Section
@@ -849,12 +760,11 @@ export default function LawyerOnlineContractPanel({
                                 template.key,
                               )
                             }
-                            className={`rounded-2xl border p-4 text-right transition ${
-                              templateKey ===
-                              template.key
+                            className={`rounded-2xl border p-4 text-right transition ${templateKey ===
+                                template.key
                                 ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-100'
                                 : 'border-slate-200 bg-white hover:border-slate-300'
-                            }`}
+                              }`}
                           >
                             <p className="text-sm font-black text-slate-950">
                               {
@@ -1022,73 +932,13 @@ export default function LawyerOnlineContractPanel({
 
                 <Section
                   icon={
-                    <CircleDollarSign
+                    <CalendarDays
                       size={18}
                     />
                   }
-                  title="حق‌الزحمه و زمان‌بندی"
+                  title="زمان‌بندی"
                 >
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label="حق‌الزحمه (تومان)">
-                      <input
-                        value={
-                          feeInput
-                        }
-                        onChange={(
-                          event,
-                        ) => {
-                          setFeeInput(
-                            formatMoneyInput(
-                              event.target.value,
-                            ),
-                          )
-
-                          setError(
-                            null,
-                          )
-                        }}
-                        inputMode="numeric"
-                        dir="ltr"
-                        className={
-                          INPUT_CLASS
-                        }
-                      />
-                    </Field>
-
-                    <Field label="روش پرداخت">
-                      <select
-                        value={
-                          paymentMode
-                        }
-                        onChange={(
-                          event,
-                        ) => {
-                          setPaymentMode(
-                            event.target.value as OnlineContractPaymentMode,
-                          )
-
-                          setError(
-                            null,
-                          )
-                        }}
-                        className={
-                          INPUT_CLASS
-                        }
-                      >
-                        <option value="full">
-                          پرداخت کامل
-                        </option>
-
-                        <option value="staged">
-                          پرداخت مرحله‌ای
-                        </option>
-
-                        <option value="installments">
-                          پرداخت اقساطی
-                        </option>
-                      </select>
-                    </Field>
-
                     <Field label="تاریخ شروع">
                       <input
                         value={
@@ -1142,41 +992,9 @@ export default function LawyerOnlineContractPanel({
                     </Field>
                   </div>
 
-                  <div className="mt-4">
-                    <Field label="جزئیات پرداخت">
-                      <textarea
-                        value={
-                          paymentDetails
-                        }
-                        onChange={(
-                          event,
-                        ) => {
-                          setPaymentDetails(
-                            event.target.value,
-                          )
-
-                          setError(
-                            null,
-                          )
-                        }}
-                        rows={
-                          2
-                        }
-                        maxLength={
-                          1000
-                        }
-                        placeholder={
-                          paymentMode ===
-                          'full'
-                            ? 'اختیاری؛ در صورت خالی بودن متن پیش‌فرض درج می‌شود.'
-                            : 'زمان و مبلغ هر مرحله یا قسط را مشخص کنید.'
-                        }
-                        className={
-                          TEXTAREA_CLASS
-                        }
-                      />
-                    </Field>
-                  </div>
+                  <p className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs font-bold leading-6 text-blue-800">
+                    حق‌الزحمه و شرایط پرداخت پس از بررسی درخواست توسط وکیل تعیین و برای تأیید شما ارسال می‌شود.
+                  </p>
                 </Section>
 
                 <Section
@@ -1272,22 +1090,6 @@ export default function LawyerOnlineContractPanel({
                       />
 
                       <ReviewItem
-                        label="حق‌الزحمه"
-                        value={`${reviewInput.feeToman.toLocaleString(
-                          'fa-IR',
-                        )} تومان`}
-                      />
-
-                      <ReviewItem
-                        label="روش پرداخت"
-                        value={
-                          PAYMENT_LABELS[
-                            reviewInput.paymentMode
-                          ]
-                        }
-                      />
-
-                      <ReviewItem
                         label="تاریخ شروع"
                         value={
                           reviewInput.startDate
@@ -1310,11 +1112,10 @@ export default function LawyerOnlineContractPanel({
                     />
 
                     <ReviewText
-                      label="شرایط پرداخت"
-                      value={
-                        reviewInput.paymentDetails
-                      }
+                      label="حق‌الزحمه و شرایط پرداخت"
+                      value="حق‌الزحمه و شرایط پرداخت پس از بررسی وکیل تعیین می‌شود."
                     />
+
 
                     {
                       reviewInput.additionalTerms &&
@@ -1455,13 +1256,13 @@ function Section({
   children,
 }: {
   icon:
-    ReactNode
+  ReactNode
 
   title:
-    string
+  string
 
   children:
-    ReactNode
+  ReactNode
 }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5">
@@ -1491,10 +1292,10 @@ function Field({
   children,
 }: {
   label:
-    string
+  string
 
   children:
-    ReactNode
+  ReactNode
 }) {
   return (
     <label className="block">
@@ -1516,10 +1317,10 @@ function ReviewItem({
   value,
 }: {
   label:
-    string
+  string
 
   value:
-    string
+  string
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3">
@@ -1543,10 +1344,10 @@ function ReviewText({
   value,
 }: {
   label:
-    string
+  string
 
   value:
-    string
+  string
 }) {
   return (
     <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
@@ -1569,7 +1370,7 @@ function ErrorBox({
   message,
 }: {
   message:
-    string
+  string
 }) {
   return (
     <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-6 text-red-700">

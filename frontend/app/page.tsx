@@ -137,7 +137,7 @@ const clientServices:
         'قرارداد آنلاین',
 
       description:
-        'شرایط خدمات حقوقی، محدوده همکاری و حق‌الزحمه را در قالب قرارداد مدیریت کنید.',
+        'شرایط خدمات حقوقی و محدوده همکاری را در قالب قرارداد آنلاین مدیریت کنید و حق‌الزحمه را وکیل اعلام می‌کند.',
 
       href:
         '/client-portal#lawyers',
@@ -709,7 +709,7 @@ function FeatureCard({
   feature,
 }: {
   feature:
-    FeatureItem
+  FeatureItem
 }) {
   const Icon =
     feature.icon
@@ -738,10 +738,10 @@ function WorkflowStep({
   text,
 }: {
   number:
-    string
+  string
 
   text:
-    string
+  string
 }) {
   return (
     <li className="flex items-start gap-3">

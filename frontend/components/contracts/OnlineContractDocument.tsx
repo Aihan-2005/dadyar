@@ -13,6 +13,11 @@ import type {
   OnlineContractRecord,
 } from '@/features/client-portal/types/contract'
 
+import {
+  formatContractFee,
+  isContractFeePending,
+} from '@/features/client-portal/utils/contract-fee'
+
 interface OnlineContractDocumentProps {
   contract:
     OnlineContractRecord
@@ -125,6 +130,11 @@ export default function OnlineContractDocument({
           'staged'
         ? 'پرداخت مرحله‌ای'
         : 'پرداخت اقساطی'
+
+        const feePending =
+  isContractFeePending(
+    contract,
+  )
 
   return (
     <main
@@ -323,29 +333,43 @@ export default function OnlineContractDocument({
           number="۵"
           title="حق‌الزحمه و شرایط پرداخت"
         >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ValueBox
-              label="مبلغ حق‌الزحمه"
-              value={`${contract.draft.feeToman.toLocaleString(
-                'fa-IR',
-              )} تومان`}
-            />
+          {
+            feePending
+              ? (
+                <Paragraph>
+                  حق‌الزحمه و شرایط پرداخت پس از بررسی وکیل تعیین می‌شود.
+                </Paragraph>
+              )
+              : (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ValueBox
+                      label="مبلغ حق‌الزحمه"
+                      value={
+                        formatContractFee(
+                          contract,
+                        )
+                      }
+                    />
 
-            <ValueBox
-              label="روش پرداخت"
-              value={
-                paymentLabel
-              }
-            />
-          </div>
+                    <ValueBox
+                      label="روش پرداخت"
+                      value={
+                        paymentLabel
+                      }
+                    />
+                  </div>
 
-          <div className="mt-3">
-            <Paragraph>
-              {
-                contract.draft.paymentDetails
-              }
-            </Paragraph>
-          </div>
+                  <div className="mt-3">
+                    <Paragraph>
+                      {
+                        contract.draft.paymentDetails
+                      }
+                    </Paragraph>
+                  </div>
+                </>
+              )
+          }
         </DocumentSection>
 
         <DocumentSection

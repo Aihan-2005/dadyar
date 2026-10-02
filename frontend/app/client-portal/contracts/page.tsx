@@ -38,6 +38,10 @@ import {
   getClientOnlineContracts,
 } from '@/services/online-contract.service'
 
+import {
+  formatContractFee,
+} from '@/features/client-portal/utils/contract-fee'
+
 function getStatusMeta(
   status:
     OnlineContractStatus,
@@ -529,12 +533,10 @@ export default function ClientContractsPage() {
 
                                 <span className="text-sm font-black text-emerald-800">
                                   {
-                                    contract.draft.feeToman.toLocaleString(
-                                      'fa-IR',
+                                    formatContractFee(
+                                      contract,
                                     )
                                   }
-                                  {' '}
-                                  تومان
                                 </span>
                               </div>
 

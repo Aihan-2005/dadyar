@@ -35,19 +35,22 @@ import {
   signLawyerOnlineContract,
 } from '@/services/online-contract.service'
 
+import {
+  isContractFeePending,
+} from '@/features/client-portal/utils/contract-fee'
 
 interface OnlineContractReviewModalProps {
   contract:
-    OnlineContractRecord |
-    null
+  OnlineContractRecord |
+  null
 
   onClose:
-    () => void
+  () => void
 
   onUpdated:
-    () =>
-      void |
-      Promise<void>
+  () =>
+    void |
+    Promise<void>
 }
 
 
@@ -71,7 +74,7 @@ function getStatusLabel(
     OnlineContractRecord['status'],
 ): string {
   switch (
-    status
+  status
   ) {
     case 'waiting_lawyer_review':
       return 'در انتظار بررسی شما'
@@ -249,7 +252,10 @@ export default function OnlineContractReviewModal({
       ) {
         return
       }
-
+      const feePending =
+        isContractFeePending(
+          contract,
+        )
 
       setSubject(
         contract.draft.subject,
@@ -260,21 +266,24 @@ export default function OnlineContractReviewModal({
         contract.draft.scope,
       )
 
-
       setFeeInput(
-        formatMoneyInput(
-          contract.draft.feeToman,
-        ),
+        feePending
+          ? ''
+          : formatMoneyInput(
+            contract.draft.feeToman,
+          ),
       )
-
 
       setPaymentMode(
-        contract.draft.paymentMode,
+        feePending
+          ? 'full'
+          : contract.draft.paymentMode,
       )
 
-
       setPaymentDetails(
-        contract.draft.paymentDetails,
+        feePending
+          ? ''
+          : contract.draft.paymentDetails,
       )
 
 
@@ -285,7 +294,7 @@ export default function OnlineContractReviewModal({
 
       setAdditionalTerms(
         contract.draft.additionalTerms ??
-          '',
+        '',
       )
 
 
@@ -340,7 +349,7 @@ export default function OnlineContractReviewModal({
         ) => {
           if (
             event.key ===
-              'Escape' &&
+            'Escape' &&
             !pendingAction
           ) {
             onClose()
@@ -465,7 +474,7 @@ export default function OnlineContractReviewModal({
       if (
         !fee ||
         fee <=
-          0
+        0
       ) {
         setError(
           'مبلغ قرارداد معتبر نیست.',
@@ -489,9 +498,9 @@ export default function OnlineContractReviewModal({
 
       if (
         paymentMode !==
-          'full' &&
+        'full' &&
         normalizedPaymentDetails.length <
-          5
+        5
       ) {
         setError(
           'جزئیات پرداخت را کامل وارد کنید.',
@@ -529,9 +538,9 @@ export default function OnlineContractReviewModal({
 
             paymentDetails:
               paymentMode ===
-              'full'
+                'full'
                 ? normalizedPaymentDetails ||
-                  'پرداخت کامل طبق توافق طرفین.'
+                'پرداخت کامل طبق توافق طرفین.'
                 : normalizedPaymentDetails,
 
             servicePeriod:
@@ -549,8 +558,8 @@ export default function OnlineContractReviewModal({
 
         onClose()
       } catch (
-        caughtError:
-          unknown
+      caughtError:
+        unknown
       ) {
         setError(
           caughtError instanceof
@@ -615,8 +624,8 @@ export default function OnlineContractReviewModal({
 
         onClose()
       } catch (
-        caughtError:
-          unknown
+      caughtError:
+        unknown
       ) {
         setError(
           caughtError instanceof
@@ -674,8 +683,8 @@ export default function OnlineContractReviewModal({
 
         onClose()
       } catch (
-        caughtError:
-          unknown
+      caughtError:
+        unknown
       ) {
         setError(
           caughtError instanceof
@@ -927,8 +936,21 @@ export default function OnlineContractReviewModal({
                 size={18}
               />
             }
-            title="شرایط مالی"
+            title="شرایط مالی (تعیین توسط وکیل)"
           >
+
+            {
+              editable &&
+              isContractFeePending(
+                contract,
+              ) &&
+              (
+                <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold leading-6 text-amber-800">
+                  موکل حق‌الزحمه را مشخص نکرده است. مبلغ و شرایط پرداخت را شما وارد کنید و نسخه را برای تأیید موکل ارسال کنید.
+                </p>
+              )
+            }
+
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="حق‌الزحمه">
                 <input
@@ -1156,7 +1178,7 @@ export default function OnlineContractReviewModal({
 
           {
             contract.status ===
-              'rejected' &&
+            'rejected' &&
             contract.rejectionReason &&
             (
               <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
@@ -1212,7 +1234,7 @@ export default function OnlineContractReviewModal({
                         >
                           {
                             pendingAction ===
-                            'review'
+                              'review'
                               ? (
                                 <Loader2
                                   size={18}
@@ -1309,7 +1331,7 @@ export default function OnlineContractReviewModal({
                           >
                             {
                               pendingAction ===
-                              'reject'
+                                'reject'
                                 ? (
                                   <Loader2
                                     size={17}
@@ -1403,7 +1425,7 @@ export default function OnlineContractReviewModal({
                 >
                   {
                     pendingAction ===
-                    'sign'
+                      'sign'
                       ? (
                         <Loader2
                           size={18}
@@ -1446,13 +1468,13 @@ function Section({
   children,
 }: {
   icon:
-    ReactNode
+  ReactNode
 
   title:
-    string
+  string
 
   children:
-    ReactNode
+  ReactNode
 }) {
   return (
     <section className="mt-6 border-t border-slate-200 pt-5 first:mt-0 first:border-0 first:pt-0">
@@ -1483,10 +1505,10 @@ function Field({
   children,
 }: {
   label:
-    string
+  string
 
   children:
-    ReactNode
+  ReactNode
 }) {
   return (
     <label className="block">
@@ -1510,14 +1532,14 @@ function Info({
   dir,
 }: {
   label:
-    string
+  string
 
   value:
-    string
+  string
 
   dir?:
-    | 'ltr'
-    | 'rtl'
+  | 'ltr'
+  | 'rtl'
 }) {
   return (
     <div className="rounded-xl bg-slate-50 p-3">

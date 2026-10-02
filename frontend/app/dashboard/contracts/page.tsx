@@ -37,6 +37,10 @@ import {
   getLawyerOnlineContracts,
 } from '@/services/online-contract.service'
 
+import {
+  isContractFeePending,
+} from '@/features/client-portal/utils/contract-fee'
+
 type StatusFilter =
   | 'all'
   | OnlineContractStatus
@@ -46,7 +50,7 @@ function getStatusMeta(
     OnlineContractStatus,
 ) {
   switch (
-    status
+  status
   ) {
     case 'waiting_lawyer_review':
       return {
@@ -200,8 +204,8 @@ export default function OnlineContractsPage() {
             result.items,
           )
         } catch (
-          caughtError:
-            unknown
+        caughtError:
+          unknown
         ) {
           setError(
             caughtError instanceof
@@ -245,9 +249,9 @@ export default function OnlineContractsPage() {
               contract,
             ) =>
               contract.status ===
-                'waiting_lawyer_review' ||
+              'waiting_lawyer_review' ||
               contract.status ===
-                'waiting_lawyer_signature',
+              'waiting_lawyer_signature',
           ).length,
 
         waitingClient:
@@ -289,9 +293,9 @@ export default function OnlineContractsPage() {
           ) => {
             if (
               statusFilter !==
-                'all' &&
+              'all' &&
               contract.status !==
-                statusFilter
+              statusFilter
             ) {
               return false
             }
@@ -576,12 +580,14 @@ export default function OnlineContractsPage() {
 
                                   <p className="mt-1 text-sm font-black text-emerald-800">
                                     {
-                                      contract.draft.feeToman.toLocaleString(
-                                        'fa-IR',
+                                      isContractFeePending(
+                                        contract,
                                       )
+                                        ? 'تعیین‌نشده'
+                                        : `${contract.draft.feeToman.toLocaleString(
+                                          'fa-IR',
+                                        )} تومان`
                                     }
-                                    {' '}
-                                    تومان
                                   </p>
                                 </div>
                               </div>
@@ -630,7 +636,7 @@ export default function OnlineContractsPage() {
 
                               {
                                 contract.status ===
-                                  'rejected' &&
+                                'rejected' &&
                                 contract.rejectionReason &&
                                 (
                                   <div className="mt-3 flex gap-2 rounded-xl border border-red-100 bg-red-50 p-3">
@@ -660,10 +666,10 @@ export default function OnlineContractsPage() {
                                 >
                                   {
                                     contract.status ===
-                                    'waiting_lawyer_review'
+                                      'waiting_lawyer_review'
                                       ? 'بررسی قرارداد'
                                       : contract.status ===
-                                          'waiting_lawyer_signature'
+                                        'waiting_lawyer_signature'
                                         ? 'تأیید نهایی'
                                         : 'مشاهده'
                                   }
@@ -722,16 +728,16 @@ function Stat({
   label,
   value,
   icon:
-    Icon,
+  Icon,
 }: {
   label:
-    string
+  string
 
   value:
-    number
+  number
 
   icon:
-    LucideIcon
+  LucideIcon
 }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4">

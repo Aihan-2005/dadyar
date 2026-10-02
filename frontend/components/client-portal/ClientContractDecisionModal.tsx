@@ -27,18 +27,23 @@ import {
   requestClientOnlineContractChanges,
 } from '@/services/online-contract.service'
 
+import {
+  formatContractFee,
+  isContractFeePending,
+} from '@/features/client-portal/utils/contract-fee'
+
 interface ClientContractDecisionModalProps {
   contract:
-    OnlineContractRecord |
-    null
+  OnlineContractRecord |
+  null
 
   onClose:
-    () => void
+  () => void
 
   onUpdated:
-    () =>
-      void |
-      Promise<void>
+  () =>
+    void |
+    Promise<void>
 }
 
 function formatDateTime(
@@ -78,7 +83,7 @@ function statusLabel(
     OnlineContractRecord,
 ): string {
   switch (
-    contract.status
+  contract.status
   ) {
     case 'waiting_lawyer_review':
       return 'در انتظار بررسی وکیل'
@@ -183,7 +188,7 @@ export default function ClientContractDecisionModal({
         ) => {
           if (
             event.key ===
-              'Escape' &&
+            'Escape' &&
             !pendingAction
           ) {
             onClose()
@@ -221,14 +226,14 @@ export default function ClientContractDecisionModal({
         if (
           !contract ||
           contract.versions.length <
-            2
+          2
         ) {
           return null
         }
 
         return contract.versions[
           contract.versions.length -
-            2
+          2
         ]
       },
       [
@@ -271,8 +276,8 @@ export default function ClientContractDecisionModal({
 
         onClose()
       } catch (
-        caughtError:
-          unknown
+      caughtError:
+        unknown
       ) {
         setError(
           caughtError instanceof
@@ -327,8 +332,8 @@ export default function ClientContractDecisionModal({
 
         onClose()
       } catch (
-        caughtError:
-          unknown
+      caughtError:
+        unknown
       ) {
         setError(
           caughtError instanceof
@@ -450,9 +455,11 @@ export default function ClientContractDecisionModal({
 
               <Info
                 label="حق‌الزحمه"
-                value={`${contract.draft.feeToman.toLocaleString(
-                  'fa-IR',
-                )} تومان`}
+                value={
+                  formatContractFee(
+                    contract,
+                  )
+                }
               />
 
               <Info
@@ -485,13 +492,19 @@ export default function ClientContractDecisionModal({
                 contract.draft.scope
               }
             />
-
-            <TextBox
-              label="شرایط پرداخت"
-              value={
-                contract.draft.paymentDetails
-              }
-            />
+            {
+              !isContractFeePending(
+                contract,
+              ) &&
+              (
+                <TextBox
+                  label="شرایط پرداخت"
+                  value={
+                    contract.draft.paymentDetails
+                  }
+                />
+              )
+            }
 
             {
               contract.draft.additionalTerms &&
@@ -522,14 +535,17 @@ export default function ClientContractDecisionModal({
                 </div>
 
                 <div className="mt-4">
-                  <ContractChanges
-                    previous={
-                      previousVersion.draft
-                    }
-                    current={
-                      contract.draft
-                    }
-                  />
+                <ContractChanges
+                  previous={
+                    previousVersion.draft
+                  }
+                  current={
+                    contract.draft
+                  }
+                  previousFeePending={
+                    previousVersion.version <= 1
+                  }
+                />
                 </div>
               </section>
             )
@@ -585,7 +601,7 @@ export default function ClientContractDecisionModal({
 
           {
             contract.status ===
-              'rejected' &&
+            'rejected' &&
             contract.rejectionReason &&
             (
               <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
@@ -635,7 +651,7 @@ export default function ClientContractDecisionModal({
                         >
                           {
                             pendingAction ===
-                            'approve'
+                              'approve'
                               ? (
                                 <Loader2
                                   size={18}
@@ -728,7 +744,7 @@ export default function ClientContractDecisionModal({
                           >
                             {
                               pendingAction ===
-                              'changes'
+                                'changes'
                                 ? (
                                   <Loader2
                                     size={16}
@@ -806,10 +822,10 @@ function Info({
   value,
 }: {
   label:
-    string
+  string
 
   value:
-    string
+  string
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -833,10 +849,10 @@ function TextBox({
   value,
 }: {
   label:
-    string
+  string
 
   value:
-    string
+  string
 }) {
   return (
     <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -858,22 +874,26 @@ function TextBox({
 function ContractChanges({
   previous,
   current,
+  previousFeePending,
 }: {
   previous:
     OnlineContractDraft
 
   current:
     OnlineContractDraft
+
+  previousFeePending:
+    boolean
 }) {
   const changes: Array<{
     label:
-      string
+    string
 
     before:
-      string
+    string
 
     after:
-      string
+    string
   }> = []
 
   const push =
@@ -917,21 +937,25 @@ function ContractChanges({
     current.scope,
   )
 
-  push(
-    'حق‌الزحمه',
-    `${previous.feeToman.toLocaleString(
-      'fa-IR',
-    )} تومان`,
-    `${current.feeToman.toLocaleString(
-      'fa-IR',
-    )} تومان`,
-  )
+push(
+  'حق‌الزحمه',
+  previousFeePending
+    ? 'تعیین‌نشده'
+    : `${previous.feeToman.toLocaleString(
+        'fa-IR',
+      )} تومان`,
+  `${current.feeToman.toLocaleString(
+    'fa-IR',
+  )} تومان`,
+)
 
-  push(
-    'شرایط پرداخت',
-    previous.paymentDetails,
-    current.paymentDetails,
-  )
+push(
+  'شرایط پرداخت',
+  previousFeePending
+    ? 'تعیین‌نشده'
+    : previous.paymentDetails,
+  current.paymentDetails,
+)
 
   push(
     'مدت خدمات',
@@ -942,9 +966,9 @@ function ContractChanges({
   push(
     'شروط تکمیلی',
     previous.additionalTerms ??
-      '',
+    '',
     current.additionalTerms ??
-      '',
+    '',
   )
 
   if (
