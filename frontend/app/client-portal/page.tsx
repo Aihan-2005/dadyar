@@ -27,6 +27,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Settings,
   ShieldCheck,
   SlidersHorizontal,
   UserPlus,
@@ -69,24 +70,24 @@ import {
 
 const DEFAULT_FILTERS:
   LawyerDirectoryFilters = {
-    search:
-      '',
+  search:
+    '',
 
-    city:
-      '',
+  city:
+    '',
 
-    specialty:
-      '',
+  specialty:
+    '',
 
-    consultationMode:
-      'all',
+  consultationMode:
+    'all',
 
-    acceptsNewClientsOnly:
-      false,
+  acceptsNewClientsOnly:
+    false,
 
-    sort:
-      'recommended',
-  }
+  sort:
+    'recommended',
+}
 
 
 export default function ClientPortalPage() {
@@ -244,8 +245,8 @@ export default function ClientPortalPage() {
             ),
           )
         } catch (
-          caughtError:
-            unknown
+        caughtError:
+          unknown
         ) {
           setDirectoryError(
             caughtError instanceof
@@ -270,15 +271,15 @@ export default function ClientPortalPage() {
    *
    * بنابراین Guest درخواست API نمی‌زند.
    */
-useEffect(
-  () => {
-    void loadDirectory()
-  },
+  useEffect(
+    () => {
+      void loadDirectory()
+    },
 
-  [
-    loadDirectory,
-  ],
-)
+    [
+      loadDirectory,
+    ],
+  )
 
 
   const specialties =
@@ -447,7 +448,19 @@ useEffect(
                     قراردادها
                   </span>
                 </Link>
+                <Link
+                  href="/client-portal/settings"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 sm:w-auto sm:px-3"
+                  title="تنظیمات"
+                >
+                  <Settings
+                    size={16}
+                  />
 
+                  <span className="mr-2 hidden xl:inline">
+                    تنظیمات
+                  </span>
+                </Link>
                 <button
                   type="button"
                   onClick={
@@ -524,8 +537,8 @@ useEffect(
                 </span>
               </h1>
 
-            
-            
+
+
 
               <div className="mt-7 max-w-3xl">
                 <div className="relative">
@@ -534,235 +547,235 @@ useEffect(
                     className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
                   />
 
-                    <input
-                      value={
-                        filters.search
-                      }
-                      onChange={(
-                        event,
-                      ) =>
-                        updateFilter(
-                          'search',
+                  <input
+                    value={
+                      filters.search
+                    }
+                    onChange={(
+                      event,
+                    ) =>
+                      updateFilter(
+                        'search',
 
-                          event.target.value,
-                        )
-                      }
-                      type="search"
-                      placeholder="نام وکیل، تخصص، شماره پروانه یا نشانی..."
-                      className="h-14 w-full rounded-2xl border border-slate-300 bg-white pr-12 pl-4 text-sm font-bold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 sm:text-base"
-                    />
+                        event.target.value,
+                      )
+                    }
+                    type="search"
+                    placeholder="نام وکیل، تخصص، شماره پروانه یا نشانی..."
+                    className="h-14 w-full rounded-2xl border border-slate-300 bg-white pr-12 pl-4 text-sm font-bold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50 sm:text-base"
+                  />
                 </div>
               </div>
             </div>
           </section>
 
-          
-            <>
-              <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <StatCard
-                  label="وکلای منتشرشده"
-                  value={
-                    directoryLawyers.length
-                  }
-                  icon={
-                    UsersRound
-                  }
-                />
 
-                <StatCard
-                  label="حوزه‌های تخصصی"
-                  value={
-                    specialties.length
-                  }
-                  icon={
-                    BriefcaseBusiness
-                  }
-                />
+          <>
+            <section className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <StatCard
+                label="وکلای منتشرشده"
+                value={
+                  directoryLawyers.length
+                }
+                icon={
+                  UsersRound
+                }
+              />
 
-                <StatCard
-                  label="پروانه ثبت‌شده"
-                  value={
-                    licensedCount
-                  }
-                  icon={
-                    ShieldCheck
-                  }
-                />
+              <StatCard
+                label="حوزه‌های تخصصی"
+                value={
+                  specialties.length
+                }
+                icon={
+                  BriefcaseBusiness
+                }
+              />
 
-                <StatCard
-                  label="قابل ارسال درخواست"
-                  value={
-                    directoryLawyers.length
-                  }
-                  icon={
-                    ListChecks
-                  }
-                />
-              </section>
+              <StatCard
+                label="پروانه ثبت‌شده"
+                value={
+                  licensedCount
+                }
+                icon={
+                  ShieldCheck
+                }
+              />
 
-              {directoryError && (
-                <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-7 text-red-700 sm:flex-row sm:items-center sm:justify-between">
-                  <span>
-                    {directoryError}
-                  </span>
+              <StatCard
+                label="قابل ارسال درخواست"
+                value={
+                  directoryLawyers.length
+                }
+                icon={
+                  ListChecks
+                }
+              />
+            </section>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void loadDirectory()
+            {directoryError && (
+              <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold leading-7 text-red-700 sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  {directoryError}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    void loadDirectory()
+                  }
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-xs font-black text-red-700"
+                >
+                  <RefreshCw
+                    size={15}
+                  />
+
+                  تلاش دوباره
+                </button>
+              </div>
+            )}
+
+            <div className="mt-7 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+              <aside className="hidden lg:block">
+                <div className="sticky top-24 rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <FilterHeader
+                    activeCount={
+                      activeFilterCount
                     }
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-xs font-black text-red-700"
-                  >
-                    <RefreshCw
-                      size={15}
-                    />
+                    onReset={
+                      resetFilters
+                    }
+                  />
 
-                    تلاش دوباره
-                  </button>
-                </div>
-              )}
-
-              <div className="mt-7 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-                <aside className="hidden lg:block">
-                  <div className="sticky top-24 rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-                    <FilterHeader
-                      activeCount={
-                        activeFilterCount
+                  <div className="mt-5 space-y-5">
+                    <LawyerFilterFields
+                      filters={
+                        filters
                       }
-                      onReset={
-                        resetFilters
+                      specialties={
+                        specialties
+                      }
+                      updateFilter={
+                        updateFilter
                       }
                     />
-
-                    <div className="mt-5 space-y-5">
-                      <LawyerFilterFields
-                        filters={
-                          filters
-                        }
-                        specialties={
-                          specialties
-                        }
-                        updateFilter={
-                          updateFilter
-                        }
-                      />
-                    </div>
                   </div>
-                </aside>
+                </div>
+              </aside>
 
-                <section className="min-w-0">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h2 className="text-xl font-black sm:text-2xl">
-                        انتخاب وکیل
-                      </h2>
+              <section className="min-w-0">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-xl font-black sm:text-2xl">
+                      انتخاب وکیل
+                    </h2>
 
-                      <p className="mt-1 text-sm font-semibold text-slate-500">
-                        {lawyers.length.toLocaleString(
-                          'fa-IR',
-                        )}{' '}
-                        نتیجه
-                      </p>
-                    </div>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      {lawyers.length.toLocaleString(
+                        'fa-IR',
+                      )}{' '}
+                      نتیجه
+                    </p>
+                  </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowMobileFilters(
-                            true,
-                          )
-                        }
-                        className="relative inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 lg:hidden"
-                      >
-                        <SlidersHorizontal
-                          size={17}
-                        />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowMobileFilters(
+                          true,
+                        )
+                      }
+                      className="relative inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-black text-slate-700 lg:hidden"
+                    >
+                      <SlidersHorizontal
+                        size={17}
+                      />
 
-                        فیلتر
+                      فیلتر
 
-                        {activeFilterCount >
-                          0 && (
+                      {activeFilterCount >
+                        0 && (
                           <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] text-white">
                             {activeFilterCount.toLocaleString(
                               'fa-IR',
                             )}
                           </span>
                         )}
-                      </button>
+                    </button>
 
-                      <div className="relative">
-                        <select
-                          value={
-                            filters.sort
-                          }
-                          onChange={(
-                            event,
-                          ) =>
-                            updateFilter(
-                              'sort',
+                    <div className="relative">
+                      <select
+                        value={
+                          filters.sort
+                        }
+                        onChange={(
+                          event,
+                        ) =>
+                          updateFilter(
+                            'sort',
 
-                              event.target.value as LawyerDirectoryFilters['sort'],
-                            )
-                          }
-                          className="h-11 appearance-none rounded-xl border border-slate-300 bg-white pr-4 pl-10 text-sm font-black text-slate-700 outline-none focus:border-blue-500"
-                        >
-                          <option value="recommended">
-                            ترتیب دادیار
-                          </option>
+                            event.target.value as LawyerDirectoryFilters['sort'],
+                          )
+                        }
+                        className="h-11 appearance-none rounded-xl border border-slate-300 bg-white pr-4 pl-10 text-sm font-black text-slate-700 outline-none focus:border-blue-500"
+                      >
+                        <option value="recommended">
+                          ترتیب دادیار
+                        </option>
 
-                          <option value="experience">
-                            بیشترین سابقه
-                          </option>
-                        </select>
+                        <option value="experience">
+                          بیشترین سابقه
+                        </option>
+                      </select>
 
-                        <ChevronDown
-                          size={16}
-                          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {directoryLoading ? (
-                    <div className="mt-5 flex min-h-72 items-center justify-center rounded-[24px] border border-slate-200 bg-white">
-                      <Loader2
-                        size={30}
-                        className="animate-spin text-blue-600"
+                      <ChevronDown
+                        size={16}
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
                       />
                     </div>
-                  ) : lawyers.length >
-                    0 ? (
-                    <div className="mt-5 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
-                      {lawyers.map(
-                        (
-                          lawyer,
-                        ) => (
-                          <LawyerCard
-                            key={
-                              lawyer.id
-                            }
-                            lawyer={
-                              lawyer
-                            }
-                            onContact={
-                              setSelectedLawyer
-                            }
-                          />
-                        ),
-                      )}
-                    </div>
-                  ) : (
-                    <EmptyState
-                      onReset={
-                        resetFilters
-                      }
+                  </div>
+                </div>
+
+                {directoryLoading ? (
+                  <div className="mt-5 flex min-h-72 items-center justify-center rounded-[24px] border border-slate-200 bg-white">
+                    <Loader2
+                      size={30}
+                      className="animate-spin text-blue-600"
                     />
-                  )}
-                </section>
-              </div>
-            </>
-          
+                  </div>
+                ) : lawyers.length >
+                  0 ? (
+                  <div className="mt-5 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {lawyers.map(
+                      (
+                        lawyer,
+                      ) => (
+                        <LawyerCard
+                          key={
+                            lawyer.id
+                          }
+                          lawyer={
+                            lawyer
+                          }
+                          onContact={
+                            setSelectedLawyer
+                          }
+                        />
+                      ),
+                    )}
+                  </div>
+                ) : (
+                  <EmptyState
+                    onReset={
+                      resetFilters
+                    }
+                  />
+                )}
+              </section>
+            </div>
+          </>
+
         </div>
       </main>
 
@@ -863,10 +876,10 @@ function FilterHeader({
   onReset,
 }: {
   activeCount:
-    number
+  number
 
   onReset:
-    () => void
+  () => void
 }) {
   return (
     <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
@@ -884,31 +897,31 @@ function FilterHeader({
 
         {activeCount >
           0 && (
-          <p className="mt-1 text-xs font-black text-blue-600">
-            {activeCount.toLocaleString(
-              'fa-IR',
-            )}{' '}
-            فیلتر فعال
-          </p>
-        )}
+            <p className="mt-1 text-xs font-black text-blue-600">
+              {activeCount.toLocaleString(
+                'fa-IR',
+              )}{' '}
+              فیلتر فعال
+            </p>
+          )}
       </div>
 
       {activeCount >
         0 && (
-        <button
-          type="button"
-          onClick={
-            onReset
-          }
-          className="inline-flex items-center gap-1 text-xs font-black text-slate-500"
-        >
-          <RotateCcw
-            size={14}
-          />
+          <button
+            type="button"
+            onClick={
+              onReset
+            }
+            className="inline-flex items-center gap-1 text-xs font-black text-slate-500"
+          >
+            <RotateCcw
+              size={14}
+            />
 
-          پاک کردن
-        </button>
-      )}
+            پاک کردن
+          </button>
+        )}
     </div>
   )
 }
@@ -922,10 +935,10 @@ function LawyerFilterFields({
   updateFilter,
 }: {
   filters:
-    LawyerDirectoryFilters
+  LawyerDirectoryFilters
 
   specialties:
-    string[]
+  string[]
 
   updateFilter: <
     K extends keyof LawyerDirectoryFilters,
@@ -988,10 +1001,10 @@ function FilterField({
   children,
 }: {
   label:
-    string
+  string
 
   children:
-    ReactNode
+  ReactNode
 }) {
   return (
     <div>
@@ -1009,7 +1022,7 @@ function EmptyState({
   onReset,
 }: {
   onReset:
-    () => void
+  () => void
 }) {
   return (
     <div className="mt-5 rounded-[24px] border border-dashed border-slate-300 bg-white px-5 py-14 text-center">
@@ -1046,16 +1059,16 @@ function StatCard({
   value,
 
   icon:
-    Icon,
+  Icon,
 }: {
   label:
-    string
+  string
 
   value:
-    number
+  number
 
   icon:
-    LucideIcon
+  LucideIcon
 }) {
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
