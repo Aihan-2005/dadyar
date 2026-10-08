@@ -110,72 +110,111 @@ function getUtf8ByteLength(
 
 
 
-const loginSchema =
+// const loginSchema =
+//   z.object({
+//     identifier:
+//       z
+//         .string()
+//         .trim()
+//         .min(
+//           1,
+//           'ایمیل یا شماره همراه را وارد کنید'
+//         )
+//         .refine(
+//           (value) =>
+//             EMAIL_PATTERN.test(
+//               value
+//             ) ||
+//             MOBILE_PATTERN.test(
+//               normalizeDigits(
+//                 value
+//               )
+//             ),
+
+//           'ایمیل یا شماره همراه معتبر نیست'
+//         ),
+
+//     password:
+//       z.string()
+//         .min(
+//           1,
+//           'رمز عبور را وارد کنید'
+//         )
+//         .refine(
+//           (value) =>
+//             getUtf8ByteLength(
+//               value
+//             ) <=
+//             PASSWORD_MAX_BYTES,
+//           'رمز عبور نباید بیشتر از ۷۲ بایت باشد'
+//         ),
+//   })
+
+
+
+
+// const otpIdentifierSchema =
+//   z.object({
+//     identifier:
+//       z
+//         .string()
+//         .trim()
+//         .min(
+//           1,
+//           'ایمیل یا شماره همراه را وارد کنید'
+//         )
+//         .refine(
+//           (value) =>
+//             EMAIL_PATTERN.test(
+//               value
+//             ) ||
+//             MOBILE_PATTERN.test(
+//               normalizeDigits(
+//                 value
+//               )
+//             ),
+
+//           'ایمیل یا شماره همراه معتبر نیست'
+//         ),
+//   })
+
+type IdentifierType = 'phone' | 'email'
+
+const buildIdentifierSchema = (type: IdentifierType) =>
+  z
+    .string()
+    .trim()
+    .min(
+      1,
+      type === 'phone'
+        ? 'شماره همراه را وارد کنید'
+        : 'ایمیل را وارد کنید'
+    )
+    .refine(
+      (value) =>
+        type === 'phone'
+          ? MOBILE_PATTERN.test(normalizeDigits(value))
+          : EMAIL_PATTERN.test(value),
+      type === 'phone'
+        ? 'شماره همراه معتبر نیست (مثال: 09123456789)'
+        : 'ایمیل معتبر نیست'
+    )
+
+const buildLoginSchema = (type: IdentifierType) =>
   z.object({
-    identifier:
-      z
-        .string()
-        .trim()
-        .min(
-          1,
-          'ایمیل یا شماره همراه را وارد کنید'
-        )
-        .refine(
-          (value) =>
-            EMAIL_PATTERN.test(
-              value
-            ) ||
-            MOBILE_PATTERN.test(
-              normalizeDigits(
-                value
-              )
-            ),
-
-          'ایمیل یا شماره همراه معتبر نیست'
-        ),
-
-    password:
-      z.string()
-        .min(
-          1,
-          'رمز عبور را وارد کنید'
-        )
-        .refine(
-          (value) =>
-            getUtf8ByteLength(
-              value
-            ) <=
-            PASSWORD_MAX_BYTES,
-          'رمز عبور نباید بیشتر از ۷۲ بایت باشد'
-        ),
+    identifier: buildIdentifierSchema(type),
+    password: z
+      .string()
+      .min(1, 'رمز عبور را وارد کنید')
+      .refine(
+        (value) => getUtf8ByteLength(value) <= PASSWORD_MAX_BYTES,
+        'رمز عبور نباید بیشتر از ۷۲ بایت باشد'
+      ),
   })
 
-
-
-
-const otpIdentifierSchema =
+const buildOtpIdentifierSchema = (type: IdentifierType) =>
   z.object({
-    identifier:
-      z
-        .string()
-        .trim()
-        .min(
-          1,
-          'ایمیل یا شماره همراه را وارد کنید'
-        )
-        .refine(
-          (value) =>
-            EMAIL_PATTERN.test(
-              value
-            ) ||
-            MOBILE_PATTERN.test(
-              normalizeDigits(
-                value
-              )
-            ),
-
-          'ایمیل یا شماره همراه معتبر نیست'
-        ),
+    identifier: buildIdentifierSchema(type),
   })
 
 const signupSchema =
@@ -287,16 +326,11 @@ const signupSchema =
     )
 
 
-type LoginFormData =
-  z.infer<
-    typeof loginSchema
-  >
+type LoginFormData = z.infer<ReturnType<typeof buildLoginSchema>>
 
-type OtpIdentifierFormData =
-  z.infer<
-    typeof otpIdentifierSchema
-  >
-
+type OtpIdentifierFormData = z.infer<
+  ReturnType<typeof buildOtpIdentifierSchema>
+>
 type SignupFormData =
   z.infer<
     typeof signupSchema
@@ -330,7 +364,37 @@ const errorClassName =
   'mt-1 text-xs font-bold text-red-600 sm:text-sm'
 
 
+const labelInlineClassName =
+  'block text-sm font-black text-slate-800 sm:text-base'
 
+function IdentifierLabel({
+  htmlFor,
+  type,
+  onToggle,
+  disabled,
+}: {
+  htmlFor: string
+  type: IdentifierType
+  onToggle: () => void
+  disabled?: boolean
+}) {
+  return (
+    <div className="mb-1.5 flex items-center justify-between gap-3">
+      <label htmlFor={htmlFor} className={labelInlineClassName}>
+        {type === 'phone' ? 'شماره همراه' : 'ایمیل'}
+      </label>
+
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={disabled}
+        className="text-xs font-black text-blue-700 transition hover:text-blue-800 disabled:opacity-50 sm:text-sm"
+      >
+        {type === 'phone' ? 'ورود با ایمیل' : 'ورود با شماره همراه'}
+      </button>
+    </div>
+  )
+}
 
 function formatCountdown(
   seconds:
@@ -375,7 +439,7 @@ export default function AuthForm({
   const router =
     useRouter()
 
- 
+
 
 
 
@@ -423,8 +487,8 @@ export default function AuthForm({
       defaultTab
     )
 
- 
-    
+
+
 
 
   const [
@@ -436,7 +500,8 @@ export default function AuthForm({
     )
 
 
-
+  const [identifierType, setIdentifierType] =
+    useState<IdentifierType>('phone')
 
 
   const [
@@ -505,7 +570,7 @@ export default function AuthForm({
       0
     )
 
- 
+
 
 
 
@@ -522,11 +587,7 @@ export default function AuthForm({
 
   const loginForm =
     useForm<LoginFormData>({
-      resolver:
-        zodResolver(
-          loginSchema
-        ),
-
+      resolver: zodResolver(buildLoginSchema(identifierType)),
       defaultValues: {
         identifier:
           '',
@@ -538,10 +599,7 @@ export default function AuthForm({
 
   const otpIdentifierForm =
     useForm<OtpIdentifierFormData>({
-      resolver:
-        zodResolver(
-          otpIdentifierSchema
-        ),
+      resolver: zodResolver(buildOtpIdentifierSchema(identifierType)),
 
       defaultValues: {
         identifier:
@@ -617,7 +675,7 @@ export default function AuthForm({
     otpChallenge,
   ])
 
- 
+
 
 
 
@@ -653,14 +711,14 @@ export default function AuthForm({
       )
     }
 
-  
-const getLoginDestination =
-  () =>
-    selectedPlanKey
-      ? `/checkout?plan=${encodeURIComponent(
+
+  const getLoginDestination =
+    () =>
+      selectedPlanKey
+        ? `/checkout?plan=${encodeURIComponent(
           selectedPlanKey,
         )}`
-      : '/dashboard'
+        : '/dashboard'
 
 
 
@@ -712,7 +770,7 @@ const getLoginDestination =
       }
     }
 
- 
+
 
 
 
@@ -737,7 +795,36 @@ const getLoginDestination =
       }
     }
 
- 
+
+  const changeIdentifierType = () => {
+    const next: IdentifierType =
+      identifierType === 'phone' ? 'email' : 'phone'
+
+    clearAuthError()
+    setOtpError(null)
+    setIdentifierType(next)
+
+    loginForm.setValue('identifier', '')
+    loginForm.clearErrors('identifier')
+    otpIdentifierForm.setValue('identifier', '')
+    otpIdentifierForm.clearErrors('identifier')
+  }
+
+  const identifierInputProps =
+    identifierType === 'phone'
+      ? ({
+        type: 'tel',
+        inputMode: 'numeric',
+        placeholder: '09123456789',
+      } as const)
+      : ({
+        type: 'email',
+        inputMode: 'email',
+        placeholder: 'example@gmail.com',
+      } as const)
+
+  const normalizeIdentifier = (value: string) =>
+    identifierType === 'phone' ? normalizeDigits(value).trim() : value.trim()
 
 
 
@@ -751,24 +838,21 @@ const getLoginDestination =
 
       try {
         await login({
-          identifier:
-            data.identifier,
-
-          password:
-            data.password,
+          identifier: normalizeIdentifier(data.identifier),
+          password: data.password,
         })
 
         rememberSelectedPlan()
 
-       router.replace(
-  getLoginDestination()
-)
+        router.replace(
+          getLoginDestination()
+        )
       } catch {
         // auth.store exposes error.
       }
     }
 
-  
+
 
 
   const handleSignup =
@@ -818,7 +902,7 @@ const getLoginDestination =
       }
     }
 
-  
+
 
 
 
@@ -836,10 +920,9 @@ const getLoginDestination =
       )
 
       try {
-        const challenge =
-          await requestLoginOtp(
-            data.identifier
-          )
+        const challenge = await requestLoginOtp(
+          normalizeIdentifier(data.identifier)
+        )
 
         setOtpChallenge(
           challenge
@@ -873,7 +956,7 @@ const getLoginDestination =
       }
     }
 
-  
+
 
 
 
@@ -922,8 +1005,8 @@ const getLoginDestination =
         resetOtpFlow()
 
         router.replace(
-  getLoginDestination()
-)
+          getLoginDestination()
+        )
       } catch (
       error:
         unknown
@@ -941,7 +1024,7 @@ const getLoginDestination =
       }
     }
 
- 
+
 
 
 
@@ -1013,7 +1096,7 @@ const getLoginDestination =
       .isSubmitting ||
     isLoading
 
-  
+
 
 
   return (
@@ -1084,16 +1167,16 @@ const getLoginDestination =
 
         <section
           className={`relative flex h-full min-h-0 flex-col justify-center overflow-hidden ${isRegister
-              ? 'p-3 sm:p-5 lg:p-6'
-              : 'p-5 sm:p-8 lg:p-10'
+            ? 'p-3 sm:p-5 lg:p-6'
+            : 'p-5 sm:p-8 lg:p-10'
             }`}
         >
           {/* Mobile */}
 
           <div
             className={`flex items-center justify-between lg:hidden ${isRegister
-                ? 'mb-2'
-                : 'mb-5'
+              ? 'mb-2'
+              : 'mb-5'
               }`}
           >
             <Link
@@ -1119,8 +1202,8 @@ const getLoginDestination =
           >
             <div
               className={`flex items-center justify-center rounded-2xl bg-blue-100 text-blue-700 ${isRegister
-                  ? 'mb-5 h-10 w-10'
-                  : 'mb-4 h-12 w-12'
+                ? 'mb-5 h-10 w-10'
+                : 'mb-4 h-12 w-12'
                 }`}
             >
               <ShieldCheck
@@ -1134,8 +1217,8 @@ const getLoginDestination =
 
             <h2
               className={`font-black text-slate-950 ${isRegister
-                  ? 'text-2xl'
-                  : 'text-2xl sm:text-3xl'
+                ? 'text-2xl'
+                : 'text-2xl sm:text-3xl'
                 }`}
             >
               {isRegister
@@ -1145,8 +1228,8 @@ const getLoginDestination =
 
             <p
               className={`font-semibold text-slate-700 ${isRegister
-                  ? 'mt-1 text-xs sm:text-sm'
-                  : 'mt-2 text-sm sm:text-base'
+                ? 'mt-1 text-xs sm:text-sm'
+                : 'mt-2 text-sm sm:text-base'
                 }`}
             >
               {isRegister
@@ -1160,8 +1243,8 @@ const getLoginDestination =
           {selectedPlan && (
             <div
               className={`rounded-xl border border-blue-200 bg-blue-50 px-3 font-bold text-blue-800 ${isRegister
-                  ? 'mb-2 py-1.5 text-xs'
-                  : 'mb-3 py-2 text-sm'
+                ? 'mb-2 py-1.5 text-xs'
+                : 'mb-3 py-2 text-sm'
                 }`}
             >
               پلن انتخابی:
@@ -1176,8 +1259,8 @@ const getLoginDestination =
 
           <div
             className={`flex rounded-2xl border border-slate-200 bg-slate-100 p-1 ${isRegister
-                ? 'mb-3'
-                : 'mb-4'
+              ? 'mb-3'
+              : 'mb-4'
               }`}
           >
             <button
@@ -1188,8 +1271,8 @@ const getLoginDestination =
                 )
               }
               className={`flex-1 rounded-xl px-3 font-black transition ${isRegister
-                  ? 'py-2 text-sm'
-                  : 'py-3 text-base'
+                ? 'py-2 text-sm'
+                : 'py-3 text-base'
                 } ${activeTab ===
                   'login'
                   ? 'bg-white text-blue-700 shadow-sm'
@@ -1207,8 +1290,8 @@ const getLoginDestination =
                 )
               }
               className={`flex-1 rounded-xl px-3 font-black transition ${isRegister
-                  ? 'py-2 text-sm'
-                  : 'py-3 text-base'
+                ? 'py-2 text-sm'
+                : 'py-3 text-base'
                 } ${activeTab ===
                   'register'
                   ? 'bg-white text-blue-700 shadow-sm'
@@ -1233,9 +1316,9 @@ const getLoginDestination =
                     )
                   }
                   className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-black transition ${loginMethod ===
-                      'password'
-                      ? 'border-blue-300 bg-blue-50 text-blue-700'
-                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    'password'
+                    ? 'border-blue-300 bg-blue-50 text-blue-700'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     }`}
                 >
                   <LockKeyhole
@@ -1253,9 +1336,9 @@ const getLoginDestination =
                     )
                   }
                   className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-black transition ${loginMethod ===
-                      'otp'
-                      ? 'border-blue-300 bg-blue-50 text-blue-700'
-                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    'otp'
+                    ? 'border-blue-300 bg-blue-50 text-blue-700'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     }`}
                 >
                   <Smartphone
@@ -1299,33 +1382,21 @@ const getLoginDestination =
                   noValidate
                 >
                   <div>
-                    <label
+                    <IdentifierLabel
                       htmlFor="login-identifier"
-                      className={
-                        labelClassName
-                      }
-                    >
-                      ایمیل یا شماره همراه
-                    </label>
+                      type={identifierType}
+                      onToggle={changeIdentifierType}
+                      disabled={passwordLoginLoading}
+                    />
 
                     <input
                       id="login-identifier"
-                      {...loginForm.register(
-                        'identifier',
-                        {
-                          onChange:
-                            clearAuthError,
-                        }
-                      )}
+                      {...loginForm.register('identifier', { onChange: clearAuthError })}
+                      {...identifierInputProps}
                       dir="ltr"
                       autoComplete="username"
-                      disabled={
-                        passwordLoginLoading
-                      }
-                      className={
-                        inputClassName
-                      }
-                      placeholder="example@gmail.com یا 09123456789"
+                      disabled={passwordLoginLoading}
+                      className={inputClassName}
                     />
 
                     {loginForm
@@ -1443,7 +1514,7 @@ const getLoginDestination =
               ) : (
 
 
-                
+
 
                 <>
                   {!otpChallenge ? (
@@ -1457,36 +1528,23 @@ const getLoginDestination =
                       noValidate
                     >
                       <div>
-                        <label
+                        <IdentifierLabel
                           htmlFor="otp-identifier"
-                          className={
-                            labelClassName
-                          }
-                        >
-                          ایمیل یا شماره همراه
-                        </label>
+                          type={identifierType}
+                          onToggle={changeIdentifierType}
+                          disabled={otpLoading}
+                        />
 
                         <input
                           id="otp-identifier"
-                          {...otpIdentifierForm.register(
-                            'identifier',
-                            {
-                              onChange:
-                                () =>
-                                  setOtpError(
-                                    null
-                                  ),
-                            }
-                          )}
+                          {...otpIdentifierForm.register('identifier', {
+                            onChange: () => setOtpError(null),
+                          })}
+                          {...identifierInputProps}
                           dir="ltr"
                           autoComplete="username"
-                          disabled={
-                            otpLoading
-                          }
-                          className={
-                            inputClassName
-                          }
-                          placeholder="example@gmail.com یا 09123456789"
+                          disabled={otpLoading}
+                          className={inputClassName}
                         />
 
                         {otpIdentifierForm
@@ -2032,8 +2090,8 @@ const getLoginDestination =
 
           <div
             className={`text-center font-semibold text-slate-700 ${isRegister
-                ? 'mt-2 text-xs sm:text-sm'
-                : 'mt-5 text-sm sm:text-base'
+              ? 'mt-2 text-xs sm:text-sm'
+              : 'mt-5 text-sm sm:text-base'
               }`}
           >
             {isRegister
